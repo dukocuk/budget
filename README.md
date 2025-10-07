@@ -1,16 +1,74 @@
-# React + Vite
+# =° Budget Tracker 2025
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Modern budget tracking application with cross-device sync, offline support, and real-time updates.
 
-Currently, two official plugins are available:
+## ( Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- = **Google Authentication** - Secure login with your Google account
+- < **Cross-Device Sync** - Real-time synchronization across all your devices
+- =ô **Offline Mode** - Works without internet, syncs when back online
+- =Ê **Interactive Charts** - Visualize your spending with Pie, Bar, and Line charts
+- =¾ **Local PostgreSQL** - Fast local database (PGlite) in your browser
+-  **Cloud Backup** - Automatic backup to Supabase
+- <¨ **Modern UI** - Clean, responsive design with tab navigation
+- <é<ð **Danish Language** - Fully localized for Danish users
 
-## React Compiler
+## =€ Quick Start
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 1. Setup Supabase (15 min)
+Follow [`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md)
 
-## Expanding the ESLint configuration
+### 2. Configure Environment (2 min)
+```bash
+cp .env.example .env
+# Edit .env with your Supabase credentials
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 3. Replace App.jsx (1 min)
+```bash
+# Windows
+copy src\App.new.jsx src\App.jsx
+
+# Mac/Linux
+cp src/App.new.jsx src/App.jsx
+```
+
+### 4. Start App (1 min)
+```bash
+npm run dev
+```
+
+## =Ö Documentation
+
+- **[NEXT_STEPS.md](./NEXT_STEPS.md)**  **START HERE** for complete setup guide
+- **[SUPABASE_SETUP.md](./SUPABASE_SETUP.md)** - Database configuration
+- **[IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)** - Technical details
+
+## <× Tech Stack
+
+- React 19 + Vite
+- PGlite (Local PostgreSQL)
+- Supabase (Cloud + Realtime)
+- Recharts (Charts)
+
+## =ñ How It Works
+
+```
+Your Browser ’ Supabase Cloud ’ Other Devices
+     “               “               “
+  PGlite         PostgreSQL       PGlite
+  (local)         (cloud)         (local)
+```
+
+##  What's Built (95% Complete)
+
+All components ready! Just need to:
+1. Setup Supabase
+2. Create `.env` file
+3. Replace `App.jsx`
+
+See [`NEXT_STEPS.md`](./NEXT_STEPS.md) for details.
+
+---
+
+**Need help?** Check the documentation files!
