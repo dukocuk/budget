@@ -2,6 +2,7 @@
  * Expenses table component with inline editing
  */
 
+import { useState, useEffect, useMemo } from 'react'
 import { MONTHS, FREQUENCY_LABELS, FREQUENCY_TYPES } from '../utils/constants'
 import { calculateAnnualAmount } from '../utils/calculations'
 import './ExpensesTable.css'
@@ -15,13 +16,73 @@ export const ExpensesTable = ({
   onDelete
 }) => {
   const allSelected = selectedExpenses.length === expenses.length && expenses.length > 0
+  const [newlyAddedId, setNewlyAddedId] = useState(null)
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
+
+  // Track newly added expense (first in array)
+  useEffect(() => {
+    if (expenses.length > 0) {
+      const firstExpense = expenses[0]
+      // Only highlight if it's actually new (different from previous first)
+      setNewlyAddedId(firstExpense.id)
+
+      // Remove highlight class after animation completes
+      const timer = setTimeout(() => {
+        setNewlyAddedId(null)
+      }, 2000)
+
+      return () => clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expenses.length])
+
+  // Sort expenses
+  const sortedExpenses = useMemo(() => {
+    if (!sortConfig.key) return expenses
+
+    return [...expenses].sort((a, b) => {
+      let aVal, bVal
+
+      if (sortConfig.key === 'annualTotal') {
+        aVal = calculateAnnualAmount(a)
+        bVal = calculateAnnualAmount(b)
+      } else {
+        aVal = a[sortConfig.key]
+        bVal = b[sortConfig.key]
+      }
+
+      // Handle string comparison
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase()
+        bVal = bVal.toLowerCase()
+      }
+
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1
+      return 0
+    })
+  }, [expenses, sortConfig])
+
+  // Handle column sort
+  const handleSort = (key) => {
+    setSortConfig({
+      key,
+      direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc'
+    })
+  }
+
+  // Get sort indicator
+  const getSortIndicator = (key) => {
+    if (sortConfig.key !== key) return null
+    return sortConfig.direction === 'asc' ? ' ↑' : ' ↓'
+  }
 
   return (
     <div className="table-container">
       <table className="expenses-table">
         <thead>
           <tr>
-            <th>
+            <th className="no-sort">
               <input
                 type="checkbox"
                 checked={allSelected}
@@ -29,18 +90,27 @@ export const ExpensesTable = ({
                 aria-label="Vælg alle udgifter"
               />
             </th>
-            <th>Udgift</th>
-            <th>Beløb (kr.)</th>
+            <th className="sortable" onClick={() => handleSort('name')}>
+              Udgift{getSortIndicator('name')}
+            </th>
+            <th className="sortable" onClick={() => handleSort('amount')}>
+              Beløb (kr.){getSortIndicator('amount')}
+            </th>
             <th>Frekvens</th>
             <th>Start måned</th>
             <th>Slut måned</th>
-            <th>Årlig total</th>
-            <th>Handling</th>
+            <th className="sortable" onClick={() => handleSort('annualTotal')}>
+              Årlig total{getSortIndicator('annualTotal')}
+            </th>
+            <th className="no-sort">Handling</th>
           </tr>
         </thead>
         <tbody>
-          {expenses.map(expense => (
-            <tr key={expense.id}>
+          {sortedExpenses.map((expense, index) => (
+            <tr
+              key={expense.id}
+              className={index === 0 && newlyAddedId === expense.id ? 'new-row' : ''}
+            >
               <td>
                 <input
                   type="checkbox"

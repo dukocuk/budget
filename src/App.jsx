@@ -2,7 +2,7 @@
  * Main Application Component - Refactored with modular architecture
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Header } from './components/Header'
 import { Alert } from './components/Alert'
@@ -10,6 +10,10 @@ import { Settings } from './components/Settings'
 import { SummaryCards } from './components/SummaryCards'
 import { ExpensesTable } from './components/ExpensesTable'
 import { MonthlyOverview } from './components/MonthlyOverview'
+import { AddExpenseModal } from './components/AddExpenseModal'
+import { TabView } from './components/TabView'
+import { BalanceChart } from './components/BalanceChart'
+import { ExpenseDistribution } from './components/ExpenseDistribution'
 import { useExpenses } from './hooks/useExpenses'
 import { useAlert } from './hooks/useAlert'
 import { useLocalStorage } from './hooks/useLocalStorage'
@@ -21,6 +25,8 @@ import './App.css'
 function App() {
   const [monthlyPayment, setMonthlyPayment] = useState(DEFAULT_SETTINGS.monthlyPayment)
   const [previousBalance, setPreviousBalance] = useState(DEFAULT_SETTINGS.previousBalance)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [activeTab, setActiveTab] = useState(0)
 
   const {
     expenses,
@@ -45,6 +51,11 @@ function App() {
 
   // Keyboard shortcuts
   const handleKeyPress = (e) => {
+    // Ctrl/Cmd + N for new expense modal
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+      e.preventDefault()
+      setShowAddModal(true)
+    }
     // Ctrl/Cmd + Z for undo
     if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
       e.preventDefault()
@@ -61,10 +72,28 @@ function App() {
     }
   }
 
-  // Add expense handler
-  const handleAddExpense = () => {
-    addExpense()
+  // Add keyboard listener
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyPress)
+    return () => document.removeEventListener('keydown', handleKeyPress)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canUndo, canRedo, showAddModal])
+
+  // Open add expense modal
+  const handleOpenAddModal = () => {
+    setShowAddModal(true)
+  }
+
+  // Close add expense modal
+  const handleCloseAddModal = () => {
+    setShowAddModal(false)
+  }
+
+  // Add expense from modal
+  const handleAddExpenseFromModal = (formData) => {
+    addExpense(formData)
     showAlert('Ny udgift tilføjet!', 'success')
+    setActiveTab(1) // Switch to Udgifter tab
   }
 
   // Delete expense handler
@@ -136,34 +165,102 @@ function App() {
     }
   }
 
-  return (
-    <ErrorBoundary>
-      <div className="app" onKeyDown={handleKeyPress}>
-        <Alert message={alert?.message} type={alert?.type} />
-        <Header />
-
-        <div className="container">
+  // Tab content definitions
+  const tabs = [
+    {
+      icon: '📊',
+      label: 'Oversigt',
+      content: (
+        <div className="overview-tab">
+          <BalanceChart
+            expenses={expenses}
+            monthlyPayment={monthlyPayment}
+            previousBalance={previousBalance}
+          />
+          <ExpenseDistribution expenses={expenses} />
+        </div>
+      )
+    },
+    {
+      icon: '📝',
+      label: 'Udgifter',
+      content: (
+        <div className="expenses-tab">
+          <ExpensesTable
+            expenses={expenses}
+            selectedExpenses={selectedExpenses}
+            onToggleSelection={toggleExpenseSelection}
+            onToggleSelectAll={toggleSelectAll}
+            onUpdate={updateExpense}
+            onDelete={handleDeleteExpense}
+          />
+          <button className="btn btn-danger" onClick={handleDeleteSelected}>
+            <span className="btn-icon">🗑️</span>
+            <span>Slet valgte</span>
+          </button>
+        </div>
+      )
+    },
+    {
+      icon: '📅',
+      label: 'Månedlig oversigt',
+      content: (
+        <div className="monthly-tab">
+          <MonthlyOverview expenses={expenses} totalAnnual={summary.totalAnnual} />
+        </div>
+      )
+    },
+    {
+      icon: '⚙️',
+      label: 'Indstillinger',
+      content: (
+        <div className="settings-tab">
           <Settings
             monthlyPayment={monthlyPayment}
             previousBalance={previousBalance}
             onMonthlyPaymentChange={setMonthlyPayment}
             onPreviousBalanceChange={setPreviousBalance}
           />
+        </div>
+      )
+    }
+  ]
 
+  return (
+    <ErrorBoundary>
+      <div className="app">
+        <Alert message={alert?.message} type={alert?.type} />
+        <Header />
+
+        <AddExpenseModal
+          isOpen={showAddModal}
+          onClose={handleCloseAddModal}
+          onAdd={handleAddExpenseFromModal}
+        />
+
+        <div className="container">
           <SummaryCards summary={summary} />
 
           <section className="controls">
-            <button className="btn btn-primary" onClick={handleAddExpense}>
-              ➕ Tilføj ny udgift
+            <button
+              className="btn btn-primary"
+              onClick={handleOpenAddModal}
+              title="Tilføj ny udgift (Ctrl+N)"
+            >
+              <span className="btn-icon">➕</span>
+              <span>Tilføj ny udgift</span>
             </button>
             <button className="btn btn-success" onClick={handleExport}>
-              📊 Eksporter til CSV
+              <span className="btn-icon">📊</span>
+              <span>Eksporter CSV</span>
             </button>
             <button className="btn btn-secondary" onClick={handleSave}>
-              💾 Gem lokalt
+              <span className="btn-icon">💾</span>
+              <span>Gem lokalt</span>
             </button>
             <button className="btn btn-secondary" onClick={handleLoad}>
-              📁 Hent gemt data
+              <span className="btn-icon">📁</span>
+              <span>Hent data</span>
             </button>
             {canUndo && (
               <button
@@ -174,7 +271,8 @@ function App() {
                 }}
                 title="Fortryd (Ctrl+Z)"
               >
-                ↶ Fortryd
+                <span className="btn-icon">↶</span>
+                <span>Fortryd</span>
               </button>
             )}
             {canRedo && (
@@ -186,28 +284,13 @@ function App() {
                 }}
                 title="Gentag (Ctrl+Shift+Z)"
               >
-                ↷ Gentag
+                <span className="btn-icon">↷</span>
+                <span>Gentag</span>
               </button>
             )}
           </section>
 
-          <section>
-            <h2>📋 Dine udgifter</h2>
-            <ExpensesTable
-              expenses={expenses}
-              selectedExpenses={selectedExpenses}
-              onToggleSelection={toggleExpenseSelection}
-              onToggleSelectAll={toggleSelectAll}
-              onUpdate={updateExpense}
-              onDelete={handleDeleteExpense}
-            />
-
-            <button className="btn btn-danger" onClick={handleDeleteSelected}>
-              🗑️ Slet valgte
-            </button>
-          </section>
-
-          <MonthlyOverview expenses={expenses} totalAnnual={summary.totalAnnual} />
+          <TabView tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
       </div>
     </ErrorBoundary>

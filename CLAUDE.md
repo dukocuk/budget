@@ -43,6 +43,7 @@ budget/
 │   │   ├── SummaryCards.jsx/css # Budget summary cards
 │   │   ├── ExpensesTable.jsx/css # Main expenses table
 │   │   ├── MonthlyOverview.jsx/css # Monthly breakdown
+│   │   ├── AddExpenseModal.jsx/css # Modal for adding expenses
 │   │   └── ErrorBoundary.jsx/css # Error handling wrapper
 │   ├── hooks/               # Custom React hooks
 │   │   ├── useExpenses.js  # Expense CRUD + undo/redo
@@ -53,7 +54,7 @@ budget/
 │   │   ├── calculations.js # Budget calculations
 │   │   ├── validators.js   # Input validation
 │   │   └── exportHelpers.js # CSV export logic
-│   ├── App.jsx            # Main app orchestration (218 lines)
+│   ├── App.jsx            # Main app orchestration
 │   ├── App.css            # Comprehensive styling with responsive design
 │   ├── index.css          # Global styles
 │   └── main.jsx           # React entry point
@@ -73,7 +74,8 @@ budget/
 - **`useExpenses()`**: Complete expense CRUD operations with undo/redo history
   - `expenses`: Array of expense objects `{id, name, amount, frequency, startMonth, endMonth}`
   - `selectedExpenses`: Array of expense IDs for bulk operations
-  - `addExpense()`, `updateExpense()`, `deleteExpense()`, `deleteSelected()`
+  - `addExpense(expenseData)`: Adds new expense (optional data parameter), inserts at top of table
+  - `updateExpense()`, `deleteExpense()`, `deleteSelected()`
   - `undo()`, `redo()`: Full history tracking with keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z)
 
 - **`useAlert()`**: Centralized notification system
@@ -142,10 +144,11 @@ All components follow modular architecture with separate CSS files:
 1. **[Header.jsx](src/components/Header.jsx)** - App title and branding
 2. **[Settings.jsx](src/components/Settings.jsx)** - Monthly payment and previous balance inputs
 3. **[SummaryCards.jsx](src/components/SummaryCards.jsx)** - 4 budget summary cards
-4. **[ExpensesTable.jsx](src/components/ExpensesTable.jsx)** - Main expenses table with inline editing
+4. **[ExpensesTable.jsx](src/components/ExpensesTable.jsx)** - Main expenses table with inline editing and highlight animation
 5. **[MonthlyOverview.jsx](src/components/MonthlyOverview.jsx)** - 12-month expense breakdown
-6. **[Alert.jsx](src/components/Alert.jsx)** - Notification system
-7. **[ErrorBoundary.jsx](src/components/ErrorBoundary.jsx)** - Error handling wrapper
+6. **[AddExpenseModal.jsx](src/components/AddExpenseModal.jsx)** - Modal dialog for adding expenses with validation
+7. **[Alert.jsx](src/components/Alert.jsx)** - Notification system
+8. **[ErrorBoundary.jsx](src/components/ErrorBoundary.jsx)** - Error handling wrapper
 
 ### Settings Section
 - Monthly payment input with validation
@@ -158,13 +161,27 @@ All components follow modular architecture with separate CSS files:
 - **Månedlig balance**: Monthly surplus/deficit (green/red indicator)
 - **Årlig reserve**: Annual reserve including previous balance
 
+### Add Expense Modal
+- **Modal dialog** for adding new expenses (using react-modal)
+- **Form fields** with real-time validation:
+  - Udgiftsnavn (auto-focused text input)
+  - Beløb (number input with min: 0)
+  - Frekvens (dropdown: Månedlig/Kvartalsvis/Årlig)
+  - Start/Slut måned (auto-validating dropdowns)
+- **Error messages** display inline with red styling
+- **Keyboard support**: Enter to submit, Escape to cancel
+- **Accessible**: ARIA labels, focus management, focus trap
+- **Mobile-responsive**: Full-screen on small devices
+- **Animations**: Fade-in overlay, slide-up modal
+
 ### Expenses Table
 - Editable inline inputs for all fields
+- **New row highlight**: 2-second green flash animation for newly added expenses
+- **Top insertion**: New expenses appear at top of table (most recent first)
 - Bulk selection with checkboxes
 - Individual delete buttons with confirmation
 - Column validation (month ranges auto-adjust)
 - Undo/Redo buttons (keyboard: Ctrl+Z, Ctrl+Shift+Z)
-- Add new expense button
 - Delete selected button (bulk operations)
 
 ### Monthly Overview Table
@@ -190,11 +207,25 @@ All components follow modular architecture with separate CSS files:
 ## User Interactions
 
 ### Adding Expenses
-- Click "➕ Tilføj ny udgift" button
-- Creates default expense: "Ny udgift", 100 kr., monthly, Jan-Dec
-- Auto-scrolls to bottom
-- Shows success alert
+**Modal-Based UX Flow** (Improved):
+- Click "➕ Tilføj ny udgift" button (or press Ctrl+N)
+- Modal dialog opens with pre-filled form fields:
+  - **Udgiftsnavn**: Auto-focused text input
+  - **Beløb**: Number input (default: 100 kr., min: 0)
+  - **Frekvens**: Dropdown (Månedlig/Kvartalsvis/Årlig)
+  - **Start/Slut måned**: Dropdowns with auto-validation
+- Real-time validation with error messages
+- Submit with "➕ Tilføj udgift" button (or press Enter)
+- Cancel with "Annuller" button (or press Escape)
+- New expense inserts at **top** of table (immediately visible)
+- 2-second green highlight animation on new row
+- Success alert notification
 - Can undo with Ctrl+Z
+
+**Keyboard Shortcuts**:
+- `Ctrl+N` (or `Cmd+N`): Open add expense modal
+- `Enter`: Submit form (when in modal)
+- `Escape`: Close modal without saving
 
 ### Editing Expenses
 - **Name**: Direct text input with real-time updates
@@ -211,11 +242,18 @@ All components follow modular architecture with separate CSS files:
 - Can undo deletion with Ctrl+Z
 
 ### Undo/Redo Operations
-- **Undo**: Ctrl+Z or click "↶ Fortryd" button
-- **Redo**: Ctrl+Shift+Z or click "↷ Gentag" button
+- **Undo**: Ctrl+Z (Cmd+Z on Mac) or click "↶ Fortryd" button
+- **Redo**: Ctrl+Shift+Z (Cmd+Shift+Z on Mac) or click "↷ Gentag" button
 - Buttons only visible when operations available
 - Works for: add, edit, delete operations
 - Full history tracking
+
+### Keyboard Shortcuts Summary
+- **Ctrl+N** (Cmd+N): Open add expense modal
+- **Ctrl+Z** (Cmd+Z): Undo last operation
+- **Ctrl+Shift+Z** (Cmd+Shift+Z): Redo operation
+- **Enter**: Submit add expense form (when modal is open)
+- **Escape**: Close modal without saving
 
 ### Data Operations
 - **💾 Gem lokalt**: Save to localStorage with success feedback

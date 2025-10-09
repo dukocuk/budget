@@ -1,8 +1,29 @@
 .table-container {
-  overflow-x: auto;
+  overflow: auto;
   margin-bottom: 20px;
   border-radius: 10px;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+/* Custom scrollbar styling */
+.table-container::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #667eea;
+  border-radius: 10px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #5568d3;
 }
 
 .expenses-table {
@@ -22,6 +43,23 @@
   position: sticky;
   top: 0;
   z-index: 10;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.expenses-table th:hover:not(.no-sort) {
+  background: #e5e7eb;
+}
+
+.expenses-table th.sortable {
+  cursor: pointer;
+}
+
+.expenses-table th .sort-indicator {
+  margin-left: 5px;
+  font-size: 12px;
+  color: #667eea;
 }
 
 .expenses-table td {
@@ -31,6 +69,27 @@
 
 .expenses-table tbody tr:hover {
   background: #f9fafb;
+}
+
+/* New row highlight animation */
+.expenses-table tbody tr.new-row {
+  animation: highlightNewRow 2s ease-out;
+}
+
+@keyframes highlightNewRow {
+  0% {
+    background-color: #d1fae5;
+    transform: scale(1.01);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    background-color: #a7f3d0;
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+    box-shadow: none;
+  }
 }
 
 .expenses-table input[type="text"],

@@ -31,20 +31,16 @@ export const useExpenses = (initialExpenses = INITIAL_EXPENSES) => {
   }, [history, historyIndex])
 
   // Add new expense
-  const addExpense = useCallback(() => {
+  const addExpense = useCallback((expenseData = null) => {
     const newExpense = {
       id: nextId,
-      ...DEFAULT_EXPENSE
+      ...(expenseData || DEFAULT_EXPENSE)
     }
-    const newExpenses = [...expenses, newExpense]
+    // Insert at top of array instead of bottom
+    const newExpenses = [newExpense, ...expenses]
     setExpenses(newExpenses)
     setNextId(nextId + 1)
     saveToHistory(newExpenses)
-
-    // Scroll to bottom
-    setTimeout(() => {
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
-    }, 100)
 
     return newExpense
   }, [expenses, nextId, saveToHistory])
