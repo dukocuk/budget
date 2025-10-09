@@ -1,212 +1,169 @@
-import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
-import { localDB } from '../lib/pglite'
-import { setupRealtimeSync } from '../lib/sync'
+/**
+ * Custom hook for expense management
+ */
 
-export function useExpenses(userId) {
-  const [expenses, setExpenses] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+import { useState, useCallback, useMemo } from 'react'
+import { DEFAULT_EXPENSE, INITIAL_EXPENSES } from '../utils/constants'
+import { sanitizeExpense } from '../utils/validators'
 
-  // Load expenses from local database
-  const loadExpenses = useCallback(async () => {
-    if (!userId) return
+/**
+ * Hook for managing expenses with undo/redo capability
+ * @param {Array} initialExpenses - Initial expense list
+ * @returns {Object} Expense management methods and state
+ */
+export const useExpenses = (initialExpenses = INITIAL_EXPENSES) => {
+  const [expenses, setExpenses] = useState(initialExpenses)
+  const [selectedExpenses, setSelectedExpenses] = useState([])
+  const [nextId, setNextId] = useState(
+    Math.max(...initialExpenses.map(e => e.id), 0) + 1
+  )
 
-    try {
-      const result = await localDB.query(
-        'SELECT * FROM expenses WHERE user_id = $1 ORDER BY name ASC',
-        [userId]
-      )
+  // History for undo/redo
+  const [history, setHistory] = useState([initialExpenses])
+  const [historyIndex, setHistoryIndex] = useState(0)
 
-      // Convert BigInt IDs to numbers for compatibility
-      const formattedExpenses = result.rows.map(expense => ({
-        ...expense,
-        id: Number(expense.id),
-        startMonth: expense.start_month,
-        endMonth: expense.end_month
-      }))
-
-      setExpenses(formattedExpenses)
-      setLoading(false)
-    } catch (err) {
-      console.error('Error loading expenses:', err)
-      setError(err.message)
-      setLoading(false)
-    }
-  }, [userId])
-
-  // Setup real-time sync
-  useEffect(() => {
-    if (!userId) return
-
-    loadExpenses()
-
-    // Subscribe to real-time changes
-    const unsubscribe = setupRealtimeSync(userId, loadExpenses)
-
-    return () => {
-      unsubscribe()
-    }
-  }, [userId, loadExpenses])
+  // Save to history
+  const saveToHistory = useCallback((newExpenses) => {
+    const newHistory = history.slice(0, historyIndex + 1)
+    newHistory.push(newExpenses)
+    setHistory(newHistory)
+    setHistoryIndex(newHistory.length - 1)
+  }, [history, historyIndex])
 
   // Add new expense
-  const addExpense = async (expenseData) => {
-    try {
-      setError(null)
-      const id = Date.now() // Simple ID generation
-
-      const expense = {
-        id: id.toString(),
-        user_id: userId,
-        name: expenseData.name,
-        amount: expenseData.amount,
-        frequency: expenseData.frequency,
-        start_month: expenseData.startMonth,
-        end_month: expenseData.endMonth,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-
-      // Insert to local DB
-      await localDB.exec(
-        `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          id,
-          userId,
-          expense.name,
-          expense.amount,
-          expense.frequency,
-          expense.start_month,
-          expense.end_month,
-          expense.created_at,
-          expense.updated_at
-        ]
-      )
-
-      // Sync to cloud
-      const { error: cloudError } = await supabase
-        .from('expenses')
-        .insert(expense)
-
-      if (cloudError) throw cloudError
-
-      // Reload expenses
-      await loadExpenses()
-
-      return id
-    } catch (err) {
-      console.error('Error adding expense:', err)
-      setError(err.message)
-      throw err
+  const addExpense = useCallback(() => {
+    const newExpense = {
+      id: nextId,
+      ...DEFAULT_EXPENSE
     }
-  }
+    const newExpenses = [...expenses, newExpense]
+    setExpenses(newExpenses)
+    setNextId(nextId + 1)
+    saveToHistory(newExpenses)
+
+    // Scroll to bottom
+    setTimeout(() => {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
+    }, 100)
+
+    return newExpense
+  }, [expenses, nextId, saveToHistory])
 
   // Update expense
-  const updateExpense = async (id, updates) => {
-    try {
-      setError(null)
+  const updateExpense = useCallback((id, field, value) => {
+    const newExpenses = expenses.map(expense => {
+      if (expense.id === id) {
+        const updated = { ...expense }
 
-      // Convert field names for database
-      const dbUpdates = {
-        name: updates.name,
-        amount: updates.amount,
-        frequency: updates.frequency,
-        start_month: updates.startMonth ?? updates.start_month,
-        end_month: updates.endMonth ?? updates.end_month,
-        updated_at: new Date().toISOString()
+        if (field === 'amount') {
+          value = Math.max(0, parseFloat(value) || 0)
+        } else if (field === 'startMonth' || field === 'endMonth') {
+          value = parseInt(value)
+          if (field === 'endMonth' && value < expense.startMonth) {
+            value = expense.startMonth
+          }
+          if (field === 'startMonth' && value > expense.endMonth) {
+            updated.endMonth = value
+          }
+        }
+
+        updated[field] = value
+        return sanitizeExpense(updated)
       }
+      return expense
+    })
 
-      // Build dynamic UPDATE query
-      const updateFields = Object.keys(dbUpdates)
-        .map((key, idx) => `${key} = $${idx + 2}`)
-        .join(', ')
-
-      const values = Object.values(dbUpdates)
-
-      // Update local DB
-      await localDB.exec(
-        `UPDATE expenses SET ${updateFields} WHERE id = $1`,
-        [id, ...values]
-      )
-
-      // Sync to cloud
-      const { error: cloudError } = await supabase
-        .from('expenses')
-        .update(dbUpdates)
-        .eq('id', id.toString())
-
-      if (cloudError) throw cloudError
-
-      // Reload expenses
-      await loadExpenses()
-    } catch (err) {
-      console.error('Error updating expense:', err)
-      setError(err.message)
-      throw err
-    }
-  }
+    setExpenses(newExpenses)
+    saveToHistory(newExpenses)
+  }, [expenses, saveToHistory])
 
   // Delete expense
-  const deleteExpense = async (id) => {
-    try {
-      setError(null)
-
-      // Delete from local DB
-      await localDB.exec('DELETE FROM expenses WHERE id = $1', [id])
-
-      // Sync to cloud
-      const { error: cloudError } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('id', id.toString())
-
-      if (cloudError) throw cloudError
-
-      // Update local state
-      setExpenses(prev => prev.filter(e => e.id !== id))
-    } catch (err) {
-      console.error('Error deleting expense:', err)
-      setError(err.message)
-      throw err
-    }
-  }
+  const deleteExpense = useCallback((id) => {
+    const newExpenses = expenses.filter(e => e.id !== id)
+    setExpenses(newExpenses)
+    setSelectedExpenses(selectedExpenses.filter(expId => expId !== id))
+    saveToHistory(newExpenses)
+    return expenses.find(e => e.id === id)
+  }, [expenses, selectedExpenses, saveToHistory])
 
   // Delete multiple expenses
-  const deleteExpenses = async (ids) => {
-    try {
-      setError(null)
-
-      // Delete from local DB
-      for (const id of ids) {
-        await localDB.exec('DELETE FROM expenses WHERE id = $1', [id])
-      }
-
-      // Sync to cloud
-      const { error: cloudError } = await supabase
-        .from('expenses')
-        .delete()
-        .in('id', ids.map(id => id.toString()))
-
-      if (cloudError) throw cloudError
-
-      // Update local state
-      setExpenses(prev => prev.filter(e => !ids.includes(e.id)))
-    } catch (err) {
-      console.error('Error deleting expenses:', err)
-      setError(err.message)
-      throw err
+  const deleteSelected = useCallback(() => {
+    if (selectedExpenses.length === 0) {
+      return { success: false, count: 0 }
     }
-  }
+
+    const newExpenses = expenses.filter(e => !selectedExpenses.includes(e.id))
+    const count = selectedExpenses.length
+    setExpenses(newExpenses)
+    setSelectedExpenses([])
+    saveToHistory(newExpenses)
+
+    return { success: true, count }
+  }, [expenses, selectedExpenses, saveToHistory])
+
+  // Toggle expense selection
+  const toggleExpenseSelection = useCallback((id) => {
+    if (selectedExpenses.includes(id)) {
+      setSelectedExpenses(selectedExpenses.filter(expId => expId !== id))
+    } else {
+      setSelectedExpenses([...selectedExpenses, id])
+    }
+  }, [selectedExpenses])
+
+  // Toggle select all
+  const toggleSelectAll = useCallback((checked) => {
+    if (checked) {
+      setSelectedExpenses(expenses.map(e => e.id))
+    } else {
+      setSelectedExpenses([])
+    }
+  }, [expenses])
+
+  // Undo
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1
+      setHistoryIndex(newIndex)
+      setExpenses(history[newIndex])
+      return true
+    }
+    return false
+  }, [history, historyIndex])
+
+  // Redo
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1
+      setHistoryIndex(newIndex)
+      setExpenses(history[newIndex])
+      return true
+    }
+    return false
+  }, [history, historyIndex])
+
+  // Replace all expenses (for loading from storage)
+  const setAllExpenses = useCallback((newExpenses) => {
+    setExpenses(newExpenses)
+    setNextId(Math.max(...newExpenses.map(e => e.id), 0) + 1)
+    saveToHistory(newExpenses)
+  }, [saveToHistory])
+
+  const canUndo = useMemo(() => historyIndex > 0, [historyIndex])
+  const canRedo = useMemo(() => historyIndex < history.length - 1, [historyIndex, history])
 
   return {
     expenses,
-    loading,
-    error,
+    selectedExpenses,
     addExpense,
     updateExpense,
     deleteExpense,
-    deleteExpenses,
-    refreshExpenses: loadExpenses
+    deleteSelected,
+    toggleExpenseSelection,
+    toggleSelectAll,
+    setAllExpenses,
+    undo,
+    redo,
+    canUndo,
+    canRedo
   }
 }

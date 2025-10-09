@@ -214,6 +214,11 @@ body {
   color: white;
 }
 
+.btn-info {
+  background: #3b82f6;
+  color: white;
+}
+
 /* Tables */
 h2 {
   margin-bottom: 20px;

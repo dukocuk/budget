@@ -1,0 +1,72 @@
+.monthly-view {
+  margin-top: 40px;
+}
+
+.monthly-view h2 {
+  margin-bottom: 20px;
+  color: #1f2937;
+}
+
+.monthly-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: white;
+  min-width: 1000px;
+}
+
+.monthly-table th {
+  background: #4f46e5;
+  color: white;
+  text-align: center;
+  padding: 15px;
+  font-weight: 600;
+  border-bottom: 2px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.monthly-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: right;
+  font-family: 'Courier New', monospace;
+}
+
+.monthly-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.monthly-table .expense-name {
+  text-align: left;
+  font-family: inherit;
+  font-weight: 500;
+  color: #374151;
+}
+
+.total-row {
+  font-weight: bold;
+  background: #f3f4f6;
+}
+
+.total-row td {
+  border-top: 2px solid #4f46e5;
+  color: #1f2937;
+}
+
+.total-cell {
+  font-weight: bold;
+  background: #f9fafb;
+}
+
+@media (max-width: 768px) {
+  .monthly-table {
+    font-size: 14px;
+  }
+
+  .monthly-table td,
+  .monthly-table th {
+    padding: 8px;
+  }
+}

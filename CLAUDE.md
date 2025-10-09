@@ -36,10 +36,27 @@ npm run lint
 ```
 budget/
 ├── src/
-│   ├── App.jsx          # Main application component (530 lines)
-│   ├── App.css          # Comprehensive styling with responsive design
-│   ├── index.css        # Global styles
-│   └── main.jsx         # React entry point
+│   ├── components/           # Reusable UI components
+│   │   ├── Alert.jsx/css    # Alert notification system
+│   │   ├── Header.jsx/css   # App header
+│   │   ├── Settings.jsx/css # Settings section
+│   │   ├── SummaryCards.jsx/css # Budget summary cards
+│   │   ├── ExpensesTable.jsx/css # Main expenses table
+│   │   ├── MonthlyOverview.jsx/css # Monthly breakdown
+│   │   └── ErrorBoundary.jsx/css # Error handling wrapper
+│   ├── hooks/               # Custom React hooks
+│   │   ├── useExpenses.js  # Expense CRUD + undo/redo
+│   │   ├── useAlert.js     # Alert notifications
+│   │   └── useLocalStorage.js # Storage operations
+│   ├── utils/              # Pure utility functions
+│   │   ├── constants.js    # App constants
+│   │   ├── calculations.js # Budget calculations
+│   │   ├── validators.js   # Input validation
+│   │   └── exportHelpers.js # CSV export logic
+│   ├── App.jsx            # Main app orchestration (218 lines)
+│   ├── App.css            # Comprehensive styling with responsive design
+│   ├── index.css          # Global styles
+│   └── main.jsx           # React entry point
 ├── public/              # Static assets
 ├── index.html           # HTML template
 ├── package.json         # Dependencies and scripts
@@ -50,19 +67,30 @@ budget/
 
 ## Architecture & State Management
 
-**Single Component Architecture**: Entire application in [App.jsx](src/App.jsx) - no router, no separate components. This simplifies state management and reduces complexity for a focused budgeting tool.
+**Modular Component Architecture**: Refactored from 530-line monolithic App.jsx into component-based architecture with separation of concerns.
 
-**State Structure** (all managed with `useState`):
-- `expenses`: Array of expense objects with `{id, name, amount, frequency, startMonth, endMonth}`
-- `monthlyPayment`: Fixed monthly deposit to budget account (default: 5700 kr.)
+**State Management** (via custom hooks):
+- **`useExpenses()`**: Complete expense CRUD operations with undo/redo history
+  - `expenses`: Array of expense objects `{id, name, amount, frequency, startMonth, endMonth}`
+  - `selectedExpenses`: Array of expense IDs for bulk operations
+  - `addExpense()`, `updateExpense()`, `deleteExpense()`, `deleteSelected()`
+  - `undo()`, `redo()`: Full history tracking with keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z)
+
+- **`useAlert()`**: Centralized notification system
+  - `alert`: Current notification `{message, type}`
+  - `showAlert()`: Display notification with auto-dismiss
+
+- **`useLocalStorage()`**: Generic localStorage operations
+  - `savedData`: Current saved state
+  - `saveData()`, `loadData()`, `clearData()`: Storage operations with error handling
+
+**Global State** (App.jsx):
+- `monthlyPayment`: Fixed monthly deposit (default: 5700 kr.)
 - `previousBalance`: Carryover from previous year (default: 4831 kr.)
-- `selectedExpenses`: Array of expense IDs for bulk operations
-- `alert`: Current alert notification `{message, type}`
-- `nextId`: Auto-increment ID generator (starts at 15)
 
-**Core Business Logic Functions**:
+**Core Business Logic** ([utils/calculations.js](src/utils/calculations.js)):
 
-1. **`calculateAnnualAmount(expense)`** - [App.jsx:38](src/App.jsx#L38)
+1. **`calculateAnnualAmount(expense)`**
    - Converts any frequency to annual total
    - Returns: number (annual amount in kr.)
    - Logic:
@@ -70,7 +98,7 @@ budget/
      - `quarterly`: Counts quarters (Jan, Apr, Jul, Oct) within date range
      - `monthly`: Multiplies amount by months in range
 
-2. **`getMonthlyAmount(expense, month)`** - [App.jsx:58](src/App.jsx#L58)
+2. **`getMonthlyAmount(expense, month)`**
    - Returns expense amount for specific month (1-12)
    - Returns: number (0 if outside range)
    - Logic:
@@ -79,55 +107,85 @@ budget/
      - `quarterly`: Amount on quarter months only
      - `monthly`: Amount every month in range
 
-3. **`calculateSummary()`** - [App.jsx:72](src/App.jsx#L72)
+3. **`calculateSummary(expenses, monthlyPayment, previousBalance)`**
    - Computes budget overview metrics
    - Returns: `{totalAnnual, avgMonthly, monthlyBalance, annualReserve}`
    - All values rounded to whole numbers
+
+4. **`calculateMonthlyTotals(expenses)`**
+   - Generates 12-month expense breakdown
+   - Returns: Array of 12 monthly totals
 
 **Frequency Types**:
 - `monthly`: Charged every month within start/end range
 - `quarterly`: Charged on months 1, 4, 7, 10 within start/end range
 - `yearly`: Single charge on startMonth
 
-**Data Persistence**:
+**Validation & Safety** ([utils/validators.js](src/utils/validators.js)):
+- `validateAmount()`: Sanitize amount inputs (min 0)
+- `validateMonthRange()`: Ensure valid month ranges (1-12, start ≤ end)
+- `validateExpense()`: Complete expense object validation
+- `sanitizeExpense()`: Clean and normalize expense data
+
+**Data Persistence** ([hooks/useLocalStorage.js](src/hooks/useLocalStorage.js)):
 - **LocalStorage key**: `budgetData2025`
 - **Stored data**: `{expenses, monthlyPayment, previousBalance, savedDate}`
-- **Load/Save**: [saveToLocal()](src/App.jsx#L175), [loadFromLocal()](src/App.jsx#L192)
-- **Export**: CSV with UTF-8 BOM (`\ufeff`) for Excel compatibility
+- **Operations**: `saveData()`, `loadData()`, `clearData()` with error handling
+- **Export**: CSV with UTF-8 BOM (`\ufeff`) for Excel compatibility ([utils/exportHelpers.js](src/utils/exportHelpers.js))
 
 ## UI Components & Features
 
-### 1. Settings Section
-- Monthly payment input
-- Previous balance input
-- Located in `.settings-section` [App.jsx:296](src/App.jsx#L296)
+### Component Overview
 
-### 2. Summary Cards (4 cards)
+All components follow modular architecture with separate CSS files:
+
+1. **[Header.jsx](src/components/Header.jsx)** - App title and branding
+2. **[Settings.jsx](src/components/Settings.jsx)** - Monthly payment and previous balance inputs
+3. **[SummaryCards.jsx](src/components/SummaryCards.jsx)** - 4 budget summary cards
+4. **[ExpensesTable.jsx](src/components/ExpensesTable.jsx)** - Main expenses table with inline editing
+5. **[MonthlyOverview.jsx](src/components/MonthlyOverview.jsx)** - 12-month expense breakdown
+6. **[Alert.jsx](src/components/Alert.jsx)** - Notification system
+7. **[ErrorBoundary.jsx](src/components/ErrorBoundary.jsx)** - Error handling wrapper
+
+### Settings Section
+- Monthly payment input with validation
+- Previous balance input with validation
+- Real-time updates to summary calculations
+
+### Summary Cards (4 cards)
 - **Årlige udgifter**: Total annual expenses
 - **Gennemsnitlig månedlig udgift**: Average monthly expense
-- **Månedlig balance**: Monthly surplus/deficit (green/red)
+- **Månedlig balance**: Monthly surplus/deficit (green/red indicator)
 - **Årlig reserve**: Annual reserve including previous balance
 
-### 3. Expenses Table
+### Expenses Table
 - Editable inline inputs for all fields
 - Bulk selection with checkboxes
-- Individual delete buttons
-- Column validation (month ranges)
-- Located at [App.jsx:370](src/App.jsx#L370)
+- Individual delete buttons with confirmation
+- Column validation (month ranges auto-adjust)
+- Undo/Redo buttons (keyboard: Ctrl+Z, Ctrl+Shift+Z)
+- Add new expense button
+- Delete selected button (bulk operations)
 
-### 4. Monthly Overview Table
+### Monthly Overview Table
 - 12-month breakdown per expense
 - Shows amounts or "-" for inactive months
 - Totals row at bottom
 - Horizontal scroll on mobile
-- Located at [App.jsx:469](src/App.jsx#L469)
+- Responsive design with sticky headers
 
-### 5. Alert System
+### Alert System
 - Types: success (green), error (red), info (blue)
 - Auto-dismiss after 3 seconds
 - Fixed position top-right
 - Slide-in animation
-- Function: [showAlert()](src/App.jsx#L32)
+- Managed via [useAlert](src/hooks/useAlert.js) hook
+
+### Error Handling
+- ErrorBoundary wraps entire app
+- Graceful error recovery with user-friendly messages
+- Reset functionality to recover from crashes
+- Technical details in collapsible section
 
 ## User Interactions
 
@@ -136,23 +194,33 @@ budget/
 - Creates default expense: "Ny udgift", 100 kr., monthly, Jan-Dec
 - Auto-scrolls to bottom
 - Shows success alert
+- Can undo with Ctrl+Z
 
 ### Editing Expenses
-- **Name**: Direct text input
-- **Amount**: Number input (minimum 0)
+- **Name**: Direct text input with real-time updates
+- **Amount**: Number input (minimum 0, validated)
 - **Frequency**: Dropdown (Månedlig/Kvartalsvis/Årlig)
-- **Months**: Dropdown with auto-validation
+- **Months**: Dropdown with auto-validation (start/end range)
+- All edits can be undone/redone
 
 ### Deleting Expenses
-- **Single**: Click "Slet" button with confirmation
-- **Bulk**: Select multiple → "🗑️ Slet valgte"
+- **Single**: Click "Slet" button with confirmation dialog
+- **Bulk**: Select multiple → "🗑️ Slet valgte" with confirmation
 - Confirmation dialog before deletion
 - Success alert after deletion
+- Can undo deletion with Ctrl+Z
+
+### Undo/Redo Operations
+- **Undo**: Ctrl+Z or click "↶ Fortryd" button
+- **Redo**: Ctrl+Shift+Z or click "↷ Gentag" button
+- Buttons only visible when operations available
+- Works for: add, edit, delete operations
+- Full history tracking
 
 ### Data Operations
-- **💾 Gem lokalt**: Save to localStorage
-- **📁 Hent gemt data**: Load from localStorage
-- **📊 Eksporter til CSV**: Download CSV with full breakdown
+- **💾 Gem lokalt**: Save to localStorage with success feedback
+- **📁 Hent gemt data**: Load from localStorage with validation
+- **📊 Eksporter til CSV**: Download CSV with full breakdown and UTF-8 BOM
 
 ## Styling System
 
@@ -200,30 +268,41 @@ budget/
 
 ## Key Behaviors & Validation
 
-### Month Range Validation ([App.jsx:109](src/App.jsx#L109))
+### Month Range Validation ([utils/validators.js](src/utils/validators.js))
+- Automatic range adjustment via `validateMonthRange()`
 - When `startMonth` changes:
   - If `startMonth > endMonth`: Auto-adjust `endMonth = startMonth`
 - When `endMonth` changes:
   - If `endMonth < startMonth`: Clamp `endMonth = startMonth`
+- Range validation: 1 ≤ month ≤ 12
 
-### Amount Validation
-- Minimum: 0 kr.
+### Amount Validation ([utils/validators.js](src/utils/validators.js))
+- `validateAmount()` ensures minimum 0 kr.
 - Uses `parseFloat()` with fallback to 0
-- Invalid inputs default to 0
+- Invalid inputs sanitized to 0
+- Non-numeric values rejected
 
-### CSV Export Format ([App.jsx:216](src/App.jsx#L216))
-- UTF-8 BOM: `\ufeff` (first character)
+### Expense Validation ([utils/validators.js](src/utils/validators.js))
+- `validateExpense()`: Complete object validation
+- `sanitizeExpense()`: Data normalization
+- Ensures all required fields present
+- Type checking for amounts and months
+
+### CSV Export Format ([utils/exportHelpers.js](src/utils/exportHelpers.js))
+- UTF-8 BOM: `\ufeff` (first character for Excel compatibility)
 - Three sections:
   1. Summary table (expense, amount, frequency, months, annual)
   2. Monthly breakdown (12 columns + total)
   3. Summary stats (annual, monthly payment, previous balance)
 - Filename: `budget_2025_YYYY-MM-DD.csv`
+- Generated by `generateCSV()`, downloaded via `downloadCSV()`
 
-### LocalStorage Error Handling
-- Try-catch blocks for save/load operations
+### LocalStorage Error Handling ([hooks/useLocalStorage.js](src/hooks/useLocalStorage.js))
+- Try-catch blocks for all storage operations
 - User-friendly error alerts in Danish
 - Console logging for debugging
 - Graceful fallback to initial state on load errors
+- Success feedback for save operations
 
 ## Initial Data
 
@@ -234,15 +313,48 @@ Default expenses (14 items) include:
 - Akademikernes A-kasse: 1,497 kr./quarter
 - Various insurance and subscriptions
 
-See [App.jsx:5](src/App.jsx#L5) for complete list.
+See [utils/constants.js](src/utils/constants.js) for complete default data.
+
+## Recent Improvements
+
+**Modular Refactoring** (completed):
+- ✅ Component-based architecture (7 components)
+- ✅ Custom hooks (useExpenses, useAlert, useLocalStorage)
+- ✅ Pure utility functions (calculations, validators, exportHelpers)
+- ✅ Undo/Redo functionality with keyboard shortcuts
+- ✅ ErrorBoundary for graceful error recovery
+- ✅ Enhanced accessibility (ARIA labels, keyboard nav)
+- ✅ Improved validation and error handling
+
+**Metrics**:
+- App.jsx reduced: 530 → 218 lines (59% reduction)
+- Total codebase: ~1800 lines (modular, maintainable)
+- ESLint: Clean, no errors
+- Build size: 210.24 KB (compressed: 65.94 KB)
 
 ## Future Enhancements
 
-Based on dependencies:
-- **Supabase integration**: Cloud sync and multi-device support
-- **PGlite**: Local database for enhanced offline functionality
-- **Recharts**: Expense visualization and trend analysis
-- **React Modal**: Enhanced dialogs for expense details
+**Phase 1 - Enhanced Features**:
+- Expense categories with color coding
+- Search/filter expenses
+- Charts visualization (Recharts)
+- Dark mode support
+- Multi-year comparison
+- Import CSV functionality
+
+**Phase 2 - Backend Integration**:
+- Supabase cloud sync and multi-device support
+- PGlite local database for enhanced offline functionality
+- Offline-first architecture
+- Conflict resolution
+
+**Phase 3 - Advanced Features**:
+- Recurring expense templates
+- Budget forecasting
+- Email notifications
+- Expense attachments
+- Budget sharing
+- Export to PDF
 
 ## Code Quality Standards
 
@@ -253,46 +365,83 @@ Based on dependencies:
 
 **Best Practices**:
 - Functional components with Hooks
-- Inline event handlers for simplicity
+- Custom hooks for reusable logic
+- Pure utility functions for testability
 - Consistent error handling with try-catch
 - User confirmations for destructive actions
-- Accessibility: Proper labels, semantic HTML
+- Accessibility: ARIA labels, keyboard support, semantic HTML
+- JSDoc comments for all functions
+
+**Architecture Principles**:
+- Component-based modular design
+- Separation of concerns (UI, logic, utilities)
+- Single Responsibility Principle
+- DRY (Don't Repeat Yourself)
+- Pure functions for calculations and validation
 
 ## Common Modification Patterns
 
 ### Adding a New Feature
-1. Add state with `useState` if needed
-2. Create handler function (prefix with verb: add, update, delete)
-3. Add UI in appropriate section
-4. Update CSS in [App.css](src/App.css)
-5. Test alert notifications
-6. Maintain Danish language
+1. Determine if state management needed → Add to appropriate hook or create new hook
+2. Create pure functions in [utils/](src/utils/) if logic is reusable
+3. Create new component in [components/](src/components/) or modify existing
+4. Add component-specific CSS file
+5. Import and integrate in [App.jsx](src/App.jsx)
+6. Test undo/redo if modifying expense data
+7. Maintain Danish language consistency
+
+### Adding a New Component
+1. Create `ComponentName.jsx` in [src/components/](src/components/)
+2. Create corresponding `ComponentName.css`
+3. Follow existing prop patterns (pass callbacks, not setState directly)
+4. Add JSDoc comments for props
+5. Export component for use in App.jsx
 
 ### Modifying Calculations
-- Core functions: [calculateAnnualAmount](src/App.jsx#L38), [getMonthlyAmount](src/App.jsx#L58), [calculateSummary](src/App.jsx#L72)
+- Core functions in [utils/calculations.js](src/utils/calculations.js)
+- Pure functions: `calculateAnnualAmount`, `getMonthlyAmount`, `calculateSummary`, `calculateMonthlyTotals`
 - All financial calculations in whole kroner (no decimals in display)
 - Use `Math.round()` for final values
+- Add unit tests for new calculation logic
+
+### Adding Validation
+- Add new validators to [utils/validators.js](src/utils/validators.js)
+- Follow pattern: `validateX(input)` returns validated value
+- Use in hooks or components before state updates
+- Provide user feedback via alerts for validation errors
 
 ### Styling Changes
-- Follow existing color palette
-- Maintain responsive breakpoints
+- Modify component-specific CSS files
+- Follow existing color palette (purple gradient primary)
+- Maintain responsive breakpoints (480px, 768px)
 - Test on mobile (table scrolling is critical)
-- Keep hover effects consistent
+- Keep hover effects consistent (translateY, color transitions)
 
 ## Debugging Tips
 
 **Common Issues**:
-1. **Month validation**: Check [updateExpense](src/App.jsx#L109) logic
-2. **Quarterly calculation**: Verify months 1, 4, 7, 10 in range
-3. **CSV encoding**: Ensure UTF-8 BOM is preserved
-4. **LocalStorage quota**: Browser limits (~5-10MB)
-5. **Alert timing**: 3-second timeout in [showAlert](src/App.jsx#L32)
+1. **Month validation**: Check [validators.js](src/utils/validators.js) `validateMonthRange()`
+2. **Quarterly calculation**: Verify months 1, 4, 7, 10 in [calculations.js](src/utils/calculations.js)
+3. **CSV encoding**: Ensure UTF-8 BOM is preserved in [exportHelpers.js](src/utils/exportHelpers.js)
+4. **LocalStorage quota**: Browser limits (~5-10MB), check [useLocalStorage.js](src/hooks/useLocalStorage.js)
+5. **Undo/Redo**: Check history state in [useExpenses.js](src/hooks/useExpenses.js)
+6. **Component errors**: Check ErrorBoundary for caught errors
+
+**Debugging Strategy**:
+- **Pure functions**: Easy to test in isolation (utils/)
+- **Hook debugging**: Use React DevTools to inspect hook state
+- **Component props**: Verify prop drilling from App.jsx to components
+- **Error boundary**: Check console for caught errors with stack traces
+- **Alert debugging**: Check [useAlert.js](src/hooks/useAlert.js) for notification issues
 
 **Testing Checklist**:
 - [ ] Add/edit/delete expenses
-- [ ] Month range validation
+- [ ] Undo/Redo operations (Ctrl+Z, Ctrl+Shift+Z)
+- [ ] Month range validation and auto-adjustment
 - [ ] Bulk selection and deletion
-- [ ] LocalStorage save/load
-- [ ] CSV export opens in Excel correctly
-- [ ] Responsive design on mobile
-- [ ] Alert messages appear and dismiss
+- [ ] LocalStorage save/load with error handling
+- [ ] CSV export opens in Excel correctly with proper encoding
+- [ ] Responsive design on mobile (table scrolling)
+- [ ] Alert messages appear and auto-dismiss
+- [ ] ErrorBoundary catches and displays errors gracefully
+- [ ] Keyboard shortcuts work correctly
