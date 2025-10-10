@@ -44,16 +44,32 @@ budget/
 │   │   ├── ExpensesTable.jsx/css # Main expenses table
 │   │   ├── MonthlyOverview.jsx/css # Monthly breakdown
 │   │   ├── AddExpenseModal.jsx/css # Modal for adding expenses
-│   │   └── ErrorBoundary.jsx/css # Error handling wrapper
+│   │   ├── DeleteConfirmation.jsx/css # Delete confirmation modal
+│   │   ├── TabView.jsx/css # Tabbed navigation system
+│   │   ├── BalanceChart.jsx/css # Monthly balance visualization
+│   │   ├── ExpenseDistribution.jsx/css # Expense breakdown charts
+│   │   ├── ErrorBoundary.jsx/css # Error handling wrapper
+│   │   ├── Auth.jsx/css # Authentication (future)
+│   │   ├── Layout.jsx/css # App layout (future)
+│   │   ├── Dashboard.jsx/css # Dashboard view (future)
+│   │   ├── ExpenseManager.jsx/css # Expense management (future)
+│   │   └── MonthlyView.jsx/css # Monthly view (future)
 │   ├── hooks/               # Custom React hooks
 │   │   ├── useExpenses.js  # Expense CRUD + undo/redo
 │   │   ├── useAlert.js     # Alert notifications
-│   │   └── useLocalStorage.js # Storage operations
+│   │   ├── useLocalStorage.js # Storage operations
+│   │   ├── useAuth.js # Authentication (future)
+│   │   └── useSettings.js # Settings management (future)
+│   ├── lib/                # External integrations (future)
+│   │   ├── supabase.js    # Supabase client
+│   │   ├── pglite.js      # PGlite database
+│   │   └── sync.js        # Sync logic
 │   ├── utils/              # Pure utility functions
 │   │   ├── constants.js    # App constants
 │   │   ├── calculations.js # Budget calculations
 │   │   ├── validators.js   # Input validation
-│   │   └── exportHelpers.js # CSV export logic
+│   │   ├── exportHelpers.js # CSV export logic
+│   │   └── migration.js    # Data migration (future)
 │   ├── App.jsx            # Main app orchestration
 │   ├── App.css            # Comprehensive styling with responsive design
 │   ├── index.css          # Global styles
@@ -68,7 +84,7 @@ budget/
 
 ## Architecture & State Management
 
-**Modular Component Architecture**: Refactored from 530-line monolithic App.jsx into component-based architecture with separation of concerns.
+**Modular Component Architecture**: Refactored from 530-line monolithic App.jsx into component-based architecture with separation of concerns. **Tabbed Navigation**: Major UI redesign with no-scroll tab-based interface for improved UX and organization.
 
 **State Management** (via custom hooks):
 - **`useExpenses()`**: Complete expense CRUD operations with undo/redo history
@@ -89,6 +105,9 @@ budget/
 **Global State** (App.jsx):
 - `monthlyPayment`: Fixed monthly deposit (default: 5700 kr.)
 - `previousBalance`: Carryover from previous year (default: 4831 kr.)
+- `activeTab`: Current selected tab (0-3 for Oversigt, Udgifter, Månedlig oversigt, Indstillinger)
+- `showAddModal`: Boolean for AddExpenseModal visibility
+- `deleteConfirmation`: Object managing delete confirmation modal state `{isOpen, expenseName, expenseId, isBulk, count}`
 
 **Core Business Logic** ([utils/calculations.js](src/utils/calculations.js)):
 
@@ -141,25 +160,65 @@ budget/
 
 All components follow modular architecture with separate CSS files:
 
+**Core UI Components**:
 1. **[Header.jsx](src/components/Header.jsx)** - App title and branding
-2. **[Settings.jsx](src/components/Settings.jsx)** - Monthly payment and previous balance inputs
+2. **[TabView.jsx](src/components/TabView.jsx)** - Tabbed navigation system with dropdown support
 3. **[SummaryCards.jsx](src/components/SummaryCards.jsx)** - 4 budget summary cards
-4. **[ExpensesTable.jsx](src/components/ExpensesTable.jsx)** - Main expenses table with inline editing and highlight animation
-5. **[MonthlyOverview.jsx](src/components/MonthlyOverview.jsx)** - 12-month expense breakdown
-6. **[AddExpenseModal.jsx](src/components/AddExpenseModal.jsx)** - Modal dialog for adding expenses with validation
-7. **[Alert.jsx](src/components/Alert.jsx)** - Notification system
-8. **[ErrorBoundary.jsx](src/components/ErrorBoundary.jsx)** - Error handling wrapper
+4. **[Alert.jsx](src/components/Alert.jsx)** - Notification system
+5. **[ErrorBoundary.jsx](src/components/ErrorBoundary.jsx)** - Error handling wrapper
 
-### Settings Section
-- Monthly payment input with validation
-- Previous balance input with validation
-- Real-time updates to summary calculations
+**Tab Content Components**:
+6. **[BalanceChart.jsx](src/components/BalanceChart.jsx)** - Monthly balance visualization (Oversigt tab)
+7. **[ExpenseDistribution.jsx](src/components/ExpenseDistribution.jsx)** - Expense breakdown charts (Oversigt tab)
+8. **[ExpensesTable.jsx](src/components/ExpensesTable.jsx)** - Main expenses table with inline editing (Udgifter tab)
+9. **[MonthlyOverview.jsx](src/components/MonthlyOverview.jsx)** - 12-month expense breakdown (Månedlig oversigt tab)
+10. **[Settings.jsx](src/components/Settings.jsx)** - Monthly payment and previous balance inputs (Indstillinger tab)
+
+**Modal Components**:
+11. **[AddExpenseModal.jsx](src/components/AddExpenseModal.jsx)** - Modal dialog for adding expenses with validation
+12. **[DeleteConfirmation.jsx](src/components/DeleteConfirmation.jsx)** - Confirmation modal for delete operations
+
+### Tabbed Navigation System
+
+**TabView Component** ([TabView.jsx](src/components/TabView.jsx)):
+- No-scroll tab-based navigation
+- Dropdown menu support for nested content
+- Hover-triggered dropdowns with smooth animations
+- Active tab highlighting with visual feedback
+- Accessibility: ARIA labels, keyboard navigation support
+
+**Tab Structure**:
+1. **📊 Oversigt** (Overview) - Dropdown with sub-tabs:
+   - 📈 Balance udvikling (Balance development chart)
+   - 🥧 Udgiftsfordeling (Expense distribution)
+2. **📝 Udgifter** (Expenses) - Expense table management
+3. **📅 Månedlig oversigt** (Monthly overview) - 12-month breakdown
+4. **⚙️ Indstillinger** (Settings) - Configuration and data operations
 
 ### Summary Cards (4 cards)
 - **Årlige udgifter**: Total annual expenses
 - **Gennemsnitlig månedlig udgift**: Average monthly expense
 - **Månedlig balance**: Monthly surplus/deficit (green/red indicator)
 - **Årlig reserve**: Annual reserve including previous balance
+- Displayed prominently at top of app, above tab navigation
+
+### Balance Chart (Oversigt → Balance udvikling)
+- **Visualization**: Line chart showing monthly balance trends using Recharts
+- **Data**: Monthly income vs expenses over 12 months
+- **Features**: Interactive tooltips, grid lines, responsive design
+- **Purpose**: Visual understanding of budget health throughout the year
+
+### Expense Distribution (Oversigt → Udgiftsfordeling)
+- **Visualization**: Pie/bar charts showing expense categories using Recharts
+- **Data**: Breakdown of expenses by type/frequency
+- **Features**: Interactive legends, percentage display
+- **Purpose**: Identify spending patterns and largest expense categories
+
+### Settings Section (Indstillinger tab)
+- Monthly payment input with validation
+- Previous balance input with validation
+- Real-time updates to summary calculations
+- Data operations: Save, Load, Export (moved to this tab)
 
 ### Add Expense Modal
 - **Modal dialog** for adding new expenses (using react-modal)
@@ -174,22 +233,30 @@ All components follow modular architecture with separate CSS files:
 - **Mobile-responsive**: Full-screen on small devices
 - **Animations**: Fade-in overlay, slide-up modal
 
-### Expenses Table
+### Delete Confirmation Modal
+- **Modal dialog** for confirming delete operations (using react-modal)
+- **Single delete**: Displays expense name with confirmation question
+- **Bulk delete**: Shows count of expenses to be deleted
+- **Clear messaging**: Danish text with appropriate warnings
+- **Keyboard support**: Enter to confirm, Escape to cancel
+- **Accessible**: ARIA labels and focus management
+
+### Expenses Table (Udgifter tab)
 - Editable inline inputs for all fields
 - **New row highlight**: 2-second green flash animation for newly added expenses
 - **Top insertion**: New expenses appear at top of table (most recent first)
 - Bulk selection with checkboxes
-- Individual delete buttons with confirmation
+- Individual delete buttons triggering delete confirmation modal
 - Column validation (month ranges auto-adjust)
-- Undo/Redo buttons (keyboard: Ctrl+Z, Ctrl+Shift+Z)
-- Delete selected button (bulk operations)
+- Delete selected button for bulk operations (with confirmation)
 
-### Monthly Overview Table
+### Monthly Overview Table (Månedlig oversigt tab)
 - 12-month breakdown per expense
 - Shows amounts or "-" for inactive months
 - Totals row at bottom
 - Horizontal scroll on mobile
 - Responsive design with sticky headers
+- Displays total annual expenses for reference
 
 ### Alert System
 - Types: success (green), error (red), info (blue)
@@ -206,8 +273,16 @@ All components follow modular architecture with separate CSS files:
 
 ## User Interactions
 
+### Navigating the App
+**Tab-Based Navigation**:
+- Click tab headers to switch between sections
+- **Oversigt** tab has dropdown: hover to see sub-options (Balance udvikling, Udgiftsfordeling)
+- Active tab highlighted with visual feedback
+- Tab content displays without page scrolling (no-scroll design)
+- Automatic tab switching: adding expense via modal switches to Udgifter tab
+
 ### Adding Expenses
-**Modal-Based UX Flow** (Improved):
+**Modal-Based UX Flow**:
 - Click "➕ Tilføj ny udgift" button (or press Ctrl+N)
 - Modal dialog opens with pre-filled form fields:
   - **Udgiftsnavn**: Auto-focused text input
@@ -217,6 +292,7 @@ All components follow modular architecture with separate CSS files:
 - Real-time validation with error messages
 - Submit with "➕ Tilføj udgift" button (or press Enter)
 - Cancel with "Annuller" button (or press Escape)
+- **Auto-switch**: After adding, app switches to Udgifter tab
 - New expense inserts at **top** of table (immediately visible)
 - 2-second green highlight animation on new row
 - Success alert notification
@@ -235,9 +311,15 @@ All components follow modular architecture with separate CSS files:
 - All edits can be undone/redone
 
 ### Deleting Expenses
-- **Single**: Click "Slet" button with confirmation dialog
-- **Bulk**: Select multiple → "🗑️ Slet valgte" with confirmation
-- Confirmation dialog before deletion
+- **Single**: Click "Slet" button → Delete confirmation modal appears
+  - Modal displays expense name with confirmation question in Danish
+  - Confirm or cancel the deletion
+- **Bulk**:
+  - Select multiple expenses using checkboxes
+  - Click "🗑️ Slet valgte" button
+  - Delete confirmation modal shows count of expenses to delete
+  - Confirm or cancel the bulk deletion
+- **Modal interaction**: Enter to confirm, Escape to cancel
 - Success alert after deletion
 - Can undo deletion with Ctrl+Z
 
@@ -255,10 +337,11 @@ All components follow modular architecture with separate CSS files:
 - **Enter**: Submit add expense form (when modal is open)
 - **Escape**: Close modal without saving
 
-### Data Operations
+### Data Operations (Indstillinger tab)
 - **💾 Gem lokalt**: Save to localStorage with success feedback
-- **📁 Hent gemt data**: Load from localStorage with validation
+- **📁 Hent gemt data**: Load from localStorage with validation (shows saved date)
 - **📊 Eksporter til CSV**: Download CSV with full breakdown and UTF-8 BOM
+- All data operations accessible in Settings tab for better organization
 
 ## Styling System
 
@@ -355,44 +438,66 @@ See [utils/constants.js](src/utils/constants.js) for complete default data.
 
 ## Recent Improvements
 
-**Modular Refactoring** (completed):
-- ✅ Component-based architecture (7 components)
+**Phase 1 - Modular Refactoring** (completed):
+- ✅ Component-based architecture (initially 8 components)
 - ✅ Custom hooks (useExpenses, useAlert, useLocalStorage)
 - ✅ Pure utility functions (calculations, validators, exportHelpers)
 - ✅ Undo/Redo functionality with keyboard shortcuts
 - ✅ ErrorBoundary for graceful error recovery
 - ✅ Enhanced accessibility (ARIA labels, keyboard nav)
 - ✅ Improved validation and error handling
+- ✅ App.jsx reduced: 530 → 218 lines (59% reduction)
 
-**Metrics**:
-- App.jsx reduced: 530 → 218 lines (59% reduction)
-- Total codebase: ~1800 lines (modular, maintainable)
+**Phase 2 - UI/UX Redesign** (completed):
+- ✅ Tabbed navigation system with TabView component
+- ✅ No-scroll interface design for better UX
+- ✅ Dropdown menu support for nested content (Oversigt tab)
+- ✅ Delete confirmation modal for safer operations
+- ✅ Balance chart visualization using Recharts
+- ✅ Expense distribution charts using Recharts
+- ✅ Auto-switch to relevant tab after operations (e.g., add expense)
+- ✅ Reorganized Settings tab with all data operations
+- ✅ Expanded to 12 core components + 2 modals
+- ✅ App.jsx now: 348 lines (includes tab configuration)
+
+**Current Metrics**:
+- Total components: 14 (12 core + 2 modals)
+- Custom hooks: 3 (useExpenses, useAlert, useLocalStorage)
+- Utility modules: 4 (calculations, validators, exportHelpers, constants)
+- Total codebase: ~2200 lines (modular, maintainable, feature-rich)
 - ESLint: Clean, no errors
-- Build size: 210.24 KB (compressed: 65.94 KB)
+- Build size: ~220 KB (compressed: ~68 KB)
 
 ## Future Enhancements
 
-**Phase 1 - Enhanced Features**:
-- Expense categories with color coding
-- Search/filter expenses
-- Charts visualization (Recharts)
-- Dark mode support
-- Multi-year comparison
-- Import CSV functionality
+**Phase 3 - Enhanced Features** (in progress):
+- ~~Expense categories with color coding~~ (partially complete via distribution chart)
+- ~~Charts visualization (Recharts)~~ ✅ (Balance chart, Expense distribution completed)
+- Search/filter expenses (pending)
+- Dark mode support (pending)
+- Multi-year comparison (pending)
+- Import CSV functionality (pending)
+- Enhanced chart interactivity (pending)
 
-**Phase 2 - Backend Integration**:
+**Phase 4 - Backend Integration** (infrastructure prepared):
 - Supabase cloud sync and multi-device support
-- PGlite local database for enhanced offline functionality
-- Offline-first architecture
+  - Auth components and hooks created (Auth.jsx, useAuth.js)
+  - Supabase client configured (lib/supabase.js)
+  - Layout component for authenticated users (Layout.jsx)
+- PGlite local database for enhanced offline functionality (lib/pglite.js)
+- Sync logic for offline-first architecture (lib/sync.js)
+- Data migration utilities (utils/migration.js)
 - Conflict resolution
 
-**Phase 3 - Advanced Features**:
+**Phase 5 - Advanced Features**:
 - Recurring expense templates
-- Budget forecasting
+- Budget forecasting with predictive analytics
 - Email notifications
 - Expense attachments
-- Budget sharing
-- Export to PDF
+- Budget sharing and collaboration
+- Export to PDF with charts
+- Multi-device real-time sync
+- Historical data analysis
 
 ## Code Quality Standards
 
@@ -473,13 +578,19 @@ See [utils/constants.js](src/utils/constants.js) for complete default data.
 - **Alert debugging**: Check [useAlert.js](src/hooks/useAlert.js) for notification issues
 
 **Testing Checklist**:
-- [ ] Add/edit/delete expenses
+- [ ] Tab navigation: switching between all 4 tabs
+- [ ] Dropdown menu: hover over Oversigt tab, select sub-items
+- [ ] Add expense: modal opens, validation, auto-switch to Udgifter tab
+- [ ] Add/edit/delete expenses with confirmation modal
 - [ ] Undo/Redo operations (Ctrl+Z, Ctrl+Shift+Z)
 - [ ] Month range validation and auto-adjustment
-- [ ] Bulk selection and deletion
-- [ ] LocalStorage save/load with error handling
+- [ ] Bulk selection and deletion with confirmation
+- [ ] Delete confirmation modal: single and bulk modes
+- [ ] LocalStorage save/load with error handling (Indstillinger tab)
 - [ ] CSV export opens in Excel correctly with proper encoding
-- [ ] Responsive design on mobile (table scrolling)
+- [ ] Balance chart displays correctly with interactive tooltips
+- [ ] Expense distribution chart shows accurate data
+- [ ] Responsive design on mobile (table scrolling, tab navigation)
 - [ ] Alert messages appear and auto-dismiss
 - [ ] ErrorBoundary catches and displays errors gracefully
-- [ ] Keyboard shortcuts work correctly
+- [ ] Keyboard shortcuts work correctly (Ctrl+N, Ctrl+Z, Enter, Escape)
