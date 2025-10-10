@@ -11,6 +11,7 @@ import { SummaryCards } from './components/SummaryCards'
 import { ExpensesTable } from './components/ExpensesTable'
 import { MonthlyOverview } from './components/MonthlyOverview'
 import { AddExpenseModal } from './components/AddExpenseModal'
+import { DeleteConfirmation } from './components/DeleteConfirmation'
 import { TabView } from './components/TabView'
 import { BalanceChart } from './components/BalanceChart'
 import { ExpenseDistribution } from './components/ExpenseDistribution'
@@ -27,6 +28,13 @@ function App() {
   const [previousBalance, setPreviousBalance] = useState(DEFAULT_SETTINGS.previousBalance)
   const [showAddModal, setShowAddModal] = useState(false)
   const [activeTab, setActiveTab] = useState(0)
+  const [deleteConfirmation, setDeleteConfirmation] = useState({
+    isOpen: false,
+    expenseName: '',
+    expenseId: null,
+    isBulk: false,
+    count: 0
+  })
 
   const {
     expenses,
@@ -79,11 +87,6 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canUndo, canRedo, showAddModal])
 
-  // Open add expense modal
-  const handleOpenAddModal = () => {
-    setShowAddModal(true)
-  }
-
   // Close add expense modal
   const handleCloseAddModal = () => {
     setShowAddModal(false)
@@ -96,26 +99,62 @@ function App() {
     setActiveTab(1) // Switch to Udgifter tab
   }
 
-  // Delete expense handler
+  // Show delete confirmation
   const handleDeleteExpense = (id) => {
     const expense = expenses.find(e => e.id === id)
-    if (window.confirm(`Er du sikker på at du vil slette "${expense.name}"?`)) {
-      deleteExpense(id)
-      showAlert(`"${expense.name}" blev slettet`, 'success')
-    }
+    setDeleteConfirmation({
+      isOpen: true,
+      expenseName: expense.name,
+      expenseId: id,
+      isBulk: false,
+      count: 0
+    })
   }
 
-  // Delete selected handler
+  // Confirm single delete
+  const confirmDelete = () => {
+    if (deleteConfirmation.isBulk) {
+      deleteSelected()
+      showAlert(`${deleteConfirmation.count} udgift(er) slettet!`, 'success')
+    } else {
+      const expenseName = deleteConfirmation.expenseName
+      deleteExpense(deleteConfirmation.expenseId)
+      showAlert(`"${expenseName}" blev slettet`, 'success')
+    }
+    setDeleteConfirmation({
+      isOpen: false,
+      expenseName: '',
+      expenseId: null,
+      isBulk: false,
+      count: 0
+    })
+  }
+
+  // Cancel delete
+  const cancelDelete = () => {
+    setDeleteConfirmation({
+      isOpen: false,
+      expenseName: '',
+      expenseId: null,
+      isBulk: false,
+      count: 0
+    })
+  }
+
+  // Show delete selected confirmation
   const handleDeleteSelected = () => {
-    const result = deleteSelected()
-    if (!result.success) {
+    if (selectedExpenses.length === 0) {
       showAlert('Vælg venligst udgifter at slette først', 'error')
       return
     }
 
-    if (window.confirm(`Er du sikker på at du vil slette ${result.count} udgift(er)?`)) {
-      showAlert(`${result.count} udgift(er) slettet!`, 'success')
-    }
+    setDeleteConfirmation({
+      isOpen: true,
+      expenseName: '',
+      expenseId: null,
+      isBulk: true,
+      count: selectedExpenses.length
+    })
   }
 
   // Save to localStorage
@@ -170,16 +209,30 @@ function App() {
     {
       icon: '📊',
       label: 'Oversigt',
-      content: (
-        <div className="overview-tab">
-          <BalanceChart
-            expenses={expenses}
-            monthlyPayment={monthlyPayment}
-            previousBalance={previousBalance}
-          />
-          <ExpenseDistribution expenses={expenses} />
-        </div>
-      )
+      dropdownItems: [
+        {
+          icon: '📈',
+          label: 'Balance udvikling',
+          content: (
+            <div className="overview-tab">
+              <BalanceChart
+                expenses={expenses}
+                monthlyPayment={monthlyPayment}
+                previousBalance={previousBalance}
+              />
+            </div>
+          )
+        },
+        {
+          icon: '🥧',
+          label: 'Udgiftsfordeling',
+          content: (
+            <div className="overview-tab">
+              <ExpenseDistribution expenses={expenses} />
+            </div>
+          )
+        }
+      ]
     },
     {
       icon: '📝',
@@ -193,6 +246,10 @@ function App() {
             onToggleSelectAll={toggleSelectAll}
             onUpdate={updateExpense}
             onDelete={handleDeleteExpense}
+            onAdd={(data) => {
+              addExpense(data)
+              showAlert('Ny udgift tilføjet!', 'success')
+            }}
           />
           <button className="btn btn-danger" onClick={handleDeleteSelected}>
             <span className="btn-icon">🗑️</span>
@@ -220,6 +277,9 @@ function App() {
             previousBalance={previousBalance}
             onMonthlyPaymentChange={setMonthlyPayment}
             onPreviousBalanceChange={setPreviousBalance}
+            onSave={handleSave}
+            onLoad={handleLoad}
+            onExport={handleExport}
           />
         </div>
       )
@@ -238,30 +298,18 @@ function App() {
           onAdd={handleAddExpenseFromModal}
         />
 
+        <DeleteConfirmation
+          isOpen={deleteConfirmation.isOpen}
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+          expenseName={deleteConfirmation.expenseName}
+          count={deleteConfirmation.count}
+        />
+
         <div className="container">
           <SummaryCards summary={summary} />
 
           <section className="controls">
-            <button
-              className="btn btn-primary"
-              onClick={handleOpenAddModal}
-              title="Tilføj ny udgift (Ctrl+N)"
-            >
-              <span className="btn-icon">➕</span>
-              <span>Tilføj ny udgift</span>
-            </button>
-            <button className="btn btn-success" onClick={handleExport}>
-              <span className="btn-icon">📊</span>
-              <span>Eksporter CSV</span>
-            </button>
-            <button className="btn btn-secondary" onClick={handleSave}>
-              <span className="btn-icon">💾</span>
-              <span>Gem lokalt</span>
-            </button>
-            <button className="btn btn-secondary" onClick={handleLoad}>
-              <span className="btn-icon">📁</span>
-              <span>Hent data</span>
-            </button>
             {canUndo && (
               <button
                 className="btn btn-info"

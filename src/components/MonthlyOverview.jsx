@@ -54,15 +54,19 @@ export const MonthlyOverview = ({ expenses, totalAnnual }) => {
         <table className="monthly-table">
           <thead>
             <tr>
-              <th>Udgift</th>
+              <th className="sortable" onClick={() => handleSort('name')}>
+                Udgift{getSortIndicator('name')}
+              </th>
               {MONTHS.map(month => (
                 <th key={month}>{month}</th>
               ))}
-              <th>Total</th>
+              <th className="sortable" onClick={() => handleSort('total')}>
+                Total{getSortIndicator('total')}
+              </th>
             </tr>
           </thead>
           <tbody>
-            {expenses.map(expense => {
+            {sortedExpenses.map(expense => {
               let total = 0
               return (
                 <tr key={expense.id}>

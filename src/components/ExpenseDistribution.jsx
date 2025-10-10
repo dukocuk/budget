@@ -37,7 +37,7 @@ export const ExpenseDistribution = ({ expenses }) => {
   }
 
   // Custom label for pie slices
-  const renderCustomLabel = ({ name, percent }) => {
+  const renderCustomLabel = ({ percent }) => {
     return `${(percent * 100).toFixed(0)}%`
   }
 
@@ -84,7 +84,7 @@ export const ExpenseDistribution = ({ expenses }) => {
             verticalAlign="bottom"
             height={36}
             iconType="circle"
-            formatter={(value, entry) => (
+            formatter={(value) => (
               <span style={{ color: '#374151', fontWeight: 600 }}>
                 {value}
               </span>
