@@ -66,13 +66,13 @@ export const generateCSV = (expenses, monthlyPayment, previousBalance) => {
 /**
  * Download CSV file
  * @param {string} csvContent - CSV content string
- * @param {string} filename - Optional filename (defaults to budget_2025_YYYY-MM-DD.csv)
+ * @param {string} filename - Optional filename (defaults to budget_YYYY-MM-DD.csv)
  */
 export const downloadCSV = (csvContent, filename = null) => {
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
   const link = document.createElement('a')
   link.href = URL.createObjectURL(blob)
-  link.download = filename || `budget_2025_${new Date().toISOString().split('T')[0]}.csv`
+  link.download = filename || `budget_${new Date().toISOString().split('T')[0]}.csv`
   link.click()
   URL.revokeObjectURL(link.href)
 }

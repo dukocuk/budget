@@ -270,6 +270,38 @@
   box-shadow: 0 6px 12px rgba(129, 140, 248, 0.3);
 }
 
+/* Dark mode: Sync status container */
+:root[data-theme="dark"] .sync-status-container {
+  background: var(--color-background);
+  border-color: var(--color-border);
+}
+
+:root[data-theme="dark"] .sync-status-container h3 {
+  color: var(--color-text);
+}
+
+/* Dark mode: Sync status text elements */
+:root[data-theme="dark"] .sync-time,
+:root[data-theme="dark"] .sync-info,
+:root[data-theme="dark"] .settings-note {
+  color: var(--color-text-secondary);
+}
+
+/* Dark mode: Settings actions border */
+:root[data-theme="dark"] .settings-actions {
+  border-top-color: var(--color-border);
+}
+
+/* Dark mode: Sync error message */
+:root[data-theme="dark"] .sync-error-message {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: var(--color-error);
+}
+
+:root[data-theme="dark"] .sync-error-message p {
+  color: var(--color-error);
+}
+
 @media (max-width: 768px) {
   .settings-buttons {
     flex-direction: column;

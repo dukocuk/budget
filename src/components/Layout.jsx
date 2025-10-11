@@ -38,7 +38,7 @@ export default function Layout() {
       <header className="layout-header">
         <div className="header-content">
           <div className="header-title">
-            <h1>💰 Budget Tracker 2025</h1>
+            <h1>💰 Budget Tracker</h1>
             <p>Administrer dine faste udgifter i DKK</p>
           </div>
 

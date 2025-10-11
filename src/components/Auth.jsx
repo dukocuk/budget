@@ -44,7 +44,7 @@ export default function Auth() {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <h1>💰 Budget Tracker 2025</h1>
+          <h1>💰 Budget Tracker</h1>
           <p>Log ind for at synkronisere dine udgifter på tværs af enheder</p>
         </div>
 

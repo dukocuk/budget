@@ -55,6 +55,25 @@ export const useSupabaseSync = (user) => {
       setSyncStatus('syncing')
       setSyncError(null)
 
+      // Safety check: If syncing empty array, verify cloud is also empty
+      // This prevents accidental data loss from race conditions
+      if (expenses.length === 0) {
+        const { data: cloudExpenses, error: checkError } = await supabase
+          .from('expenses')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1)
+
+        if (checkError) throw checkError
+
+        if (cloudExpenses && cloudExpenses.length > 0) {
+          console.warn('⚠️ Prevented empty-state sync - cloud has data, local is empty')
+          setSyncStatus('idle')
+          isSyncingRef.current = false
+          return
+        }
+      }
+
       // Delete all existing expenses for this user
       const { error: deleteError } = await supabase
         .from('expenses')

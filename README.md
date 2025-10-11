@@ -1,4 +1,4 @@
-# =° Budget Tracker 2025
+# =ï¿½ Budget Tracker
 
 Modern budget tracking application with cross-device sync, offline support, and real-time updates.
 
@@ -6,14 +6,14 @@ Modern budget tracking application with cross-device sync, offline support, and 
 
 - = **Google Authentication** - Secure login with your Google account
 - < **Cross-Device Sync** - Real-time synchronization across all your devices
-- =ô **Offline Mode** - Works without internet, syncs when back online
-- =Ê **Interactive Charts** - Visualize your spending with Pie, Bar, and Line charts
-- =¾ **Local PostgreSQL** - Fast local database (PGlite) in your browser
+- =ï¿½ **Offline Mode** - Works without internet, syncs when back online
+- =ï¿½ **Interactive Charts** - Visualize your spending with Pie, Bar, and Line charts
+- =ï¿½ **Local PostgreSQL** - Fast local database (PGlite) in your browser
 -  **Cloud Backup** - Automatic backup to Supabase
-- <¨ **Modern UI** - Clean, responsive design with tab navigation
-- <é<ð **Danish Language** - Fully localized for Danish users
+- <ï¿½ **Modern UI** - Clean, responsive design with tab navigation
+- <ï¿½<ï¿½ **Danish Language** - Fully localized for Danish users
 
-## =€ Quick Start
+## =ï¿½ Quick Start
 
 ### 1. Setup Supabase (15 min)
 Follow [`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md)
@@ -38,24 +38,24 @@ cp src/App.new.jsx src/App.jsx
 npm run dev
 ```
 
-## =Ö Documentation
+## =ï¿½ Documentation
 
-- **[NEXT_STEPS.md](./NEXT_STEPS.md)**  **START HERE** for complete setup guide
+- **[NEXT_STEPS.md](./NEXT_STEPS.md)** ï¿½ **START HERE** for complete setup guide
 - **[SUPABASE_SETUP.md](./SUPABASE_SETUP.md)** - Database configuration
 - **[IMPLEMENTATION_STATUS.md](./IMPLEMENTATION_STATUS.md)** - Technical details
 
-## <× Tech Stack
+## <ï¿½ Tech Stack
 
 - React 19 + Vite
 - PGlite (Local PostgreSQL)
 - Supabase (Cloud + Realtime)
 - Recharts (Charts)
 
-## =ñ How It Works
+## =ï¿½ How It Works
 
 ```
-Your Browser ’ Supabase Cloud ’ Other Devices
-     “               “               “
+Your Browser ï¿½ï¿½ Supabase Cloud ï¿½ï¿½ Other Devices
+     ï¿½               ï¿½               ï¿½
   PGlite         PostgreSQL       PGlite
   (local)         (cloud)         (local)
 ```

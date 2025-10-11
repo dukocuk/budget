@@ -1,4 +1,4 @@
--- Budget Tracker 2025 - Initial Database Schema
+-- Budget Tracker - Initial Database Schema
 -- Run this in your Supabase SQL editor: https://supabase.com/dashboard/project/_/sql
 
 -- Enable UUID extension

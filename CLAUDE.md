@@ -194,7 +194,7 @@ budget/
   - **Offline-first**: Works without internet, syncs when reconnected
 
 - **Local Storage** ([hooks/useLocalStorage.js](src/hooks/useLocalStorage.js)):
-  - **LocalStorage key**: `budgetData2025`
+  - **LocalStorage key**: `budgetData`
   - **Backup**: Used before cloud migration
   - **Export**: CSV with UTF-8 BOM for Excel compatibility
 
