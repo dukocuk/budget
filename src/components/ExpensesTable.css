@@ -131,6 +131,103 @@
   align-items: center;
 }
 
+/* Filter controls */
+.filter-controls {
+  padding: 15px;
+  background: #f9fafb;
+  border-bottom: 2px solid #e5e7eb;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: flex-end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 150px;
+}
+
+.filter-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.filter-search {
+  padding: 10px 12px;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s;
+  background: white;
+  width: 250px;
+}
+
+.filter-search:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.filter-search::placeholder {
+  color: #9ca3af;
+}
+
+.filter-select {
+  padding: 10px 12px;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s;
+  background: white;
+  cursor: pointer;
+  min-width: 150px;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.btn-clear-filters {
+  padding: 10px 16px;
+  font-size: 14px;
+  white-space: nowrap;
+  background: #ef4444;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-clear-filters:hover {
+  background: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(239, 68, 68, 0.2);
+}
+
+.btn-clear-filters:active {
+  transform: translateY(0);
+}
+
+.filter-status {
+  padding: 10px 12px;
+  background: #e0e7ff;
+  color: #3730a3;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  align-self: center;
+  border: 1px solid #c7d2fe;
+}
+
 .btn-inline-add {
   font-size: 14px;
   padding: 8px 16px;
@@ -412,5 +509,33 @@
   .inline-actions {
     flex-direction: row;
     gap: 4px;
+  }
+
+  /* Filter controls responsive */
+  .filter-controls {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .filter-group {
+    min-width: 100%;
+  }
+
+  .filter-search {
+    width: 100%;
+  }
+
+  .filter-select {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .btn-clear-filters {
+    width: 100%;
+  }
+
+  .filter-status {
+    width: 100%;
+    text-align: center;
   }
 }

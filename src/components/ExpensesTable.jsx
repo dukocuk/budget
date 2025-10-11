@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { MONTHS, FREQUENCY_LABELS, FREQUENCY_TYPES } from '../utils/constants'
 import { calculateAnnualAmount } from '../utils/calculations'
+import { useExpenseFilters } from '../hooks/useExpenseFilters'
 import './ExpensesTable.css'
 
 export const ExpensesTable = ({
@@ -16,7 +17,21 @@ export const ExpensesTable = ({
   onDelete,
   onAdd
 }) => {
-  const allSelected = selectedExpenses.length === expenses.length && expenses.length > 0
+  // Use expense filters hook
+  const {
+    filteredExpenses,
+    searchText,
+    setSearchText,
+    frequencyFilter,
+    setFrequencyFilter,
+    monthFilter,
+    setMonthFilter,
+    clearFilters,
+    hasActiveFilters,
+    filterCount
+  } = useExpenseFilters(expenses)
+
+  const allSelected = selectedExpenses.length === filteredExpenses.length && filteredExpenses.length > 0
   const [newlyAddedId, setNewlyAddedId] = useState(null)
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
   const [showInlineAdd, setShowInlineAdd] = useState(false)
@@ -46,11 +61,11 @@ export const ExpensesTable = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expenses.length])
 
-  // Sort expenses
+  // Sort expenses (use filtered expenses instead of all expenses)
   const sortedExpenses = useMemo(() => {
-    if (!sortConfig.key) return expenses
+    if (!sortConfig.key) return filteredExpenses
 
-    return [...expenses].sort((a, b) => {
+    return [...filteredExpenses].sort((a, b) => {
       let aVal, bVal
 
       if (sortConfig.key === 'annualTotal') {
@@ -71,7 +86,7 @@ export const ExpensesTable = ({
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1
       return 0
     })
-  }, [expenses, sortConfig])
+  }, [filteredExpenses, sortConfig])
 
   // Handle column sort
   const handleSort = (key) => {
@@ -183,6 +198,79 @@ export const ExpensesTable = ({
           <span className="btn-icon">➕</span>
           <span>Tilføj ny udgift her</span>
         </button>
+      </div>
+
+      {/* Search and Filter Controls */}
+      <div className="filter-controls">
+        <div className="filter-group">
+          <label htmlFor="search-input" className="filter-label">
+            🔍 Søg
+          </label>
+          <input
+            id="search-input"
+            type="text"
+            className="filter-search"
+            placeholder="Søg efter udgift..."
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            aria-label="Søg efter udgift"
+          />
+        </div>
+
+        <div className="filter-group">
+          <label htmlFor="frequency-filter" className="filter-label">
+            📊 Frekvens
+          </label>
+          <select
+            id="frequency-filter"
+            className="filter-select"
+            value={frequencyFilter}
+            onChange={(e) => setFrequencyFilter(e.target.value)}
+            aria-label="Filtrer efter frekvens"
+          >
+            <option value="all">Alle</option>
+            <option value={FREQUENCY_TYPES.MONTHLY}>Månedlig</option>
+            <option value={FREQUENCY_TYPES.QUARTERLY}>Kvartalsvis</option>
+            <option value={FREQUENCY_TYPES.YEARLY}>Årlig</option>
+          </select>
+        </div>
+
+        <div className="filter-group">
+          <label htmlFor="month-filter" className="filter-label">
+            📅 Aktiv i måned
+          </label>
+          <select
+            id="month-filter"
+            className="filter-select"
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            aria-label="Filtrer efter måned"
+          >
+            <option value="all">Alle måneder</option>
+            {MONTHS.map((month, index) => (
+              <option key={index} value={index + 1}>{month}</option>
+            ))}
+          </select>
+        </div>
+
+        {hasActiveFilters && (
+          <div className="filter-group">
+            <button
+              className="btn btn-secondary btn-clear-filters"
+              onClick={clearFilters}
+              aria-label="Ryd filtre"
+              title={`Ryd filtre (${filterCount} skjult${filterCount !== 1 ? 'e' : ''})`}
+            >
+              ✖ Ryd filtre
+            </button>
+          </div>
+        )}
+
+        {hasActiveFilters && (
+          <div className="filter-status">
+            Viser {filteredExpenses.length} af {expenses.length} udgifter
+          </div>
+        )}
       </div>
       <table className="expenses-table">
         <thead>

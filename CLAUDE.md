@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Personal budget tracker application for managing fixed expenses in DKK (Danish Kroner). Single-page React application built with Vite, focusing on annual budget planning with monthly/quarterly/yearly expense tracking.
+Personal budget tracker application for managing fixed expenses in DKK (Danish Kroner). Single-page React application built with Vite, featuring automatic cloud synchronization, real-time multi-device sync, dark mode, expense filtering, and CSV import/export.
 
 **Technology Stack**:
 - React 19.1.1 with Hooks
@@ -12,8 +12,8 @@ Personal budget tracker application for managing fixed expenses in DKK (Danish K
 - ESLint 9.36.0 (code quality)
 - Recharts 3.2.1 (charting library)
 - React Modal 3.16.3 (modal dialogs)
-- Supabase 2.74.0 (planned backend integration)
-- PGlite 0.3.10 (local PostgreSQL)
+- Supabase 2.74.0 (cloud sync & authentication)
+- PGlite 0.3.10 (local PostgreSQL - future)
 
 ## Development Commands
 
@@ -38,10 +38,11 @@ budget/
 ├── src/
 │   ├── components/           # Reusable UI components
 │   │   ├── Alert.jsx/css    # Alert notification system
-│   │   ├── Header.jsx/css   # App header
-│   │   ├── Settings.jsx/css # Settings section
+│   │   ├── Auth.jsx/css     # Google OAuth login ✅
+│   │   ├── Header.jsx/css   # App header with user info & sync status ✅
+│   │   ├── Settings.jsx/css # Settings with sync indicators ✅
 │   │   ├── SummaryCards.jsx/css # Budget summary cards
-│   │   ├── ExpensesTable.jsx/css # Main expenses table
+│   │   ├── ExpensesTable.jsx/css # Main expenses table with filtering ✅
 │   │   ├── MonthlyOverview.jsx/css # Monthly breakdown
 │   │   ├── AddExpenseModal.jsx/css # Modal for adding expenses
 │   │   ├── DeleteConfirmation.jsx/css # Delete confirmation modal
@@ -49,50 +50,93 @@ budget/
 │   │   ├── BalanceChart.jsx/css # Monthly balance visualization
 │   │   ├── ExpenseDistribution.jsx/css # Expense breakdown charts
 │   │   ├── ErrorBoundary.jsx/css # Error handling wrapper
-│   │   ├── Auth.jsx/css # Authentication (future)
 │   │   ├── Layout.jsx/css # App layout (future)
 │   │   ├── Dashboard.jsx/css # Dashboard view (future)
 │   │   ├── ExpenseManager.jsx/css # Expense management (future)
 │   │   └── MonthlyView.jsx/css # Monthly view (future)
 │   ├── hooks/               # Custom React hooks
-│   │   ├── useExpenses.js  # Expense CRUD + undo/redo
+│   │   ├── useExpenses.js  # Expense CRUD + undo/redo + sync ✅
 │   │   ├── useAlert.js     # Alert notifications
 │   │   ├── useLocalStorage.js # Storage operations
-│   │   ├── useAuth.js # Authentication (future)
-│   │   └── useSettings.js # Settings management (future)
-│   ├── lib/                # External integrations (future)
-│   │   ├── supabase.js    # Supabase client
-│   │   ├── pglite.js      # PGlite database
-│   │   └── sync.js        # Sync logic
+│   │   ├── useAuth.js      # Authentication ✅
+│   │   ├── useSupabaseSync.js # Automatic cloud sync ✅
+│   │   ├── useTheme.js     # Dark/light mode ✅
+│   │   ├── useExpenseFilters.js # Search & filtering ✅
+│   │   └── useSettings.js  # Settings management (future)
+│   ├── lib/                # External integrations
+│   │   ├── supabase.js    # Supabase client ✅
+│   │   ├── pglite.js      # PGlite database (future)
+│   │   └── sync.js        # Sync logic (future)
 │   ├── utils/              # Pure utility functions
 │   │   ├── constants.js    # App constants
 │   │   ├── calculations.js # Budget calculations
 │   │   ├── validators.js   # Input validation
 │   │   ├── exportHelpers.js # CSV export logic
-│   │   └── migration.js    # Data migration (future)
-│   ├── App.jsx            # Main app orchestration
-│   ├── App.css            # Comprehensive styling with responsive design
-│   ├── index.css          # Global styles
+│   │   ├── importHelpers.js # CSV import logic ✅
+│   │   └── migration.js    # Data migration ✅
+│   ├── App.jsx            # Main app orchestration with auth wrapper ✅
+│   ├── App.css            # Comprehensive styling with dark mode ✅
+│   ├── index.css          # Global styles with theme variables ✅
 │   └── main.jsx           # React entry point
+├── supabase/
+│   └── migrations/
+│       └── 001_initial_schema.sql # Database schema ✅
 ├── public/              # Static assets
+├── .env.example         # Example environment variables ✅
 ├── index.html           # HTML template
 ├── package.json         # Dependencies and scripts
 ├── vite.config.js       # Vite configuration
 ├── eslint.config.js     # ESLint rules
-└── CLAUDE.md           # This file
+├── CLAUDE.md           # This file
+├── CLOUD_SYNC_IMPLEMENTATION.md # Cloud sync details ✅
+└── SETUP_CLOUD_SYNC.md # Setup guide ✅
 ```
 
 ## Architecture & State Management
 
-**Modular Component Architecture**: Refactored from 530-line monolithic App.jsx into component-based architecture with separation of concerns. **Tabbed Navigation**: Major UI redesign with no-scroll tab-based interface for improved UX and organization.
+**Modular Component Architecture**: Refactored from 530-line monolithic App.jsx into component-based architecture with separation of concerns. **Tabbed Navigation**: Major UI redesign with no-scroll tab-based interface. **Cloud Sync**: Automatic Supabase synchronization with offline-first architecture.
 
 **State Management** (via custom hooks):
+
 - **`useExpenses()`**: Complete expense CRUD operations with undo/redo history
   - `expenses`: Array of expense objects `{id, name, amount, frequency, startMonth, endMonth}`
   - `selectedExpenses`: Array of expense IDs for bulk operations
   - `addExpense(expenseData)`: Adds new expense (optional data parameter), inserts at top of table
   - `updateExpense()`, `deleteExpense()`, `deleteSelected()`
   - `undo()`, `redo()`: Full history tracking with keyboard shortcuts (Ctrl+Z, Ctrl+Shift+Z)
+  - **Cloud sync callback**: Optional callback for automatic cloud synchronization
+
+- **`useAuth()`**: Authentication management ✅
+  - `user`: Current authenticated user object
+  - `loading`: Loading state during auth operations
+  - `error`: Authentication error messages
+  - `signInWithGoogle()`: Google OAuth login
+  - `signOut()`: User logout with cleanup
+
+- **`useSupabaseSync()`**: Automatic cloud synchronization ✅
+  - `syncStatus`: Current sync state (idle, syncing, synced, error, offline)
+  - `lastSyncTime`: Timestamp of last successful sync
+  - `syncError`: Error message if sync failed
+  - `isOnline`: Online/offline detection
+  - `syncExpenses()`: Debounced expense sync (1 second delay)
+  - `syncSettings()`: Debounced settings sync
+  - `loadExpenses()`, `loadSettings()`: Load data from cloud
+  - Real-time subscriptions for multi-device sync
+
+- **`useTheme()`**: Dark/light mode management ✅
+  - `theme`: Current theme ('light' or 'dark')
+  - `toggleTheme()`: Switch between themes
+  - `isDark`, `isLight`: Boolean helpers
+  - System preference detection
+  - LocalStorage persistence
+
+- **`useExpenseFilters()`**: Search and filtering ✅
+  - `filteredExpenses`: Filtered expense array
+  - `searchText`, `setSearchText()`: Text search
+  - `frequencyFilter`, `setFrequencyFilter()`: Filter by frequency
+  - `monthFilter`, `setMonthFilter()`: Filter by active month
+  - `clearFilters()`: Reset all filters
+  - `hasActiveFilters`: Boolean indicator
 
 - **`useAlert()`**: Centralized notification system
   - `alert`: Current notification `{message, type}`
@@ -107,7 +151,7 @@ budget/
 - `previousBalance`: Carryover from previous year (default: 4831 kr.)
 - `activeTab`: Current selected tab (0-3 for Oversigt, Udgifter, Månedlig oversigt, Indstillinger)
 - `showAddModal`: Boolean for AddExpenseModal visibility
-- `deleteConfirmation`: Object managing delete confirmation modal state `{isOpen, expenseName, expenseId, isBulk, count}`
+- `deleteConfirmation`: Object managing delete confirmation modal state
 
 **Core Business Logic** ([utils/calculations.js](src/utils/calculations.js)):
 
@@ -122,16 +166,10 @@ budget/
 2. **`getMonthlyAmount(expense, month)`**
    - Returns expense amount for specific month (1-12)
    - Returns: number (0 if outside range)
-   - Logic:
-     - Returns 0 if month outside startMonth/endMonth
-     - `yearly`: Amount on startMonth only
-     - `quarterly`: Amount on quarter months only
-     - `monthly`: Amount every month in range
 
 3. **`calculateSummary(expenses, monthlyPayment, previousBalance)`**
    - Computes budget overview metrics
    - Returns: `{totalAnnual, avgMonthly, monthlyBalance, annualReserve}`
-   - All values rounded to whole numbers
 
 4. **`calculateMonthlyTotals(expenses)`**
    - Generates 12-month expense breakdown
@@ -148,226 +186,176 @@ budget/
 - `validateExpense()`: Complete expense object validation
 - `sanitizeExpense()`: Clean and normalize expense data
 
-**Data Persistence** ([hooks/useLocalStorage.js](src/hooks/useLocalStorage.js)):
-- **LocalStorage key**: `budgetData2025`
-- **Stored data**: `{expenses, monthlyPayment, previousBalance, savedDate}`
-- **Operations**: `saveData()`, `loadData()`, `clearData()` with error handling
-- **Export**: CSV with UTF-8 BOM (`\ufeff`) for Excel compatibility ([utils/exportHelpers.js](src/utils/exportHelpers.js))
+**Data Persistence**:
+- **Cloud Storage** ([hooks/useSupabaseSync.js](src/hooks/useSupabaseSync.js)): ✅
+  - **Database tables**: `expenses`, `settings` with Row Level Security
+  - **Automatic sync**: Debounced (1 second delay) after changes
+  - **Real-time updates**: Multi-device sync via Supabase realtime
+  - **Offline-first**: Works without internet, syncs when reconnected
+
+- **Local Storage** ([hooks/useLocalStorage.js](src/hooks/useLocalStorage.js)):
+  - **LocalStorage key**: `budgetData2025`
+  - **Backup**: Used before cloud migration
+  - **Export**: CSV with UTF-8 BOM for Excel compatibility
+
+**Data Migration** ([utils/migration.js](src/utils/migration.js)): ✅
+- Automatic localStorage → Supabase migration on first login
+- One-time migration with backup creation
+- Restore capability if needed
+
+**CSV Import/Export** ([utils/importHelpers.js](src/utils/importHelpers.js), [utils/exportHelpers.js](src/utils/exportHelpers.js)): ✅
+- **Import**: Parse CSV files with validation and duplicate detection
+- **Export**: Generate CSV with UTF-8 BOM for Excel compatibility
+- **Format**: Expense summary + monthly breakdown + settings
+
+## Cloud Synchronization ✅
+
+### Features
+- **Automatic Sync**: Changes sync to cloud within 1 second
+- **Real-time Multi-Device**: Updates appear on all devices instantly
+- **Offline-First**: Full functionality without internet connection
+- **Conflict Resolution**: Last-write-wins strategy
+- **Row Level Security**: User data isolation at database level
+
+### Architecture
+- **Authentication**: Google OAuth via Supabase Auth
+- **Database**: PostgreSQL with automatic schema migrations
+- **Real-time**: Supabase Realtime for instant updates
+- **Sync Strategy**: Debounced writes, optimistic UI updates
+
+### Setup
+See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 
 ## UI Components & Features
 
 ### Component Overview
 
-All components follow modular architecture with separate CSS files:
-
 **Core UI Components**:
-1. **[Header.jsx](src/components/Header.jsx)** - App title and branding
-2. **[TabView.jsx](src/components/TabView.jsx)** - Tabbed navigation system with dropdown support
-3. **[SummaryCards.jsx](src/components/SummaryCards.jsx)** - 4 budget summary cards
-4. **[Alert.jsx](src/components/Alert.jsx)** - Notification system
-5. **[ErrorBoundary.jsx](src/components/ErrorBoundary.jsx)** - Error handling wrapper
+1. **[Header.jsx](src/components/Header.jsx)** - App header with user info and sync status ✅
+2. **[Auth.jsx](src/components/Auth.jsx)** - Google OAuth login screen ✅
+3. **[TabView.jsx](src/components/TabView.jsx)** - Tabbed navigation with dropdown
+4. **[SummaryCards.jsx](src/components/SummaryCards.jsx)** - 4 budget summary cards
+5. **[Alert.jsx](src/components/Alert.jsx)** - Notification system
+6. **[ErrorBoundary.jsx](src/components/ErrorBoundary.jsx)** - Error handling
 
 **Tab Content Components**:
-6. **[BalanceChart.jsx](src/components/BalanceChart.jsx)** - Monthly balance visualization (Oversigt tab)
-7. **[ExpenseDistribution.jsx](src/components/ExpenseDistribution.jsx)** - Expense breakdown charts (Oversigt tab)
-8. **[ExpensesTable.jsx](src/components/ExpensesTable.jsx)** - Main expenses table with inline editing (Udgifter tab)
-9. **[MonthlyOverview.jsx](src/components/MonthlyOverview.jsx)** - 12-month expense breakdown (Månedlig oversigt tab)
-10. **[Settings.jsx](src/components/Settings.jsx)** - Monthly payment and previous balance inputs (Indstillinger tab)
+7. **[BalanceChart.jsx](src/components/BalanceChart.jsx)** - Balance visualization
+8. **[ExpenseDistribution.jsx](src/components/ExpenseDistribution.jsx)** - Expense charts
+9. **[ExpensesTable.jsx](src/components/ExpensesTable.jsx)** - Expenses table with filtering ✅
+10. **[MonthlyOverview.jsx](src/components/MonthlyOverview.jsx)** - 12-month breakdown
+11. **[Settings.jsx](src/components/Settings.jsx)** - Settings with sync status ✅
 
 **Modal Components**:
-11. **[AddExpenseModal.jsx](src/components/AddExpenseModal.jsx)** - Modal dialog for adding expenses with validation
-12. **[DeleteConfirmation.jsx](src/components/DeleteConfirmation.jsx)** - Confirmation modal for delete operations
+12. **[AddExpenseModal.jsx](src/components/AddExpenseModal.jsx)** - Add expense modal
+13. **[DeleteConfirmation.jsx](src/components/DeleteConfirmation.jsx)** - Delete confirmation
+
+### New Features ✅
+
+**Dark Mode** ([useTheme](src/hooks/useTheme.js)):
+- Toggle button in header
+- System preference detection
+- Smooth transitions
+- LocalStorage persistence
+
+**Search & Filtering** ([useExpenseFilters](src/hooks/useExpenseFilters.js)):
+- Text search across expense names
+- Filter by frequency (monthly/quarterly/yearly)
+- Filter by active month
+- Clear filters button
+- Active filter count indicator
+
+**CSV Import**:
+- Parse CSV files with validation
+- Duplicate detection
+- Error reporting
+- Preview before import
+
+**Cloud Sync Status**:
+- Connection indicator (online/offline)
+- Sync status badge (syncing/synced/error)
+- Last sync timestamp
+- Automatic background sync
 
 ### Tabbed Navigation System
 
-**TabView Component** ([TabView.jsx](src/components/TabView.jsx)):
-- No-scroll tab-based navigation
-- Dropdown menu support for nested content
-- Hover-triggered dropdowns with smooth animations
-- Active tab highlighting with visual feedback
-- Accessibility: ARIA labels, keyboard navigation support
-
 **Tab Structure**:
 1. **📊 Oversigt** (Overview) - Dropdown with sub-tabs:
-   - 📈 Balance udvikling (Balance development chart)
+   - 📈 Balance udvikling (Balance chart)
    - 🥧 Udgiftsfordeling (Expense distribution)
-2. **📝 Udgifter** (Expenses) - Expense table management
+2. **📝 Udgifter** (Expenses) - Expense table with filters ✅
 3. **📅 Månedlig oversigt** (Monthly overview) - 12-month breakdown
-4. **⚙️ Indstillinger** (Settings) - Configuration and data operations
+4. **⚙️ Indstillinger** (Settings) - Config and sync status ✅
 
-### Summary Cards (4 cards)
-- **Årlige udgifter**: Total annual expenses
-- **Gennemsnitlig månedlig udgift**: Average monthly expense
-- **Månedlig balance**: Monthly surplus/deficit (green/red indicator)
-- **Årlig reserve**: Annual reserve including previous balance
-- Displayed prominently at top of app, above tab navigation
+### User Interactions
 
-### Balance Chart (Oversigt → Balance udvikling)
-- **Visualization**: Line chart showing monthly balance trends using Recharts
-- **Data**: Monthly income vs expenses over 12 months
-- **Features**: Interactive tooltips, grid lines, responsive design
-- **Purpose**: Visual understanding of budget health throughout the year
+**Authentication Flow** ✅:
+1. User opens app → Login screen if not authenticated
+2. Click "Log ind med Google"
+3. Authenticate with Google OAuth
+4. Automatic data migration from localStorage (if exists)
+5. App loads with cloud-synced data
 
-### Expense Distribution (Oversigt → Udgiftsfordeling)
-- **Visualization**: Pie/bar charts showing expense categories using Recharts
-- **Data**: Breakdown of expenses by type/frequency
-- **Features**: Interactive legends, percentage display
-- **Purpose**: Identify spending patterns and largest expense categories
+**Search & Filter** ✅:
+- Type in search box to filter by name
+- Select frequency dropdown to filter by type
+- Select month dropdown to filter by active period
+- Click "Ryd filtre" to reset
+- See count of filtered expenses
 
-### Settings Section (Indstillinger tab)
-- Monthly payment input with validation
-- Previous balance input with validation
-- Real-time updates to summary calculations
-- Data operations: Save, Load, Export (moved to this tab)
+**Theme Toggle** ✅:
+- Click theme toggle button in header
+- Switch between light and dark mode
+- System preference auto-detected on first use
+- Preference saved to localStorage
 
-### Add Expense Modal
-- **Modal dialog** for adding new expenses (using react-modal)
-- **Form fields** with real-time validation:
-  - Udgiftsnavn (auto-focused text input)
-  - Beløb (number input with min: 0)
-  - Frekvens (dropdown: Månedlig/Kvartalsvis/Årlig)
-  - Start/Slut måned (auto-validating dropdowns)
-- **Error messages** display inline with red styling
-- **Keyboard support**: Enter to submit, Escape to cancel
-- **Accessible**: ARIA labels, focus management, focus trap
-- **Mobile-responsive**: Full-screen on small devices
-- **Animations**: Fade-in overlay, slide-up modal
-
-### Delete Confirmation Modal
-- **Modal dialog** for confirming delete operations (using react-modal)
-- **Single delete**: Displays expense name with confirmation question
-- **Bulk delete**: Shows count of expenses to be deleted
-- **Clear messaging**: Danish text with appropriate warnings
-- **Keyboard support**: Enter to confirm, Escape to cancel
-- **Accessible**: ARIA labels and focus management
-
-### Expenses Table (Udgifter tab)
-- Editable inline inputs for all fields
-- **New row highlight**: 2-second green flash animation for newly added expenses
-- **Top insertion**: New expenses appear at top of table (most recent first)
-- Bulk selection with checkboxes
-- Individual delete buttons triggering delete confirmation modal
-- Column validation (month ranges auto-adjust)
-- Delete selected button for bulk operations (with confirmation)
-
-### Monthly Overview Table (Månedlig oversigt tab)
-- 12-month breakdown per expense
-- Shows amounts or "-" for inactive months
-- Totals row at bottom
-- Horizontal scroll on mobile
-- Responsive design with sticky headers
-- Displays total annual expenses for reference
-
-### Alert System
-- Types: success (green), error (red), info (blue)
-- Auto-dismiss after 3 seconds
-- Fixed position top-right
-- Slide-in animation
-- Managed via [useAlert](src/hooks/useAlert.js) hook
-
-### Error Handling
-- ErrorBoundary wraps entire app
-- Graceful error recovery with user-friendly messages
-- Reset functionality to recover from crashes
-- Technical details in collapsible section
-
-## User Interactions
-
-### Navigating the App
-**Tab-Based Navigation**:
-- Click tab headers to switch between sections
-- **Oversigt** tab has dropdown: hover to see sub-options (Balance udvikling, Udgiftsfordeling)
-- Active tab highlighted with visual feedback
-- Tab content displays without page scrolling (no-scroll design)
-- Automatic tab switching: adding expense via modal switches to Udgifter tab
-
-### Adding Expenses
-**Modal-Based UX Flow**:
-- Click "➕ Tilføj ny udgift" button (or press Ctrl+N)
-- Modal dialog opens with pre-filled form fields:
-  - **Udgiftsnavn**: Auto-focused text input
-  - **Beløb**: Number input (default: 100 kr., min: 0)
-  - **Frekvens**: Dropdown (Månedlig/Kvartalsvis/Årlig)
-  - **Start/Slut måned**: Dropdowns with auto-validation
-- Real-time validation with error messages
-- Submit with "➕ Tilføj udgift" button (or press Enter)
-- Cancel with "Annuller" button (or press Escape)
-- **Auto-switch**: After adding, app switches to Udgifter tab
-- New expense inserts at **top** of table (immediately visible)
-- 2-second green highlight animation on new row
-- Success alert notification
-- Can undo with Ctrl+Z
+**CSV Import** ✅:
+- Go to Settings tab
+- Click "📊 Importer fra CSV"
+- Select CSV file
+- Review validation results
+- Confirm import
 
 **Keyboard Shortcuts**:
-- `Ctrl+N` (or `Cmd+N`): Open add expense modal
-- `Enter`: Submit form (when in modal)
-- `Escape`: Close modal without saving
-
-### Editing Expenses
-- **Name**: Direct text input with real-time updates
-- **Amount**: Number input (minimum 0, validated)
-- **Frequency**: Dropdown (Månedlig/Kvartalsvis/Årlig)
-- **Months**: Dropdown with auto-validation (start/end range)
-- All edits can be undone/redone
-
-### Deleting Expenses
-- **Single**: Click "Slet" button → Delete confirmation modal appears
-  - Modal displays expense name with confirmation question in Danish
-  - Confirm or cancel the deletion
-- **Bulk**:
-  - Select multiple expenses using checkboxes
-  - Click "🗑️ Slet valgte" button
-  - Delete confirmation modal shows count of expenses to delete
-  - Confirm or cancel the bulk deletion
-- **Modal interaction**: Enter to confirm, Escape to cancel
-- Success alert after deletion
-- Can undo deletion with Ctrl+Z
-
-### Undo/Redo Operations
-- **Undo**: Ctrl+Z (Cmd+Z on Mac) or click "↶ Fortryd" button
-- **Redo**: Ctrl+Shift+Z (Cmd+Shift+Z on Mac) or click "↷ Gentag" button
-- Buttons only visible when operations available
-- Works for: add, edit, delete operations
-- Full history tracking
-
-### Keyboard Shortcuts Summary
 - **Ctrl+N** (Cmd+N): Open add expense modal
 - **Ctrl+Z** (Cmd+Z): Undo last operation
 - **Ctrl+Shift+Z** (Cmd+Shift+Z): Redo operation
-- **Enter**: Submit add expense form (when modal is open)
-- **Escape**: Close modal without saving
-
-### Data Operations (Indstillinger tab)
-- **💾 Gem lokalt**: Save to localStorage with success feedback
-- **📁 Hent gemt data**: Load from localStorage with validation (shows saved date)
-- **📊 Eksporter til CSV**: Download CSV with full breakdown and UTF-8 BOM
-- All data operations accessible in Settings tab for better organization
+- **Enter**: Submit forms
+- **Escape**: Close modals
 
 ## Styling System
 
 **Color Palette**:
-- Primary gradient: `#667eea` → `#764ba2` (purple)
-- Success: `#10b981` (green)
-- Error: `#ef4444` (red)
-- Info: `#3b82f6` (blue)
-- Neutral grays: `#f9fafb`, `#e5e7eb`, `#374151`, `#1f2937`
+- **Light Mode**:
+  - Primary gradient: `#667eea` → `#764ba2` (purple)
+  - Success: `#10b981` (green)
+  - Error: `#ef4444` (red)
+  - Background: `#f9fafb`
 
-**Layout**:
-- Max width: 1400px
-- Gradient background (full viewport)
-- White content container with shadow
-- Responsive grid for summary cards and settings
+- **Dark Mode**: ✅
+  - Primary gradient: `#7c3aed` → `#a855f7` (purple)
+  - Success: `#34d399` (green)
+  - Error: `#f87171` (red)
+  - Background: `#1f2937`
+
+**CSS Variables**:
+```css
+[data-theme="light"] {
+  --bg-primary: #f9fafb;
+  --text-primary: #1f2937;
+  /* ... */
+}
+
+[data-theme="dark"] {
+  --bg-primary: #1f2937;
+  --text-primary: #f9fafb;
+  /* ... */
+}
+```
 
 **Responsive Breakpoints**:
 - Desktop: Default (>768px)
 - Tablet: 768px
 - Mobile: 480px
-
-**Key CSS Classes**:
-- `.summary-card`: Hover effect with translateY
-- `.btn`: Consistent button styling with hover animations
-- `.alert`: Fixed position with slide-in keyframe
-- `.table-container`: Horizontal scroll with sticky headers
 
 ## Language & Localization
 
@@ -377,127 +365,70 @@ All components follow modular architecture with separate CSS files:
 
 **Danish UI Text Examples**:
 - "Månedlig indbetaling til budgetkonto"
-- "Overført fra sidste år"
 - "Årlige udgifter"
-- "Gennemsnitlig månedlig udgift"
-- "Er du sikker på at du vil slette...?"
-- "Data gemt lokalt i din browser!"
+- "Log ind med Google"
+- "☁️ Online" / "📴 Offline"
+- "✅ Synkroniseret"
 
 **Date Formatting**: `da-DK` locale for `toLocaleDateString()`
-
-**When modifying**: Maintain Danish language consistency in all UI text, alerts, and exported CSV headers.
-
-## Key Behaviors & Validation
-
-### Month Range Validation ([utils/validators.js](src/utils/validators.js))
-- Automatic range adjustment via `validateMonthRange()`
-- When `startMonth` changes:
-  - If `startMonth > endMonth`: Auto-adjust `endMonth = startMonth`
-- When `endMonth` changes:
-  - If `endMonth < startMonth`: Clamp `endMonth = startMonth`
-- Range validation: 1 ≤ month ≤ 12
-
-### Amount Validation ([utils/validators.js](src/utils/validators.js))
-- `validateAmount()` ensures minimum 0 kr.
-- Uses `parseFloat()` with fallback to 0
-- Invalid inputs sanitized to 0
-- Non-numeric values rejected
-
-### Expense Validation ([utils/validators.js](src/utils/validators.js))
-- `validateExpense()`: Complete object validation
-- `sanitizeExpense()`: Data normalization
-- Ensures all required fields present
-- Type checking for amounts and months
-
-### CSV Export Format ([utils/exportHelpers.js](src/utils/exportHelpers.js))
-- UTF-8 BOM: `\ufeff` (first character for Excel compatibility)
-- Three sections:
-  1. Summary table (expense, amount, frequency, months, annual)
-  2. Monthly breakdown (12 columns + total)
-  3. Summary stats (annual, monthly payment, previous balance)
-- Filename: `budget_2025_YYYY-MM-DD.csv`
-- Generated by `generateCSV()`, downloaded via `downloadCSV()`
-
-### LocalStorage Error Handling ([hooks/useLocalStorage.js](src/hooks/useLocalStorage.js))
-- Try-catch blocks for all storage operations
-- User-friendly error alerts in Danish
-- Console logging for debugging
-- Graceful fallback to initial state on load errors
-- Success feedback for save operations
-
-## Initial Data
-
-Default expenses (14 items) include:
-- Sats Danmark: 360 kr./month
-- 3 Danmark: 160 kr./month (May-Dec)
-- IDA Fagforening: 3,460 kr./year (Feb)
-- Akademikernes A-kasse: 1,497 kr./quarter
-- Various insurance and subscriptions
-
-See [utils/constants.js](src/utils/constants.js) for complete default data.
 
 ## Recent Improvements
 
 **Phase 1 - Modular Refactoring** (completed):
-- ✅ Component-based architecture (initially 8 components)
+- ✅ Component-based architecture
 - ✅ Custom hooks (useExpenses, useAlert, useLocalStorage)
-- ✅ Pure utility functions (calculations, validators, exportHelpers)
-- ✅ Undo/Redo functionality with keyboard shortcuts
-- ✅ ErrorBoundary for graceful error recovery
-- ✅ Enhanced accessibility (ARIA labels, keyboard nav)
-- ✅ Improved validation and error handling
-- ✅ App.jsx reduced: 530 → 218 lines (59% reduction)
+- ✅ Pure utility functions
+- ✅ Undo/Redo functionality
+- ✅ ErrorBoundary
+- ✅ Enhanced accessibility
 
 **Phase 2 - UI/UX Redesign** (completed):
-- ✅ Tabbed navigation system with TabView component
-- ✅ No-scroll interface design for better UX
-- ✅ Dropdown menu support for nested content (Oversigt tab)
-- ✅ Delete confirmation modal for safer operations
-- ✅ Balance chart visualization using Recharts
-- ✅ Expense distribution charts using Recharts
-- ✅ Auto-switch to relevant tab after operations (e.g., add expense)
-- ✅ Reorganized Settings tab with all data operations
-- ✅ Expanded to 12 core components + 2 modals
-- ✅ App.jsx now: 348 lines (includes tab configuration)
+- ✅ Tabbed navigation system
+- ✅ No-scroll interface design
+- ✅ Dropdown menu support
+- ✅ Delete confirmation modal
+- ✅ Balance chart visualization
+- ✅ Expense distribution charts
+
+**Phase 3 - Enhanced Features** (completed): ✅
+- ✅ Cloud synchronization with Supabase
+- ✅ Google OAuth authentication
+- ✅ Real-time multi-device sync
+- ✅ Offline-first architecture
+- ✅ Dark mode support
+- ✅ Search and filter expenses
+- ✅ CSV import functionality
+- ✅ Automatic data migration
 
 **Current Metrics**:
-- Total components: 14 (12 core + 2 modals)
-- Custom hooks: 3 (useExpenses, useAlert, useLocalStorage)
-- Utility modules: 4 (calculations, validators, exportHelpers, constants)
-- Total codebase: ~2200 lines (modular, maintainable, feature-rich)
+- Total components: 17 (15 core + 2 modals)
+- Custom hooks: 8 (useExpenses, useAlert, useLocalStorage, useAuth, useSupabaseSync, useTheme, useExpenseFilters, useSettings)
+- Utility modules: 5 (calculations, validators, exportHelpers, importHelpers, constants)
+- Total codebase: ~3500 lines (modular, maintainable, feature-rich)
 - ESLint: Clean, no errors
-- Build size: ~220 KB (compressed: ~68 KB)
+- Build size: ~280 KB (compressed: ~85 KB)
 
 ## Future Enhancements
 
-**Phase 3 - Enhanced Features** (in progress):
-- ~~Expense categories with color coding~~ (partially complete via distribution chart)
-- ~~Charts visualization (Recharts)~~ ✅ (Balance chart, Expense distribution completed)
-- Search/filter expenses (pending)
-- Dark mode support (pending)
-- Multi-year comparison (pending)
-- Import CSV functionality (pending)
-- Enhanced chart interactivity (pending)
-
-**Phase 4 - Backend Integration** (infrastructure prepared):
-- Supabase cloud sync and multi-device support
-  - Auth components and hooks created (Auth.jsx, useAuth.js)
-  - Supabase client configured (lib/supabase.js)
-  - Layout component for authenticated users (Layout.jsx)
-- PGlite local database for enhanced offline functionality (lib/pglite.js)
-- Sync logic for offline-first architecture (lib/sync.js)
-- Data migration utilities (utils/migration.js)
-- Conflict resolution
-
-**Phase 5 - Advanced Features**:
-- Recurring expense templates
+**Phase 4 - Advanced Features** (pending):
+- Multi-year comparison and historical analysis
 - Budget forecasting with predictive analytics
-- Email notifications
-- Expense attachments
-- Budget sharing and collaboration
+- Expense categories with color coding
+- Enhanced chart interactivity
 - Export to PDF with charts
-- Multi-device real-time sync
-- Historical data analysis
+- Email notifications
+
+**Phase 5 - Collaboration** (pending):
+- Expense sharing between users
+- Budget templates and sharing
+- Collaborative budget planning
+- Family budget management
+
+**Phase 6 - Mobile** (pending):
+- Progressive Web App (PWA) support
+- Mobile app (React Native)
+- Push notifications
+- Mobile-optimized charts
 
 ## Code Quality Standards
 
@@ -512,7 +443,7 @@ See [utils/constants.js](src/utils/constants.js) for complete default data.
 - Pure utility functions for testability
 - Consistent error handling with try-catch
 - User confirmations for destructive actions
-- Accessibility: ARIA labels, keyboard support, semantic HTML
+- Accessibility: ARIA labels, keyboard support
 - JSDoc comments for all functions
 
 **Architecture Principles**:
@@ -525,72 +456,65 @@ See [utils/constants.js](src/utils/constants.js) for complete default data.
 ## Common Modification Patterns
 
 ### Adding a New Feature
-1. Determine if state management needed → Add to appropriate hook or create new hook
-2. Create pure functions in [utils/](src/utils/) if logic is reusable
-3. Create new component in [components/](src/components/) or modify existing
+1. Determine state management needs → Add to hook or create new hook
+2. Create pure functions in [utils/](src/utils/) if reusable
+3. Create component in [components/](src/components/)
 4. Add component-specific CSS file
 5. Import and integrate in [App.jsx](src/App.jsx)
 6. Test undo/redo if modifying expense data
 7. Maintain Danish language consistency
+8. Consider cloud sync implications
+
+### Adding Cloud Sync to a Feature
+1. Update database schema in [supabase/migrations/](supabase/migrations/)
+2. Add sync methods to [useSupabaseSync](src/hooks/useSupabaseSync.js)
+3. Integrate sync callbacks in component/hook
+4. Test offline behavior
+5. Test multi-device synchronization
 
 ### Adding a New Component
 1. Create `ComponentName.jsx` in [src/components/](src/components/)
 2. Create corresponding `ComponentName.css`
-3. Follow existing prop patterns (pass callbacks, not setState directly)
-4. Add JSDoc comments for props
-5. Export component for use in App.jsx
-
-### Modifying Calculations
-- Core functions in [utils/calculations.js](src/utils/calculations.js)
-- Pure functions: `calculateAnnualAmount`, `getMonthlyAmount`, `calculateSummary`, `calculateMonthlyTotals`
-- All financial calculations in whole kroner (no decimals in display)
-- Use `Math.round()` for final values
-- Add unit tests for new calculation logic
-
-### Adding Validation
-- Add new validators to [utils/validators.js](src/utils/validators.js)
-- Follow pattern: `validateX(input)` returns validated value
-- Use in hooks or components before state updates
-- Provide user feedback via alerts for validation errors
-
-### Styling Changes
-- Modify component-specific CSS files
-- Follow existing color palette (purple gradient primary)
-- Maintain responsive breakpoints (480px, 768px)
-- Test on mobile (table scrolling is critical)
-- Keep hover effects consistent (translateY, color transitions)
+3. Add dark mode styles with CSS variables
+4. Follow prop patterns (callbacks, not setState)
+5. Add JSDoc comments
+6. Export for use in App.jsx
 
 ## Debugging Tips
 
 **Common Issues**:
-1. **Month validation**: Check [validators.js](src/utils/validators.js) `validateMonthRange()`
-2. **Quarterly calculation**: Verify months 1, 4, 7, 10 in [calculations.js](src/utils/calculations.js)
-3. **CSV encoding**: Ensure UTF-8 BOM is preserved in [exportHelpers.js](src/utils/exportHelpers.js)
-4. **LocalStorage quota**: Browser limits (~5-10MB), check [useLocalStorage.js](src/hooks/useLocalStorage.js)
-5. **Undo/Redo**: Check history state in [useExpenses.js](src/hooks/useExpenses.js)
-6. **Component errors**: Check ErrorBoundary for caught errors
+1. **Supabase connection**: Check `.env` file and credentials
+2. **Auth not working**: Verify Google OAuth configuration
+3. **Sync failures**: Check browser console and Supabase logs
+4. **RLS errors**: Verify database policies are correct
+5. **Dark mode issues**: Check CSS variable definitions
+6. **Filter not working**: Verify filter logic in useExpenseFilters
 
 **Debugging Strategy**:
-- **Pure functions**: Easy to test in isolation (utils/)
-- **Hook debugging**: Use React DevTools to inspect hook state
-- **Component props**: Verify prop drilling from App.jsx to components
-- **Error boundary**: Check console for caught errors with stack traces
-- **Alert debugging**: Check [useAlert.js](src/hooks/useAlert.js) for notification issues
+- **Pure functions**: Easy to test in isolation
+- **Hook debugging**: Use React DevTools to inspect state
+- **Cloud sync**: Check browser console for sync logs
+- **Error boundary**: Check console for caught errors
+- **Network issues**: Use browser DevTools Network tab
 
 **Testing Checklist**:
-- [ ] Tab navigation: switching between all 4 tabs
-- [ ] Dropdown menu: hover over Oversigt tab, select sub-items
-- [ ] Add expense: modal opens, validation, auto-switch to Udgifter tab
-- [ ] Add/edit/delete expenses with confirmation modal
-- [ ] Undo/Redo operations (Ctrl+Z, Ctrl+Shift+Z)
-- [ ] Month range validation and auto-adjustment
-- [ ] Bulk selection and deletion with confirmation
-- [ ] Delete confirmation modal: single and bulk modes
-- [ ] LocalStorage save/load with error handling (Indstillinger tab)
-- [ ] CSV export opens in Excel correctly with proper encoding
-- [ ] Balance chart displays correctly with interactive tooltips
-- [ ] Expense distribution chart shows accurate data
-- [ ] Responsive design on mobile (table scrolling, tab navigation)
-- [ ] Alert messages appear and auto-dismiss
-- [ ] ErrorBoundary catches and displays errors gracefully
-- [ ] Keyboard shortcuts work correctly (Ctrl+N, Ctrl+Z, Enter, Escape)
+- [ ] Google OAuth login/logout
+- [ ] Automatic data migration
+- [ ] Cloud sync (add/edit/delete)
+- [ ] Multi-device sync
+- [ ] Offline operation
+- [ ] Dark mode toggle
+- [ ] Search and filters
+- [ ] CSV import/export
+- [ ] Tab navigation
+- [ ] Undo/Redo operations
+- [ ] Mobile responsiveness
+- [ ] Alert messages
+- [ ] Error handling
+
+## Documentation
+
+- **Setup Guide**: [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md)
+- **Implementation Details**: [CLOUD_SYNC_IMPLEMENTATION.md](CLOUD_SYNC_IMPLEMENTATION.md)
+- **Project Guide**: This file
+- **Database Schema**: [supabase/migrations/001_initial_schema.sql](supabase/migrations/001_initial_schema.sql)

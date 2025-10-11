@@ -1,5 +1,5 @@
 /**
- * Main Application Component - Refactored with modular architecture
+ * Main Application Component - Refactored with modular architecture + Cloud Sync
  */
 
 import { useState, useEffect } from 'react'
@@ -10,13 +10,11 @@ import { Settings } from './components/Settings'
 import { SummaryCards } from './components/SummaryCards'
 import { ExpensesTable } from './components/ExpensesTable'
 import { MonthlyOverview } from './components/MonthlyOverview'
-import { AddExpenseModal } from './components/AddExpenseModal'
-import { DeleteConfirmation } from './components/DeleteConfirmation'
-import { TabView } from './components/TabView'
-import { BalanceChart } from './components/BalanceChart'
-import { ExpenseDistribution } from './components/ExpenseDistribution'
+import Auth from './components/Auth'
 import { useExpenses } from './hooks/useExpenses'
 import { useAlert } from './hooks/useAlert'
+import { useAuth } from './hooks/useAuth'
+import { useSupabaseSync } from './hooks/useSupabaseSync'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { calculateSummary } from './utils/calculations'
 import { generateCSV, downloadCSV } from './utils/exportHelpers'
@@ -26,16 +24,12 @@ import './App.css'
 function App() {
   const [monthlyPayment, setMonthlyPayment] = useState(DEFAULT_SETTINGS.monthlyPayment)
   const [previousBalance, setPreviousBalance] = useState(DEFAULT_SETTINGS.previousBalance)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [activeTab, setActiveTab] = useState(0)
-  const [deleteConfirmation, setDeleteConfirmation] = useState({
-    isOpen: false,
-    expenseName: '',
-    expenseId: null,
-    isBulk: false,
-    count: 0
-  })
+  const [isInitialized, setIsInitialized] = useState(false)
 
+  // Authentication
+  const { user, loading: authLoading } = useAuth()
+
+  // Expenses management
   const {
     expenses,
     selectedExpenses,
@@ -52,18 +46,81 @@ function App() {
     canRedo
   } = useExpenses()
 
+  // Cloud sync
+  const {
+    syncStatus,
+    lastSyncTime,
+    syncError,
+    isOnline,
+    syncExpenses,
+    syncSettings,
+    loadExpenses,
+    loadSettings
+  } = useSupabaseSync(user)
+
   const { alert, showAlert } = useAlert()
   const { setValue, loadValue } = useLocalStorage(STORAGE_KEY)
 
   const summary = calculateSummary(expenses, monthlyPayment, previousBalance)
 
+  // Load data from cloud when user logs in
+  useEffect(() => {
+    if (user && !isInitialized) {
+      console.log('🔄 Initializing user data...')
+
+      const loadData = async () => {
+        // Load expenses
+        const expensesResult = await loadExpenses()
+        if (expensesResult.success && expensesResult.data.length > 0) {
+          setAllExpenses(expensesResult.data)
+          console.log(`✅ Loaded ${expensesResult.data.length} expenses from cloud`)
+        }
+
+        // Load settings
+        const settingsResult = await loadSettings()
+        if (settingsResult.success && settingsResult.data) {
+          setMonthlyPayment(settingsResult.data.monthlyPayment)
+          setPreviousBalance(settingsResult.data.previousBalance)
+          console.log('✅ Loaded settings from cloud')
+        }
+
+        setIsInitialized(true)
+      }
+
+      loadData()
+    }
+  }, [user, isInitialized, loadExpenses, loadSettings, setAllExpenses])
+
+  // Sync expenses whenever they change
+  useEffect(() => {
+    if (user && isInitialized && expenses.length >= 0) {
+      syncExpenses(expenses)
+    }
+  }, [expenses, user, isInitialized, syncExpenses])
+
+  // Sync settings whenever they change
+  useEffect(() => {
+    if (user && isInitialized) {
+      syncSettings(monthlyPayment, previousBalance)
+    }
+  }, [monthlyPayment, previousBalance, user, isInitialized, syncSettings])
+
+  // Show auth screen if not logged in
+  if (authLoading) {
+    return (
+      <div className="auth-loading-container">
+        <div className="spinner"></div>
+        <p>Indlæser...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <Auth />
+  }
+
   // Keyboard shortcuts
   const handleKeyPress = (e) => {
-    // Ctrl/Cmd + N for new expense modal
-    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-      e.preventDefault()
-      setShowAddModal(true)
-    }
     // Ctrl/Cmd + Z for undo
     if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
       e.preventDefault()
@@ -80,81 +137,32 @@ function App() {
     }
   }
 
-  // Add keyboard listener
-  useEffect(() => {
-    document.addEventListener('keydown', handleKeyPress)
-    return () => document.removeEventListener('keydown', handleKeyPress)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canUndo, canRedo, showAddModal])
-
-  // Close add expense modal
-  const handleCloseAddModal = () => {
-    setShowAddModal(false)
-  }
-
-  // Add expense from modal
-  const handleAddExpenseFromModal = (formData) => {
-    addExpense(formData)
+  // Add expense handler
+  const handleAddExpense = () => {
+    addExpense()
     showAlert('Ny udgift tilføjet!', 'success')
-    setActiveTab(1) // Switch to Udgifter tab
   }
 
-  // Show delete confirmation
+  // Delete expense handler
   const handleDeleteExpense = (id) => {
     const expense = expenses.find(e => e.id === id)
-    setDeleteConfirmation({
-      isOpen: true,
-      expenseName: expense.name,
-      expenseId: id,
-      isBulk: false,
-      count: 0
-    })
-  }
-
-  // Confirm single delete
-  const confirmDelete = () => {
-    if (deleteConfirmation.isBulk) {
-      deleteSelected()
-      showAlert(`${deleteConfirmation.count} udgift(er) slettet!`, 'success')
-    } else {
-      const expenseName = deleteConfirmation.expenseName
-      deleteExpense(deleteConfirmation.expenseId)
-      showAlert(`"${expenseName}" blev slettet`, 'success')
+    if (window.confirm(`Er du sikker på at du vil slette "${expense.name}"?`)) {
+      deleteExpense(id)
+      showAlert(`"${expense.name}" blev slettet`, 'success')
     }
-    setDeleteConfirmation({
-      isOpen: false,
-      expenseName: '',
-      expenseId: null,
-      isBulk: false,
-      count: 0
-    })
   }
 
-  // Cancel delete
-  const cancelDelete = () => {
-    setDeleteConfirmation({
-      isOpen: false,
-      expenseName: '',
-      expenseId: null,
-      isBulk: false,
-      count: 0
-    })
-  }
-
-  // Show delete selected confirmation
+  // Delete selected handler
   const handleDeleteSelected = () => {
-    if (selectedExpenses.length === 0) {
+    const result = deleteSelected()
+    if (!result.success) {
       showAlert('Vælg venligst udgifter at slette først', 'error')
       return
     }
 
-    setDeleteConfirmation({
-      isOpen: true,
-      expenseName: '',
-      expenseId: null,
-      isBulk: true,
-      count: selectedExpenses.length
-    })
+    if (window.confirm(`Er du sikker på at du vil slette ${result.count} udgift(er)?`)) {
+      showAlert(`${result.count} udgift(er) slettet!`, 'success')
+    }
   }
 
   // Save to localStorage
@@ -204,112 +212,43 @@ function App() {
     }
   }
 
-  // Tab content definitions
-  const tabs = [
-    {
-      icon: '📊',
-      label: 'Oversigt',
-      dropdownItems: [
-        {
-          icon: '📈',
-          label: 'Balance udvikling',
-          content: (
-            <div className="overview-tab">
-              <BalanceChart
-                expenses={expenses}
-                monthlyPayment={monthlyPayment}
-                previousBalance={previousBalance}
-              />
-            </div>
-          )
-        },
-        {
-          icon: '🥧',
-          label: 'Udgiftsfordeling',
-          content: (
-            <div className="overview-tab">
-              <ExpenseDistribution expenses={expenses} />
-            </div>
-          )
-        }
-      ]
-    },
-    {
-      icon: '📝',
-      label: 'Udgifter',
-      content: (
-        <div className="expenses-tab">
-          <ExpensesTable
-            expenses={expenses}
-            selectedExpenses={selectedExpenses}
-            onToggleSelection={toggleExpenseSelection}
-            onToggleSelectAll={toggleSelectAll}
-            onUpdate={updateExpense}
-            onDelete={handleDeleteExpense}
-            onAdd={(data) => {
-              addExpense(data)
-              showAlert('Ny udgift tilføjet!', 'success')
-            }}
-          />
-          <button className="btn btn-danger" onClick={handleDeleteSelected}>
-            <span className="btn-icon">🗑️</span>
-            <span>Slet valgte</span>
-          </button>
-        </div>
-      )
-    },
-    {
-      icon: '📅',
-      label: 'Månedlig oversigt',
-      content: (
-        <div className="monthly-tab">
-          <MonthlyOverview expenses={expenses} totalAnnual={summary.totalAnnual} />
-        </div>
-      )
-    },
-    {
-      icon: '⚙️',
-      label: 'Indstillinger',
-      content: (
-        <div className="settings-tab">
+  return (
+    <ErrorBoundary>
+      <div className="app" onKeyDown={handleKeyPress}>
+        <Alert message={alert?.message} type={alert?.type} />
+        <Header
+          user={user}
+          syncStatus={syncStatus}
+          isOnline={isOnline}
+        />
+
+        <div className="container">
           <Settings
             monthlyPayment={monthlyPayment}
             previousBalance={previousBalance}
             onMonthlyPaymentChange={setMonthlyPayment}
             onPreviousBalanceChange={setPreviousBalance}
-            onSave={handleSave}
-            onLoad={handleLoad}
-            onExport={handleExport}
+            syncStatus={syncStatus}
+            lastSyncTime={lastSyncTime}
+            syncError={syncError}
+            isOnline={isOnline}
           />
-        </div>
-      )
-    }
-  ]
 
-  return (
-    <ErrorBoundary>
-      <div className="app">
-        <Alert message={alert?.message} type={alert?.type} />
-        <Header />
-
-        <AddExpenseModal
-          isOpen={showAddModal}
-          onClose={handleCloseAddModal}
-          onAdd={handleAddExpenseFromModal}
-        />
-
-        <DeleteConfirmation
-          isOpen={deleteConfirmation.isOpen}
-          onConfirm={confirmDelete}
-          onCancel={cancelDelete}
-          expenseName={deleteConfirmation.expenseName}
-          count={deleteConfirmation.count}
-        />
-
-        <div className="container">
           <SummaryCards summary={summary} />
 
           <section className="controls">
+            <button className="btn btn-primary" onClick={handleAddExpense}>
+              ➕ Tilføj ny udgift
+            </button>
+            <button className="btn btn-success" onClick={handleExport}>
+              📊 Eksporter til CSV
+            </button>
+            <button className="btn btn-secondary" onClick={handleSave}>
+              💾 Gem lokalt
+            </button>
+            <button className="btn btn-secondary" onClick={handleLoad}>
+              📁 Hent gemt data
+            </button>
             {canUndo && (
               <button
                 className="btn btn-info"
@@ -319,8 +258,7 @@ function App() {
                 }}
                 title="Fortryd (Ctrl+Z)"
               >
-                <span className="btn-icon">↶</span>
-                <span>Fortryd</span>
+                ↶ Fortryd
               </button>
             )}
             {canRedo && (
@@ -332,13 +270,28 @@ function App() {
                 }}
                 title="Gentag (Ctrl+Shift+Z)"
               >
-                <span className="btn-icon">↷</span>
-                <span>Gentag</span>
+                ↷ Gentag
               </button>
             )}
           </section>
 
-          <TabView tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
+          <section>
+            <h2>📋 Dine udgifter</h2>
+            <ExpensesTable
+              expenses={expenses}
+              selectedExpenses={selectedExpenses}
+              onToggleSelection={toggleExpenseSelection}
+              onToggleSelectAll={toggleSelectAll}
+              onUpdate={updateExpense}
+              onDelete={handleDeleteExpense}
+            />
+
+            <button className="btn btn-danger" onClick={handleDeleteSelected}>
+              🗑️ Slet valgte
+            </button>
+          </section>
+
+          <MonthlyOverview expenses={expenses} totalAnnual={summary.totalAnnual} />
         </div>
       </div>
     </ErrorBoundary>

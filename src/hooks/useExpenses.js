@@ -1,17 +1,18 @@
 /**
- * Custom hook for expense management
+ * Custom hook for expense management with cloud sync
  */
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { DEFAULT_EXPENSE, INITIAL_EXPENSES } from '../utils/constants'
 import { sanitizeExpense } from '../utils/validators'
 
 /**
- * Hook for managing expenses with undo/redo capability
+ * Hook for managing expenses with undo/redo capability and optional cloud sync
  * @param {Array} initialExpenses - Initial expense list
+ * @param {Function} onSyncCallback - Optional callback to sync expenses to cloud
  * @returns {Object} Expense management methods and state
  */
-export const useExpenses = (initialExpenses = INITIAL_EXPENSES) => {
+export const useExpenses = (initialExpenses = INITIAL_EXPENSES, onSyncCallback = null) => {
   const [expenses, setExpenses] = useState(initialExpenses)
   const [selectedExpenses, setSelectedExpenses] = useState([])
   const [nextId, setNextId] = useState(
@@ -29,6 +30,13 @@ export const useExpenses = (initialExpenses = INITIAL_EXPENSES) => {
     setHistory(newHistory)
     setHistoryIndex(newHistory.length - 1)
   }, [history, historyIndex])
+
+  // Trigger cloud sync when expenses change
+  useEffect(() => {
+    if (onSyncCallback && expenses.length > 0) {
+      onSyncCallback(expenses)
+    }
+  }, [expenses, onSyncCallback])
 
   // Add new expense
   const addExpense = useCallback((expenseData = null) => {
@@ -144,6 +152,25 @@ export const useExpenses = (initialExpenses = INITIAL_EXPENSES) => {
     saveToHistory(newExpenses)
   }, [saveToHistory])
 
+  // Import expenses (merge with existing)
+  const importExpenses = useCallback((newExpenses, replaceAll = false) => {
+    let updatedExpenses
+
+    if (replaceAll) {
+      // Replace all existing expenses
+      updatedExpenses = newExpenses
+    } else {
+      // Merge: add new expenses to existing ones
+      updatedExpenses = [...newExpenses, ...expenses]
+    }
+
+    setExpenses(updatedExpenses)
+    setNextId(Math.max(...updatedExpenses.map(e => e.id), 0) + 1)
+    saveToHistory(updatedExpenses)
+
+    return updatedExpenses
+  }, [expenses, saveToHistory])
+
   const canUndo = useMemo(() => historyIndex > 0, [historyIndex])
   const canRedo = useMemo(() => historyIndex < history.length - 1, [historyIndex, history])
 
@@ -157,6 +184,7 @@ export const useExpenses = (initialExpenses = INITIAL_EXPENSES) => {
     toggleExpenseSelection,
     toggleSelectAll,
     setAllExpenses,
+    importExpenses,
     undo,
     redo,
     canUndo,
