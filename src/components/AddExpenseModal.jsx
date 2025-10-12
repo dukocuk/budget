@@ -47,9 +47,14 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
     let newFormData = { ...formData }
 
     if (field === 'amount') {
-      const validatedAmount = validateAmount(value)
-      newFormData.amount = validatedAmount
-      if (validatedAmount < 0) {
+      // Allow any input during typing, store as-is
+      // Only validate the number when it's actually used
+      const numValue = value === '' ? '' : value
+      newFormData.amount = numValue
+
+      // Only show error if value is invalid and not empty
+      const parsedValue = parseFloat(value)
+      if (value !== '' && (isNaN(parsedValue) || parsedValue < 0)) {
         setErrors({ ...errors, amount: 'Beløbet skal være mindst 0 kr.' })
       } else {
         // Remove amount error if it exists
@@ -98,7 +103,8 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
       newErrors.name = 'Udgiftsnavn er påkrævet'
     }
 
-    if (formData.amount < 0) {
+    const amount = parseFloat(formData.amount)
+    if (formData.amount === '' || isNaN(amount) || amount < 0) {
       newErrors.amount = 'Beløbet skal være mindst 0 kr.'
     }
 
@@ -111,7 +117,12 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
     e.preventDefault()
 
     if (validateForm()) {
-      onAdd(formData)
+      // Convert amount to number before submitting
+      const submissionData = {
+        ...formData,
+        amount: parseFloat(formData.amount) || 0
+      }
+      onAdd(submissionData)
       onClose()
     }
   }

@@ -2,11 +2,163 @@
  * Expenses table component with inline editing
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, memo, useCallback } from 'react'
 import { MONTHS, FREQUENCY_LABELS, FREQUENCY_TYPES } from '../utils/constants'
 import { calculateAnnualAmount } from '../utils/calculations'
 import { useExpenseFilters } from '../hooks/useExpenseFilters'
 import './ExpensesTable.css'
+
+/**
+ * Memoized expense row component to prevent unnecessary re-renders
+ * Uses local state for input values to maintain focus during typing
+ */
+const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onDelete, onClone }) => {
+  // Initialize local state once per expense ID (handles undo/redo properly)
+  const initialName = useMemo(() => expense.name, [expense.id])
+  const initialAmount = useMemo(() => expense.amount, [expense.id])
+
+  // Local state for controlled inputs to prevent focus loss
+  const [localName, setLocalName] = useState(initialName)
+  const [localAmount, setLocalAmount] = useState(initialAmount)
+
+  // Track if values were changed by user vs external (undo/redo)
+  const prevExpenseIdRef = useRef(expense.id)
+
+  // Only update local state if expense ID changed (new row from undo/redo)
+  useEffect(() => {
+    if (prevExpenseIdRef.current !== expense.id) {
+      setLocalName(expense.name)
+      setLocalAmount(expense.amount)
+      prevExpenseIdRef.current = expense.id
+    }
+  }, [expense.id, expense.name, expense.amount])
+
+  // Update handlers - just update local state
+  const handleNameChange = useCallback((value) => {
+    setLocalName(value)
+  }, [])
+
+  const handleAmountChange = useCallback((value) => {
+    setLocalAmount(value)
+  }, [])
+
+  // Update parent on blur - only if value actually changed
+  const handleNameBlur = useCallback(() => {
+    if (localName !== expense.name) {
+      onUpdate(expense.id, 'name', localName)
+    }
+  }, [expense.id, expense.name, localName, onUpdate])
+
+  const handleAmountBlur = useCallback(() => {
+    if (localAmount !== expense.amount) {
+      onUpdate(expense.id, 'amount', localAmount)
+    }
+  }, [expense.id, expense.amount, localAmount, onUpdate])
+
+  return (
+    <tr>
+      <td>
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onToggleSelection(expense.id)}
+          aria-label={`Vælg ${expense.name}`}
+        />
+      </td>
+      <td>
+        <input
+          type="text"
+          value={localName}
+          onChange={(e) => handleNameChange(e.target.value)}
+          onBlur={handleNameBlur}
+          aria-label="Udgiftsnavn"
+        />
+      </td>
+      <td>
+        <input
+          type="number"
+          value={localAmount}
+          onChange={(e) => handleAmountChange(e.target.value)}
+          onBlur={handleAmountBlur}
+          min="0"
+          aria-label="Beløb"
+        />
+      </td>
+      <td>
+        <select
+          value={expense.frequency}
+          onChange={(e) => onUpdate(expense.id, 'frequency', e.target.value)}
+          aria-label="Frekvens"
+        >
+          <option value={FREQUENCY_TYPES.MONTHLY}>
+            {FREQUENCY_LABELS[FREQUENCY_TYPES.MONTHLY]}
+          </option>
+          <option value={FREQUENCY_TYPES.QUARTERLY}>
+            {FREQUENCY_LABELS[FREQUENCY_TYPES.QUARTERLY]}
+          </option>
+          <option value={FREQUENCY_TYPES.YEARLY}>
+            {FREQUENCY_LABELS[FREQUENCY_TYPES.YEARLY]}
+          </option>
+        </select>
+      </td>
+      <td>
+        <select
+          value={expense.startMonth}
+          onChange={(e) => onUpdate(expense.id, 'startMonth', e.target.value)}
+          aria-label="Start måned"
+        >
+          {MONTHS.map((month, index) => (
+            <option key={index} value={index + 1}>{month}</option>
+          ))}
+        </select>
+      </td>
+      <td>
+        <select
+          value={expense.endMonth}
+          onChange={(e) => onUpdate(expense.id, 'endMonth', e.target.value)}
+          aria-label="Slut måned"
+        >
+          {MONTHS.map((month, index) => (
+            <option key={index} value={index + 1}>{month}</option>
+          ))}
+        </select>
+      </td>
+      <td className="annual-total">
+        {calculateAnnualAmount(expense).toLocaleString('da-DK')} kr.
+      </td>
+      <td>
+        <div className="row-actions">
+          <button
+            className="btn-clone"
+            onClick={() => onClone(expense)}
+            aria-label={`Kopier ${expense.name}`}
+            title="Kopier denne udgift"
+          >
+            📋
+          </button>
+          <button
+            className="btn-delete"
+            onClick={() => onDelete(expense.id)}
+            aria-label={`Slet ${expense.name}`}
+          >
+            Slet
+          </button>
+        </div>
+      </td>
+    </tr>
+  )
+}, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if expense data or selection changed
+  return (
+    prevProps.expense.id === nextProps.expense.id &&
+    prevProps.expense.name === nextProps.expense.name &&
+    prevProps.expense.amount === nextProps.expense.amount &&
+    prevProps.expense.frequency === nextProps.expense.frequency &&
+    prevProps.expense.startMonth === nextProps.expense.startMonth &&
+    prevProps.expense.endMonth === nextProps.expense.endMonth &&
+    prevProps.isSelected === nextProps.isSelected
+  )
+})
 
 export const ExpensesTable = ({
   expenses,
@@ -372,96 +524,15 @@ export const ExpensesTable = ({
             </tr>
           )}
           {sortedExpenses.map((expense) => (
-            <tr
+            <ExpenseRow
               key={expense.id}
-            >
-              <td>
-                <input
-                  type="checkbox"
-                  checked={selectedExpenses.includes(expense.id)}
-                  onChange={() => onToggleSelection(expense.id)}
-                  aria-label={`Vælg ${expense.name}`}
-                />
-              </td>
-              <td>
-                <input
-                  type="text"
-                  value={expense.name}
-                  onChange={(e) => onUpdate(expense.id, 'name', e.target.value)}
-                  aria-label="Udgiftsnavn"
-                />
-              </td>
-              <td>
-                <input
-                  type="number"
-                  value={expense.amount}
-                  onChange={(e) => onUpdate(expense.id, 'amount', e.target.value)}
-                  min="0"
-                  aria-label="Beløb"
-                />
-              </td>
-              <td>
-                <select
-                  value={expense.frequency}
-                  onChange={(e) => onUpdate(expense.id, 'frequency', e.target.value)}
-                  aria-label="Frekvens"
-                >
-                  <option value={FREQUENCY_TYPES.MONTHLY}>
-                    {FREQUENCY_LABELS[FREQUENCY_TYPES.MONTHLY]}
-                  </option>
-                  <option value={FREQUENCY_TYPES.QUARTERLY}>
-                    {FREQUENCY_LABELS[FREQUENCY_TYPES.QUARTERLY]}
-                  </option>
-                  <option value={FREQUENCY_TYPES.YEARLY}>
-                    {FREQUENCY_LABELS[FREQUENCY_TYPES.YEARLY]}
-                  </option>
-                </select>
-              </td>
-              <td>
-                <select
-                  value={expense.startMonth}
-                  onChange={(e) => onUpdate(expense.id, 'startMonth', e.target.value)}
-                  aria-label="Start måned"
-                >
-                  {MONTHS.map((month, index) => (
-                    <option key={index} value={index + 1}>{month}</option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <select
-                  value={expense.endMonth}
-                  onChange={(e) => onUpdate(expense.id, 'endMonth', e.target.value)}
-                  aria-label="Slut måned"
-                >
-                  {MONTHS.map((month, index) => (
-                    <option key={index} value={index + 1}>{month}</option>
-                  ))}
-                </select>
-              </td>
-              <td className="annual-total">
-                {calculateAnnualAmount(expense).toLocaleString('da-DK')} kr.
-              </td>
-              <td>
-                <div className="row-actions">
-                  <button
-                    className="btn-clone"
-                    onClick={() => handleClone(expense)}
-                    aria-label={`Kopier ${expense.name}`}
-                    title="Kopier denne udgift"
-                  >
-                    📋
-                  </button>
-                  <button
-                    className="btn-delete"
-                    onClick={() => onDelete(expense.id)}
-                    aria-label={`Slet ${expense.name}`}
-                  >
-                    Slet
-                  </button>
-                </div>
-              </td>
-            </tr>
+              expense={expense}
+              isSelected={selectedExpenses.includes(expense.id)}
+              onToggleSelection={onToggleSelection}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+              onClone={handleClone}
+            />
           ))}
         </tbody>
       </table>

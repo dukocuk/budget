@@ -122,6 +122,41 @@ export function groupExpensesByFrequency(expenses) {
 }
 
 /**
+ * Calculate monthly breakdown by frequency type for stacked bar chart
+ * Returns array of 12 months with expenses grouped by frequency
+ */
+export function calculateMonthlyBreakdownByFrequency(expenses) {
+  const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec']
+
+  return MONTH_NAMES.map((monthName, index) => {
+    const month = index + 1
+    const breakdown = {
+      month: monthName,
+      monthly: 0,
+      quarterly: 0,
+      yearly: 0,
+      total: 0
+    }
+
+    expenses.forEach(expense => {
+      const amount = getMonthlyAmount(expense, month)
+      if (amount > 0) {
+        breakdown[expense.frequency] += amount
+        breakdown.total += amount
+      }
+    })
+
+    return {
+      ...breakdown,
+      monthly: Math.round(breakdown.monthly),
+      quarterly: Math.round(breakdown.quarterly),
+      yearly: Math.round(breakdown.yearly),
+      total: Math.round(breakdown.total)
+    }
+  })
+}
+
+/**
  * Validate expense data
  */
 export function validateExpense(expense) {

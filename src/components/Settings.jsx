@@ -2,7 +2,7 @@
  * Settings section component with cloud sync status
  */
 
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import './Settings.css'
 
 export const Settings = ({
@@ -20,6 +20,19 @@ export const Settings = ({
   isOnline
 }) => {
   const fileInputRef = useRef(null)
+
+  // Local state for input fields to prevent sync spam
+  const [localMonthlyPayment, setLocalMonthlyPayment] = useState(monthlyPayment)
+  const [localPreviousBalance, setLocalPreviousBalance] = useState(previousBalance)
+
+  // Sync local state when props change (e.g., loaded from cloud)
+  useEffect(() => {
+    setLocalMonthlyPayment(monthlyPayment)
+  }, [monthlyPayment])
+
+  useEffect(() => {
+    setLocalPreviousBalance(previousBalance)
+  }, [previousBalance])
 
   const handleImportClick = () => {
     fileInputRef.current?.click()
@@ -87,8 +100,25 @@ export const Settings = ({
           <input
             type="number"
             id="monthlyPayment"
-            value={monthlyPayment}
-            onChange={(e) => onMonthlyPaymentChange(parseFloat(e.target.value) || 0)}
+            value={localMonthlyPayment}
+            onChange={(e) => {
+              const value = e.target.value
+              // Update local state immediately for responsive UI
+              if (value === '') {
+                setLocalMonthlyPayment(0)
+              } else {
+                const parsed = parseFloat(value)
+                if (!isNaN(parsed)) {
+                  setLocalMonthlyPayment(parsed)
+                }
+              }
+            }}
+            onBlur={() => {
+              // Only trigger parent update (and sync) on blur
+              if (localMonthlyPayment !== monthlyPayment) {
+                onMonthlyPaymentChange(localMonthlyPayment)
+              }
+            }}
           />
         </div>
         <div className="settings-item">
@@ -98,8 +128,25 @@ export const Settings = ({
           <input
             type="number"
             id="previousBalance"
-            value={previousBalance}
-            onChange={(e) => onPreviousBalanceChange(parseFloat(e.target.value) || 0)}
+            value={localPreviousBalance}
+            onChange={(e) => {
+              const value = e.target.value
+              // Update local state immediately for responsive UI
+              if (value === '') {
+                setLocalPreviousBalance(0)
+              } else {
+                const parsed = parseFloat(value)
+                if (!isNaN(parsed)) {
+                  setLocalPreviousBalance(parsed)
+                }
+              }
+            }}
+            onBlur={() => {
+              // Only trigger parent update (and sync) on blur
+              if (localPreviousBalance !== previousBalance) {
+                onPreviousBalanceChange(localPreviousBalance)
+              }
+            }}
           />
         </div>
       </div>

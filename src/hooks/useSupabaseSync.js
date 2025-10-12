@@ -19,7 +19,6 @@ export const useSupabaseSync = (user) => {
 
   // Refs for debouncing and preventing duplicate syncs
   const syncTimeoutRef = useRef(null)
-  const channelRef = useRef(null)
   const isSyncingRef = useRef(false)
 
   // Monitor online/offline status
@@ -55,8 +54,6 @@ export const useSupabaseSync = (user) => {
       setSyncStatus('syncing')
       setSyncError(null)
 
-      console.log(`🔄 Syncing ${expenses.length} expenses to cloud...`)
-
       // Atomically replace all expenses with current state
       // This handles adds, updates, AND deletions (including deleting all)
 
@@ -85,10 +82,6 @@ export const useSupabaseSync = (user) => {
           .insert(expensesData)
 
         if (insertError) throw insertError
-
-        console.log(`✅ Successfully synced ${expenses.length} expenses to cloud`)
-      } else {
-        console.log('✅ Successfully cleared all expenses from cloud')
       }
 
       setSyncStatus('synced')

@@ -31,6 +31,7 @@ function App() {
   const [previousBalance, setPreviousBalance] = useState(DEFAULT_SETTINGS.previousBalance)
   const [isInitialized, setIsInitialized] = useState(false)
   const [hasLoadedFromCloud, setHasLoadedFromCloud] = useState(false)
+  const [isLoadingData, setIsLoadingData] = useState(true)
   const [activeTab, setActiveTab] = useState(0)
   const [showAddModal, setShowAddModal] = useState(false)
 
@@ -76,6 +77,7 @@ function App() {
   useEffect(() => {
     if (user && !isInitialized) {
       console.log('🔄 Initializing user data...')
+      setIsLoadingData(true)
 
       const loadData = async () => {
         try {
@@ -109,12 +111,14 @@ function App() {
           // Mark as loaded from cloud - this MUST happen before sync enables
           setHasLoadedFromCloud(true)
           setIsInitialized(true)
+          setIsLoadingData(false)
           console.log('✅ Initial cloud load complete - sync now enabled')
         } catch (error) {
           console.error('❌ Error loading initial data:', error)
           // Still mark as initialized to allow app to function
           setHasLoadedFromCloud(true)
           setIsInitialized(true)
+          setIsLoadingData(false)
         }
       }
 
@@ -128,18 +132,15 @@ function App() {
   useEffect(() => {
     // Skip sync if not fully initialized
     if (!user || !isInitialized || !hasLoadedFromCloud) {
-      console.log('⏸️ Skipping expense sync - not fully initialized yet')
       return
     }
 
-    console.log(`🔄 Auto-sync (debounced) triggered for ${expenses.length} expenses`)
     syncExpenses(expenses)
   }, [expenses, user, isInitialized, hasLoadedFromCloud, syncExpenses])
 
   // Sync settings whenever they change (ONLY after initial cloud load)
   useEffect(() => {
     if (user && isInitialized && hasLoadedFromCloud) {
-      console.log('🔄 Syncing settings to cloud...')
       syncSettings(monthlyPayment, previousBalance)
     }
   }, [monthlyPayment, previousBalance, user, isInitialized, hasLoadedFromCloud, syncSettings])
@@ -156,6 +157,16 @@ function App() {
 
   if (!user) {
     return <Auth />
+  }
+
+  // Show loading screen while fetching cloud data
+  if (isLoadingData) {
+    return (
+      <div className="auth-loading-container">
+        <div className="spinner"></div>
+        <p>Henter dine data...</p>
+      </div>
+    )
   }
 
   // Keyboard shortcuts
