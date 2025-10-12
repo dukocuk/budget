@@ -161,8 +161,8 @@ const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onD
 })
 
 export const ExpensesTable = ({
-  expenses,
-  selectedExpenses,
+  expenses = [],
+  selectedExpenses = [],
   onToggleSelection,
   onToggleSelectAll,
   onUpdate,

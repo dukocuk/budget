@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useExpenses } from '../hooks/useExpenses'
 import { calculateAnnualAmount } from '../utils/calculations'
 import './ExpenseManager.css'
@@ -10,6 +10,73 @@ export default function ExpenseManager({ userId }) {
   const [selectedIds, setSelectedIds] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
 
+  // Local input state to prevent focus loss during sync
+  const [localValues, setLocalValues] = useState({})
+  const updateTimeouts = useRef({})
+
+  // Initialize local values when expenses load
+  useEffect(() => {
+    const initialValues = {}
+    expenses.forEach(expense => {
+      initialValues[`${expense.id}_name`] = expense.name
+      initialValues[`${expense.id}_amount`] = expense.amount
+    })
+    setLocalValues(initialValues)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expenses.length]) // Only reset when expenses list changes length (intentionally not including expenses)
+
+  /**
+   * Debounced update handler - updates local state immediately, database after 300ms
+   */
+  const handleDebouncedUpdate = useCallback((id, field, value) => {
+    const key = `${id}_${field}`
+
+    // Update local state immediately (prevents focus loss)
+    setLocalValues(prev => ({ ...prev, [key]: value }))
+
+    // Clear existing timeout for this field
+    if (updateTimeouts.current[key]) {
+      clearTimeout(updateTimeouts.current[key])
+    }
+
+    // Set new timeout to update database
+    updateTimeouts.current[key] = setTimeout(async () => {
+      try {
+        const updates = { [field]: value }
+        await updateExpense(id, updates)
+      } catch (error) {
+        alert('Fejl ved opdatering: ' + error.message)
+        // Revert local value on error
+        const expense = expenses.find(e => e.id === id)
+        if (expense) {
+          setLocalValues(prev => ({ ...prev, [key]: expense[field] }))
+        }
+      }
+      delete updateTimeouts.current[key]
+    }, 300) // 300ms debounce
+  }, [updateExpense, expenses])
+
+  /**
+   * Immediate update handler for select fields (no debounce needed)
+   */
+  const handleImmediateUpdate = useCallback(async (id, field, value) => {
+    try {
+      const updates = { [field]: value }
+      await updateExpense(id, updates)
+    } catch (error) {
+      alert('Fejl ved opdatering: ' + error.message)
+    }
+  }, [updateExpense])
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      Object.values(updateTimeouts.current).forEach(timeout => clearTimeout(timeout))
+    }
+  }, [])
+
+  // Early return after all hooks
   if (loading) {
     return <div className="loading">Indlæser udgifter...</div>
   }
@@ -29,15 +96,6 @@ export default function ExpenseManager({ userId }) {
       })
     } catch (error) {
       alert('Fejl ved tilføjelse: ' + error.message)
-    }
-  }
-
-  const handleUpdate = async (id, field, value) => {
-    try {
-      const updates = { [field]: value }
-      await updateExpense(id, updates)
-    } catch (error) {
-      alert('Fejl ved opdatering: ' + error.message)
     }
   }
 
@@ -130,21 +188,21 @@ export default function ExpenseManager({ userId }) {
                 <td>
                   <input
                     type="text"
-                    value={expense.name}
-                    onChange={(e) => handleUpdate(expense.id, 'name', e.target.value)}
+                    value={localValues[`${expense.id}_name`] ?? expense.name}
+                    onChange={(e) => handleDebouncedUpdate(expense.id, 'name', e.target.value)}
                   />
                 </td>
                 <td>
                   <input
                     type="number"
-                    value={expense.amount}
-                    onChange={(e) => handleUpdate(expense.id, 'amount', parseInt(e.target.value) || 0)}
+                    value={localValues[`${expense.id}_amount`] ?? expense.amount}
+                    onChange={(e) => handleDebouncedUpdate(expense.id, 'amount', parseInt(e.target.value) || 0)}
                   />
                 </td>
                 <td>
                   <select
                     value={expense.frequency}
-                    onChange={(e) => handleUpdate(expense.id, 'frequency', e.target.value)}
+                    onChange={(e) => handleImmediateUpdate(expense.id, 'frequency', e.target.value)}
                   >
                     <option value="monthly">Månedlig</option>
                     <option value="quarterly">Kvartalsvis</option>
@@ -154,7 +212,7 @@ export default function ExpenseManager({ userId }) {
                 <td>
                   <select
                     value={expense.startMonth}
-                    onChange={(e) => handleUpdate(expense.id, 'startMonth', parseInt(e.target.value))}
+                    onChange={(e) => handleImmediateUpdate(expense.id, 'startMonth', parseInt(e.target.value))}
                   >
                     {months.map((month, index) => (
                       <option key={index} value={index + 1}>{month}</option>
@@ -164,7 +222,7 @@ export default function ExpenseManager({ userId }) {
                 <td>
                   <select
                     value={expense.endMonth}
-                    onChange={(e) => handleUpdate(expense.id, 'endMonth', parseInt(e.target.value))}
+                    onChange={(e) => handleImmediateUpdate(expense.id, 'endMonth', parseInt(e.target.value))}
                   >
                     {months.map((month, index) => (
                       <option key={index} value={index + 1}>{month}</option>

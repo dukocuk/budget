@@ -15,7 +15,8 @@
       "Bash(node:*)",
       "Bash(wc:*)",
       "Bash(test:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

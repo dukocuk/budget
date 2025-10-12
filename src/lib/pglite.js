@@ -1,7 +1,8 @@
 import { PGlite } from '@electric-sql/pglite'
 
-// Create local PostgreSQL database in browser
-export const localDB = new PGlite()
+// Create local PostgreSQL database in browser with IndexedDB persistence
+// Using IndexedDB ensures data persists and avoids filesystem bundle issues
+export const localDB = new PGlite('idb://budget-db')
 
 // Initialize local database schema (mirrors Supabase schema)
 export async function initLocalDB() {

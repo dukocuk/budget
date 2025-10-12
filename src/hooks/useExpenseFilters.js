@@ -14,6 +14,11 @@ export function useExpenseFilters(expenses) {
    * Filter expenses based on active filters
    */
   const filteredExpenses = useMemo(() => {
+    // Guard against undefined/null expenses array
+    if (!expenses || !Array.isArray(expenses)) {
+      return [];
+    }
+
     return expenses.filter(expense => {
       // Search text filter (case-insensitive)
       const matchesSearch = !searchText ||
@@ -66,6 +71,6 @@ export function useExpenseFilters(expenses) {
     // Utilities
     clearFilters,
     hasActiveFilters,
-    filterCount: expenses.length - filteredExpenses.length,
+    filterCount: (expenses?.length || 0) - filteredExpenses.length,
   };
 }
