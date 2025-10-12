@@ -32,7 +32,6 @@ export const ExpensesTable = ({
   } = useExpenseFilters(expenses)
 
   const allSelected = selectedExpenses.length === filteredExpenses.length && filteredExpenses.length > 0
-  const [newlyAddedId, setNewlyAddedId] = useState(null)
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' })
   const [showInlineAdd, setShowInlineAdd] = useState(false)
   const [inlineData, setInlineData] = useState({
@@ -44,22 +43,8 @@ export const ExpensesTable = ({
   })
   const inlineRowRef = useRef(null)
 
-  // Track newly added expense (first in array)
-  useEffect(() => {
-    if (expenses.length > 0) {
-      const firstExpense = expenses[0]
-      // Only highlight if it's actually new (different from previous first)
-      setNewlyAddedId(firstExpense.id)
-
-      // Remove highlight class after animation completes
-      const timer = setTimeout(() => {
-        setNewlyAddedId(null)
-      }, 2000)
-
-      return () => clearTimeout(timer)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expenses.length])
+  // Track newly added expense - removed to prevent unwanted animations
+  // Animation only triggers when explicitly adding via inline form or modal
 
   // Sort expenses (use filtered expenses instead of all expenses)
   const sortedExpenses = useMemo(() => {
@@ -100,18 +85,6 @@ export const ExpensesTable = ({
   const getSortIndicator = (key) => {
     if (sortConfig.key !== key) return null
     return sortConfig.direction === 'asc' ? ' ↑' : ' ↓'
-  }
-
-  // Handle inline add
-  const handleInlineAdd = () => {
-    setShowInlineAdd(true)
-    // Auto-focus on name input after render
-    setTimeout(() => {
-      if (inlineRowRef.current) {
-        const nameInput = inlineRowRef.current.querySelector('input[type="text"]')
-        if (nameInput) nameInput.focus()
-      }
-    }, 50)
   }
 
   // Handle inline save
@@ -189,17 +162,6 @@ export const ExpensesTable = ({
 
   return (
     <div className="table-container">
-      <div className="table-header-actions">
-        <button
-          className="btn btn-primary btn-inline-add"
-          onClick={handleInlineAdd}
-          disabled={showInlineAdd}
-        >
-          <span className="btn-icon">➕</span>
-          <span>Tilføj ny udgift her</span>
-        </button>
-      </div>
-
       {/* Search and Filter Controls */}
       <div className="filter-controls">
         <div className="filter-group">
@@ -409,10 +371,9 @@ export const ExpensesTable = ({
               </td>
             </tr>
           )}
-          {sortedExpenses.map((expense, index) => (
+          {sortedExpenses.map((expense) => (
             <tr
               key={expense.id}
-              className={index === 0 && newlyAddedId === expense.id ? 'new-row' : ''}
             >
               <td>
                 <input

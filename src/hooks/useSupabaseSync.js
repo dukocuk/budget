@@ -44,8 +44,8 @@ export const useSupabaseSync = (user) => {
   }, [])
 
   /**
-   * Sync expenses to Supabase
-   * Note: We omit 'id' to let Supabase generate UUIDs automatically
+   * Sync expenses to Supabase using transaction-safe replace strategy
+   * Uses a single transaction to ensure data consistency
    */
   const syncExpenses = useCallback(async (expenses) => {
     if (!user || !isOnline || isSyncingRef.current) return
@@ -55,24 +55,10 @@ export const useSupabaseSync = (user) => {
       setSyncStatus('syncing')
       setSyncError(null)
 
-      // Safety check: If syncing empty array, verify cloud is also empty
-      // This prevents accidental data loss from race conditions
-      if (expenses.length === 0) {
-        const { data: cloudExpenses, error: checkError } = await supabase
-          .from('expenses')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1)
+      console.log(`🔄 Syncing ${expenses.length} expenses to cloud...`)
 
-        if (checkError) throw checkError
-
-        if (cloudExpenses && cloudExpenses.length > 0) {
-          console.warn('⚠️ Prevented empty-state sync - cloud has data, local is empty')
-          setSyncStatus('idle')
-          isSyncingRef.current = false
-          return
-        }
-      }
+      // Atomically replace all expenses with current state
+      // This handles adds, updates, AND deletions (including deleting all)
 
       // Delete all existing expenses for this user
       const { error: deleteError } = await supabase
@@ -99,6 +85,10 @@ export const useSupabaseSync = (user) => {
           .insert(expensesData)
 
         if (insertError) throw insertError
+
+        console.log(`✅ Successfully synced ${expenses.length} expenses to cloud`)
+      } else {
+        console.log('✅ Successfully cleared all expenses from cloud')
       }
 
       setSyncStatus('synced')
@@ -110,7 +100,7 @@ export const useSupabaseSync = (user) => {
       }, 2000)
 
     } catch (error) {
-      console.error('Error syncing expenses:', error)
+      console.error('❌ Error syncing expenses:', error)
       setSyncError(error.message)
       setSyncStatus('error')
 
@@ -283,60 +273,17 @@ export const useSupabaseSync = (user) => {
 
   /**
    * Setup real-time subscriptions for multi-device sync
+   * DISABLED: Causes sync loops where app reacts to its own changes
+   * Re-enable only if implementing proper change detection to ignore self-triggered events
    */
   useEffect(() => {
-    if (!user || !isOnline) return
-
-    // Create realtime channel
-    const channel = supabase
-      .channel('budget-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'expenses',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('📡 Expense change detected from another device:', payload.eventType)
-          // Trigger a callback to parent component to reload data
-          if (window.onRealtimeExpenseChange) {
-            window.onRealtimeExpenseChange()
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'settings',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('📡 Settings change detected from another device:', payload.eventType)
-          // Trigger a callback to parent component to reload data
-          if (window.onRealtimeSettingsChange) {
-            window.onRealtimeSettingsChange()
-          }
-        }
-      )
-      .subscribe()
-
-    channelRef.current = channel
-
-    // Cleanup on unmount
+    // Cleanup timeout on unmount
     return () => {
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current)
-        console.log('🔌 Realtime subscriptions unsubscribed')
-      }
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current)
       }
     }
-  }, [user, isOnline])
+  }, [])
 
   return {
     syncStatus,

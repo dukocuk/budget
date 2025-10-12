@@ -380,6 +380,28 @@ h2 {
   display: inline-block;
 }
 
+/* Expenses Header */
+.expenses-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-md) 0;
+  border-bottom: 2px solid var(--gray-200);
+}
+
+.expenses-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: var(--gray-800);
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.expenses-header .btn {
+  margin: 0;
+}
+
 .table-container {
   overflow-x: auto;
   overflow-y: visible;
@@ -518,39 +540,50 @@ h2 {
   .header h1 {
     font-size: 2em;
   }
-  
+
   .container {
     padding: 20px;
     border-radius: 15px;
   }
-  
+
   .summary-card .value {
     font-size: 24px;
   }
-  
+
   .controls {
     flex-direction: column;
   }
-  
+
   .btn {
     width: 100%;
   }
-  
+
   .table-container {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  
+
   .expenses-table,
   .monthly-table {
     font-size: 14px;
   }
-  
+
   .expenses-table td,
   .expenses-table th,
   .monthly-table td,
   .monthly-table th {
     padding: 8px;
+  }
+
+  /* Expenses header responsive */
+  .expenses-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+  }
+
+  .expenses-header .btn {
+    width: 100%;
   }
 }
 
@@ -606,5 +639,65 @@ h2 {
 @media (max-width: 480px) {
   .tab-content-wrapper {
     padding: 0;
+  }
+}
+
+/* Floating Action Button (FAB) */
+.fab {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-purple) 0%, #764ba2 100%);
+  color: white;
+  font-size: 28px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+  transition: all var(--transition-base);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.fab::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.fab:hover {
+  transform: scale(1.1) rotate(90deg);
+  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5);
+}
+
+.fab:hover::before {
+  width: 200px;
+  height: 200px;
+}
+
+.fab:active {
+  transform: scale(1.05) rotate(90deg);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+@media (max-width: 768px) {
+  .fab {
+    bottom: 20px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    font-size: 24px;
   }
 }

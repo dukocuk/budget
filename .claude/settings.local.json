@@ -11,7 +11,8 @@
       "Bash(npm run dev:*)",
       "Bash(rm:*)",
       "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\components\\SubTabView.jsx\")",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

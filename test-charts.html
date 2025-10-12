@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chart Data Diagnostic</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .error { color: red; }
+        .success { color: green; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>📊 Chart Data Diagnostic Tool</h1>
+
+    <div class="test-section">
+        <h2>Test Expenses</h2>
+        <pre id="test-expenses"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Balance Projection Results</h2>
+        <pre id="balance-results"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Expense Distribution Results</h2>
+        <pre id="distribution-results"></pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Potential Issues</h2>
+        <div id="issues"></div>
+    </div>
+
+    <script type="module">
+        // Import calculation functions
+        import {
+            calculateBalanceProjection,
+            groupExpensesByFrequency,
+            calculateAnnualAmount,
+            getMonthlyAmount
+        } from './src/utils/calculations.js';
+
+        const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'];
+
+        // Test data - typical expenses
+        const testExpenses = [
+            { id: 1, name: 'Husleje', amount: 8000, frequency: 'monthly', startMonth: 1, endMonth: 12 },
+            { id: 2, name: 'El', amount: 400, frequency: 'quarterly', startMonth: 1, endMonth: 12 },
+            { id: 3, name: 'Forsikring', amount: 2400, frequency: 'yearly', startMonth: 1, endMonth: 12 },
+            { id: 4, name: 'Netflix', amount: 79, frequency: 'monthly', startMonth: 1, endMonth: 12 }
+        ];
+
+        const monthlyPayment = 5700;
+        const previousBalance = 4831;
+
+        document.getElementById('test-expenses').textContent = JSON.stringify(testExpenses, null, 2);
+
+        // Test balance projection
+        try {
+            const balanceData = calculateBalanceProjection(testExpenses, monthlyPayment, previousBalance);
+
+            const formatted = balanceData.map((item, idx) => ({
+                month: MONTHS[idx],
+                income: item.income,
+                expenses: item.expenses,
+                balance: item.balance
+            }));
+
+            document.getElementById('balance-results').textContent = JSON.stringify(formatted, null, 2);
+
+            // Check for issues
+            const issues = [];
+
+            // Check if balance is always decreasing
+            let alwaysDecreasing = true;
+            for (let i = 1; i < balanceData.length; i++) {
+                if (balanceData[i].balance >= balanceData[i-1].balance) {
+                    alwaysDecreasing = false;
+                    break;
+                }
+            }
+            if (alwaysDecreasing) {
+                issues.push('<span class="error">⚠️ Balance is always decreasing - expenses may be too high</span>');
+            }
+
+            // Check if expenses are zero
+            const zeroExpenses = balanceData.filter(d => d.expenses === 0);
+            if (zeroExpenses.length > 0) {
+                issues.push(`<span class="error">⚠️ ${zeroExpenses.length} months have zero expenses</span>`);
+            }
+
+            // Check if income matches expected
+            const incorrectIncome = balanceData.filter(d => d.income !== monthlyPayment);
+            if (incorrectIncome.length > 0) {
+                issues.push(`<span class="error">⚠️ ${incorrectIncome.length} months have incorrect income</span>`);
+            }
+
+            if (issues.length === 0) {
+                issues.push('<span class="success">✅ No issues detected with balance calculation</span>');
+            }
+
+            document.getElementById('issues').innerHTML = issues.join('<br>');
+
+        } catch (error) {
+            document.getElementById('balance-results').textContent = `ERROR: ${error.message}`;
+            document.getElementById('issues').innerHTML = `<span class="error">❌ Balance calculation failed: ${error.message}</span>`;
+        }
+
+        // Test expense distribution
+        try {
+            const distribution = groupExpensesByFrequency(testExpenses);
+
+            const formatted = distribution.map(item => ({
+                name: item.name,
+                value: item.value,
+                percentage: ((item.value / distribution.reduce((s, i) => s + i.value, 0)) * 100).toFixed(1) + '%'
+            }));
+
+            document.getElementById('distribution-results').textContent = JSON.stringify(formatted, null, 2);
+
+            // Check for issues
+            const distIssues = [];
+
+            if (distribution.length === 0) {
+                distIssues.push('<span class="error">⚠️ No distribution data generated</span>');
+            }
+
+            const total = distribution.reduce((sum, item) => sum + item.value, 0);
+            if (total === 0) {
+                distIssues.push('<span class="error">⚠️ Total distribution value is zero</span>');
+            }
+
+            // Calculate expected total
+            const expectedTotal = testExpenses.reduce((sum, exp) => {
+                return sum + calculateAnnualAmount(exp);
+            }, 0);
+
+            if (Math.abs(total - expectedTotal) > 0.01) {
+                distIssues.push(`<span class="error">⚠️ Distribution total (${total}) doesn't match expected (${expectedTotal})</span>`);
+            }
+
+            if (distIssues.length === 0) {
+                distIssues.push('<span class="success">✅ No issues detected with distribution calculation</span>');
+            }
+
+            document.getElementById('issues').innerHTML += '<br><br>' + distIssues.join('<br>');
+
+        } catch (error) {
+            document.getElementById('distribution-results').textContent = `ERROR: ${error.message}`;
+            document.getElementById('issues').innerHTML += `<br><span class="error">❌ Distribution calculation failed: ${error.message}</span>`;
+        }
+
+        // Individual expense check
+        console.log('=== Individual Expense Check ===');
+        testExpenses.forEach(expense => {
+            const annual = calculateAnnualAmount(expense);
+            console.log(`${expense.name}:`, {
+                annual,
+                jan: getMonthlyAmount(expense, 1),
+                apr: getMonthlyAmount(expense, 4),
+                jul: getMonthlyAmount(expense, 7),
+                oct: getMonthlyAmount(expense, 10)
+            });
+        });
+    </script>
+</body>
+</html>

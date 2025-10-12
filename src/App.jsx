@@ -13,6 +13,7 @@ import { MonthlyOverview } from './components/MonthlyOverview'
 import { TabView } from './components/TabView'
 import { BalanceChart } from './components/BalanceChart'
 import { ExpenseDistribution } from './components/ExpenseDistribution'
+import { AddExpenseModal } from './components/AddExpenseModal'
 import Auth from './components/Auth'
 import { useExpenses } from './hooks/useExpenses'
 import { useAlert } from './hooks/useAlert'
@@ -31,6 +32,7 @@ function App() {
   const [isInitialized, setIsInitialized] = useState(false)
   const [hasLoadedFromCloud, setHasLoadedFromCloud] = useState(false)
   const [activeTab, setActiveTab] = useState(0)
+  const [showAddModal, setShowAddModal] = useState(false)
 
   // Authentication
   const { user, loading: authLoading } = useAuth()
@@ -61,7 +63,8 @@ function App() {
     syncExpenses,
     syncSettings,
     loadExpenses,
-    loadSettings
+    loadSettings,
+    immediateSyncExpenses
   } = useSupabaseSync(user)
 
   const { alert, showAlert } = useAlert()
@@ -76,15 +79,23 @@ function App() {
 
       const loadData = async () => {
         try {
+          console.log('📥 Loading data from cloud...')
+
           // Load expenses FIRST - critical to prevent data loss
           const expensesResult = await loadExpenses()
+          console.log('📥 Load expenses result:', expensesResult)
+
           if (expensesResult.success) {
             if (expensesResult.data.length > 0) {
+              console.log(`📥 Setting ${expensesResult.data.length} expenses to state:`, expensesResult.data)
               setAllExpenses(expensesResult.data)
               console.log(`✅ Loaded ${expensesResult.data.length} expenses from cloud`)
             } else {
               console.log('ℹ️ No expenses found in cloud (new user or empty state)')
+              console.log('ℹ️ Keeping current local expenses:', expenses.length)
             }
+          } else {
+            console.warn('⚠️ Failed to load expenses from cloud, keeping local state')
           }
 
           // Load settings
@@ -112,11 +123,17 @@ function App() {
   }, [user, isInitialized, loadExpenses, loadSettings, setAllExpenses])
 
   // Sync expenses whenever they change (ONLY after initial cloud load)
+  // CRITICAL: This must NOT run during the initial load to prevent race conditions
+  // NOTE: Debounced sync - for deletions, handleDeleteExpense uses immediateSyncExpenses instead
   useEffect(() => {
-    if (user && isInitialized && hasLoadedFromCloud) {
-      console.log(`🔄 Syncing ${expenses.length} expenses to cloud...`)
-      syncExpenses(expenses)
+    // Skip sync if not fully initialized
+    if (!user || !isInitialized || !hasLoadedFromCloud) {
+      console.log('⏸️ Skipping expense sync - not fully initialized yet')
+      return
     }
+
+    console.log(`🔄 Auto-sync (debounced) triggered for ${expenses.length} expenses`)
+    syncExpenses(expenses)
   }, [expenses, user, isInitialized, hasLoadedFromCloud, syncExpenses])
 
   // Sync settings whenever they change (ONLY after initial cloud load)
@@ -143,6 +160,12 @@ function App() {
 
   // Keyboard shortcuts
   const handleKeyPress = (e) => {
+    // Ctrl/Cmd + N for new expense
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+      e.preventDefault()
+      setShowAddModal(true)
+      return
+    }
     // Ctrl/Cmd + Z for undo
     if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
       e.preventDefault()
@@ -159,31 +182,53 @@ function App() {
     }
   }
 
-  // Add expense handler
-  const handleAddExpense = () => {
-    addExpense()
+  // Add expense handler - receives form data from modal
+  const handleAddExpense = (formData) => {
+    addExpense(formData)
     showAlert('Ny udgift tilføjet!', 'success')
   }
 
   // Delete expense handler
-  const handleDeleteExpense = (id) => {
+  const handleDeleteExpense = async (id) => {
     const expense = expenses.find(e => e.id === id)
+    if (!expense) return
+
     if (window.confirm(`Er du sikker på at du vil slette "${expense.name}"?`)) {
-      deleteExpense(id)
-      showAlert(`"${expense.name}" blev slettet`, 'success')
+      // Calculate updated expenses BEFORE deleting (expenses array hasn't changed yet)
+      const updatedExpenses = expenses.filter(e => e.id !== id)
+
+      // Delete from local state
+      const deletedExpense = deleteExpense(id)
+
+      // Immediately sync to cloud (bypass debounce AND auto-sync for critical operations)
+      if (user && isOnline) {
+        console.log(`🗑️ Immediately syncing delete: ${updatedExpenses.length} expenses remaining`)
+        await immediateSyncExpenses(updatedExpenses)
+      }
+
+      showAlert(`"${deletedExpense.name}" blev slettet`, 'success')
     }
   }
 
   // Delete selected handler
-  const handleDeleteSelected = () => {
-    const result = deleteSelected()
-    if (!result.success) {
+  const handleDeleteSelected = async () => {
+    if (selectedExpenses.length === 0) {
       showAlert('Vælg venligst udgifter at slette først', 'error')
       return
     }
 
-    if (window.confirm(`Er du sikker på at du vil slette ${result.count} udgift(er)?`)) {
-      showAlert(`${result.count} udgift(er) slettet!`, 'success')
+    const count = selectedExpenses.length
+
+    if (window.confirm(`Er du sikker på at du vil slette ${count} udgift(er)?`)) {
+      const result = deleteSelected()
+
+      // Immediately sync to cloud (bypass debounce for critical operations)
+      if (user && isOnline && result.success) {
+        const updatedExpenses = expenses.filter(e => !selectedExpenses.includes(e.id))
+        await immediateSyncExpenses(updatedExpenses)
+      }
+
+      showAlert(`${count} udgift(er) slettet!`, 'success')
     }
   }
 
@@ -244,36 +289,17 @@ function App() {
 
   const ExpensesTab = () => (
     <div className="tab-content-wrapper">
-      {(canUndo || canRedo) && (
-        <section className="controls">
-          {canUndo && (
-            <button
-              className="btn btn-info"
-              onClick={() => {
-                undo()
-                showAlert('Handling fortrudt', 'info')
-              }}
-              title="Fortryd (Ctrl+Z)"
-            >
-              ↶ Fortryd
-            </button>
-          )}
-          {canRedo && (
-            <button
-              className="btn btn-info"
-              onClick={() => {
-                redo()
-                showAlert('Handling gentaget', 'info')
-              }}
-              title="Gentag (Ctrl+Shift+Z)"
-            >
-              ↷ Gentag
-            </button>
-          )}
-        </section>
-      )}
+      <div className="expenses-header">
+        <h2>📋 Dine udgifter</h2>
+        <button
+          className="btn btn-primary"
+          onClick={() => setShowAddModal(true)}
+          title="Tilføj ny udgift (Ctrl+N)"
+        >
+          ➕ Tilføj udgift
+        </button>
+      </div>
 
-      <h2>📋 Dine udgifter</h2>
       <ExpensesTable
         expenses={expenses}
         selectedExpenses={selectedExpenses}
@@ -352,6 +378,23 @@ function App() {
             ]}
           />
         </div>
+
+        {/* Add Expense Modal */}
+        <AddExpenseModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onAdd={handleAddExpense}
+        />
+
+        {/* Floating Action Button (FAB) */}
+        <button
+          className="fab"
+          onClick={() => setShowAddModal(true)}
+          title="Tilføj ny udgift (Ctrl+N)"
+          aria-label="Tilføj ny udgift"
+        >
+          ➕
+        </button>
       </div>
     </ErrorBoundary>
   )

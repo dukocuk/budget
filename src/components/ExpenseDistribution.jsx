@@ -16,6 +16,13 @@ const COLORS = {
 export const ExpenseDistribution = ({ expenses }) => {
   const distributionData = groupExpensesByFrequency(expenses)
 
+  // Debug logging
+  console.log('🥧 ExpenseDistribution - Input:', {
+    expenseCount: expenses.length,
+    sampleExpense: expenses[0]
+  })
+  console.log('🥧 ExpenseDistribution - Calculated distribution:', distributionData)
+
   // Custom tooltip formatter
   const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {

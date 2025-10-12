@@ -11,6 +11,15 @@ import './BalanceChart.css'
 export const BalanceChart = ({ expenses, monthlyPayment, previousBalance }) => {
   const balanceData = calculateBalanceProjection(expenses, monthlyPayment, previousBalance)
 
+  // Debug logging
+  console.log('📊 BalanceChart - Input:', {
+    expenseCount: expenses.length,
+    monthlyPayment,
+    previousBalance,
+    sampleExpense: expenses[0]
+  })
+  console.log('📊 BalanceChart - Calculated balance data:', balanceData.slice(0, 3))
+
   // Format data for Recharts
   const chartData = balanceData.map((item, index) => ({
     month: MONTHS[index],
