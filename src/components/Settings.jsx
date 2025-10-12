@@ -3,6 +3,7 @@
  */
 
 import { useRef, useState, useEffect } from 'react'
+import { useSyncContext } from '../hooks/useSyncContext'
 import './Settings.css'
 
 export const Settings = ({
@@ -13,12 +14,10 @@ export const Settings = ({
   onExport,
   onImport,
   theme,
-  onToggleTheme,
-  syncStatus,
-  lastSyncTime,
-  syncError,
-  isOnline
+  onToggleTheme
 }) => {
+  // Get sync status from isolated context (won't trigger parent re-renders)
+  const { syncStatus, lastSyncTime, syncError, isOnline } = useSyncContext()
   const fileInputRef = useRef(null)
 
   // Local state for input fields to prevent sync spam

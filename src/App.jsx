@@ -18,7 +18,8 @@ import Auth from './components/Auth'
 import { useExpenses } from './hooks/useExpenses'
 import { useAlert } from './hooks/useAlert'
 import { useAuth } from './hooks/useAuth'
-import { useSupabaseSync } from './hooks/useSupabaseSync'
+import { SyncProvider } from './contexts/SyncContext'
+import { useSyncContext } from './hooks/useSyncContext'
 import { useTheme } from './hooks/useTheme'
 import { calculateSummary } from './utils/calculations'
 import { generateCSV, downloadCSV } from './utils/exportHelpers'
@@ -26,7 +27,10 @@ import { parseCSV } from './utils/importHelpers'
 import { DEFAULT_SETTINGS } from './utils/constants'
 import './App.css'
 
-function App() {
+/**
+ * AppContent - The main application logic (wrapped by SyncProvider)
+ */
+function AppContent() {
   const [monthlyPayment, setMonthlyPayment] = useState(DEFAULT_SETTINGS.monthlyPayment)
   const [previousBalance, setPreviousBalance] = useState(DEFAULT_SETTINGS.previousBalance)
   const [isInitialized, setIsInitialized] = useState(false)
@@ -36,7 +40,7 @@ function App() {
   const [showAddModal, setShowAddModal] = useState(false)
 
   // Authentication
-  const { user, loading: authLoading } = useAuth()
+  const { user } = useAuth()
 
   // Expenses management
   const {
@@ -55,18 +59,15 @@ function App() {
     canRedo
   } = useExpenses()
 
-  // Cloud sync
+  // Cloud sync (from isolated context to prevent re-renders)
   const {
-    syncStatus,
-    lastSyncTime,
-    syncError,
-    isOnline,
     syncExpenses,
     syncSettings,
     loadExpenses,
     loadSettings,
-    immediateSyncExpenses
-  } = useSupabaseSync(user)
+    immediateSyncExpenses,
+    isOnline
+  } = useSyncContext()
 
   const { alert, showAlert } = useAlert()
   const { theme, toggleTheme } = useTheme()
@@ -124,7 +125,7 @@ function App() {
 
       loadData()
     }
-  }, [user, isInitialized, loadExpenses, loadSettings, setAllExpenses])
+  }, [user, isInitialized, loadExpenses, loadSettings, setAllExpenses, expenses.length])
 
   // Sync expenses whenever they change (ONLY after initial cloud load)
   // CRITICAL: This must NOT run during the initial load to prevent race conditions
@@ -144,20 +145,6 @@ function App() {
       syncSettings(monthlyPayment, previousBalance)
     }
   }, [monthlyPayment, previousBalance, user, isInitialized, hasLoadedFromCloud, syncSettings])
-
-  // Show auth screen if not logged in
-  if (authLoading) {
-    return (
-      <div className="auth-loading-container">
-        <div className="spinner"></div>
-        <p>Indlæser...</p>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return <Auth />
-  }
 
   // Show loading screen while fetching cloud data
   if (isLoadingData) {
@@ -343,10 +330,6 @@ function App() {
         onImport={handleImport}
         theme={theme}
         onToggleTheme={toggleTheme}
-        syncStatus={syncStatus}
-        lastSyncTime={lastSyncTime}
-        syncError={syncError}
-        isOnline={isOnline}
       />
     </div>
   )
@@ -355,11 +338,7 @@ function App() {
     <ErrorBoundary>
       <div className="app" onKeyDown={handleKeyPress}>
         <Alert message={alert?.message} type={alert?.type} />
-        <Header
-          user={user}
-          syncStatus={syncStatus}
-          isOnline={isOnline}
-        />
+        <Header user={user} />
 
         <div className="container">
           <TabView
@@ -408,6 +387,34 @@ function App() {
         </button>
       </div>
     </ErrorBoundary>
+  )
+}
+
+/**
+ * App - Wrapper component that provides SyncContext
+ */
+function App() {
+  const { user, loading: authLoading } = useAuth()
+
+  // Show auth screen if not logged in
+  if (authLoading) {
+    return (
+      <div className="auth-loading-container">
+        <div className="spinner"></div>
+        <p>Indlæser...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <Auth />
+  }
+
+  // Wrap AppContent with SyncProvider to isolate sync state
+  return (
+    <SyncProvider user={user}>
+      <AppContent />
+    </SyncProvider>
   )
 }
 

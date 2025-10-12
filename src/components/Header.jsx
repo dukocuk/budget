@@ -3,10 +3,14 @@
  */
 
 import { useAuth } from '../hooks/useAuth'
+import { useSyncContext } from '../hooks/useSyncContext'
 import './Header.css'
 
-export const Header = ({ user, syncStatus, isOnline }) => {
+export const Header = ({ user }) => {
   const { signOut } = useAuth()
+
+  // Get sync status from isolated context (won't trigger parent re-renders)
+  const { syncStatus, isOnline } = useSyncContext()
 
   // Get connection status display
   const getConnectionStatus = () => {
