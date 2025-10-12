@@ -13,7 +13,7 @@ Personal budget tracker application for managing fixed expenses in DKK (Danish K
 - Recharts 3.2.1 (charting library)
 - React Modal 3.16.3 (modal dialogs)
 - Supabase 2.74.0 (cloud sync & authentication)
-- PGlite 0.3.10 (local PostgreSQL - future)
+- PGlite 0.3.10 (local PostgreSQL with offline-first architecture) ✅
 
 ## Development Commands
 
@@ -50,10 +50,10 @@ budget/
 │   │   ├── BalanceChart.jsx/css # Monthly balance visualization
 │   │   ├── ExpenseDistribution.jsx/css # Expense breakdown charts
 │   │   ├── ErrorBoundary.jsx/css # Error handling wrapper
-│   │   ├── Layout.jsx/css # App layout (future)
-│   │   ├── Dashboard.jsx/css # Dashboard view (future)
-│   │   ├── ExpenseManager.jsx/css # Expense management (future)
-│   │   └── MonthlyView.jsx/css # Monthly view (future)
+│   │   ├── Layout.jsx/css # App layout with navigation ✅
+│   │   ├── Dashboard.jsx/css # Dashboard with charts & stats ✅
+│   │   ├── ExpenseManager.jsx/css # Inline expense editing ✅
+│   │   └── MonthlyView.jsx/css # Monthly expense breakdown ✅
 │   ├── hooks/               # Custom React hooks
 │   │   ├── useExpenses.js  # Expense CRUD + undo/redo + sync ✅
 │   │   ├── useAlert.js     # Alert notifications
@@ -62,10 +62,10 @@ budget/
 │   │   ├── useSupabaseSync.js # Automatic cloud sync ✅
 │   │   ├── useTheme.js     # Dark/light mode ✅
 │   │   ├── useExpenseFilters.js # Search & filtering ✅
-│   │   └── useSettings.js  # Settings management (future)
+│   │   └── useSettings.js  # Settings management with PGlite ✅
 │   ├── lib/                # External integrations
 │   │   ├── supabase.js    # Supabase client ✅
-│   │   ├── pglite.js      # PGlite database (future)
+│   │   ├── pglite.js      # PGlite local database ✅
 │   │   └── sync.js        # Sync logic (future)
 │   ├── utils/              # Pure utility functions
 │   │   ├── constants.js    # App constants
@@ -146,6 +146,14 @@ budget/
   - `savedData`: Current saved state
   - `saveData()`, `loadData()`, `clearData()`: Storage operations with error handling
 
+- **`useSettings(userId)`**: Settings management with dual persistence ✅
+  - `settings`: Settings object `{monthlyPayment, previousBalance}`
+  - `loading`: Loading state during settings operations
+  - `error`: Error messages from settings operations
+  - `updateSettings(newSettings)`: Update settings with dual sync
+  - **Dual Persistence**: PGlite (local) + Supabase (cloud)
+  - Automatic upsert with conflict resolution
+
 **Global State** (App.jsx):
 - `monthlyPayment`: Fixed monthly deposit (default: 5700 kr.)
 - `previousBalance`: Carryover from previous year (default: 4831 kr.)
@@ -175,6 +183,26 @@ budget/
    - Generates 12-month expense breakdown
    - Returns: Array of 12 monthly totals
 
+5. **`calculateBalanceProjection(expenses, monthlyPayment, previousBalance)`** ✅
+   - Projects running balance for each month
+   - Returns: Array of 12 objects `{month, balance, income, expenses}`
+   - Used for: Balance trend visualization and forecasting
+
+6. **`groupExpensesByFrequency(expenses)`** ✅
+   - Aggregates total annual expenses by frequency type
+   - Returns: Array of objects `{name, value}` for pie chart
+   - Filters out zero-value categories
+
+7. **`calculateMonthlyBreakdownByFrequency(expenses)`** ✅
+   - Monthly totals grouped by frequency type
+   - Returns: Array of 12 objects `{month, monthly, quarterly, yearly, total}`
+   - Used for: Stacked bar chart visualization
+
+8. **`validateExpense(expense)`** ✅
+   - Comprehensive expense validation
+   - Returns: `{isValid: boolean, errors: string[]}`
+   - Validates: name, amount, frequency, month ranges
+
 **Frequency Types**:
 - `monthly`: Charged every month within start/end range
 - `quarterly`: Charged on months 1, 4, 7, 10 within start/end range
@@ -187,15 +215,23 @@ budget/
 - `sanitizeExpense()`: Clean and normalize expense data
 
 **Data Persistence**:
+- **Local Database** ([lib/pglite.js](src/lib/pglite.js)): ✅
+  - **PGlite**: Local PostgreSQL database running in browser
+  - **Tables**: `expenses`, `settings` with full SQL support
+  - **Primary Storage**: All data stored locally first
+  - **Instant Access**: No network latency for reads/writes
+  - **Full Offline**: Complete functionality without internet
+
 - **Cloud Storage** ([hooks/useSupabaseSync.js](src/hooks/useSupabaseSync.js)): ✅
   - **Database tables**: `expenses`, `settings` with Row Level Security
   - **Automatic sync**: Debounced (1 second delay) after changes
   - **Real-time updates**: Multi-device sync via Supabase realtime
   - **Offline-first**: Works without internet, syncs when reconnected
+  - **Backup & Sync**: Cloud serves as backup and multi-device sync layer
 
 - **Local Storage** ([hooks/useLocalStorage.js](src/hooks/useLocalStorage.js)):
   - **LocalStorage key**: `budgetData`
-  - **Backup**: Used before cloud migration
+  - **Legacy Support**: Used before PGlite migration
   - **Export**: CSV with UTF-8 BOM for Excel compatibility
 
 **Data Migration** ([utils/migration.js](src/utils/migration.js)): ✅
@@ -208,20 +244,28 @@ budget/
 - **Export**: Generate CSV with UTF-8 BOM for Excel compatibility
 - **Format**: Expense summary + monthly breakdown + settings
 
-## Cloud Synchronization ✅
+## Data Architecture ✅
 
-### Features
+### Local-First Design
+- **Primary Storage**: PGlite (PostgreSQL in browser)
+- **Instant Performance**: Zero network latency for all operations
+- **Full Offline**: Complete functionality without internet
+- **Persistent**: Data survives browser restarts
+- **SQL Capabilities**: Full PostgreSQL feature set locally
+
+### Cloud Synchronization ✅
 - **Automatic Sync**: Changes sync to cloud within 1 second
 - **Real-time Multi-Device**: Updates appear on all devices instantly
-- **Offline-First**: Full functionality without internet connection
 - **Conflict Resolution**: Last-write-wins strategy
 - **Row Level Security**: User data isolation at database level
+- **Backup Layer**: Cloud serves as backup and cross-device sync
 
 ### Architecture
 - **Authentication**: Google OAuth via Supabase Auth
-- **Database**: PostgreSQL with automatic schema migrations
-- **Real-time**: Supabase Realtime for instant updates
-- **Sync Strategy**: Debounced writes, optimistic UI updates
+- **Local Database**: PGlite with tables `expenses`, `settings`
+- **Cloud Database**: Supabase PostgreSQL with automatic schema migrations
+- **Real-time**: Supabase Realtime for instant cross-device updates
+- **Sync Strategy**: Local-first writes, debounced cloud sync, optimistic UI
 
 ### Setup
 See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
@@ -233,21 +277,41 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 **Core UI Components**:
 1. **[Header.jsx](src/components/Header.jsx)** - App header with user info and sync status ✅
 2. **[Auth.jsx](src/components/Auth.jsx)** - Google OAuth login screen ✅
-3. **[TabView.jsx](src/components/TabView.jsx)** - Tabbed navigation with dropdown
-4. **[SummaryCards.jsx](src/components/SummaryCards.jsx)** - 4 budget summary cards
-5. **[Alert.jsx](src/components/Alert.jsx)** - Notification system
-6. **[ErrorBoundary.jsx](src/components/ErrorBoundary.jsx)** - Error handling
+3. **[Layout.jsx](src/components/Layout.jsx)** - Main app layout with navigation ✅
+4. **[TabView.jsx](src/components/TabView.jsx)** - Tabbed navigation with dropdown
+5. **[SummaryCards.jsx](src/components/SummaryCards.jsx)** - 4 budget summary cards
+6. **[Alert.jsx](src/components/Alert.jsx)** - Notification system
+7. **[ErrorBoundary.jsx](src/components/ErrorBoundary.jsx)** - Error handling
+
+**Main View Components**:
+8. **[Dashboard.jsx](src/components/Dashboard.jsx)** - Overview with charts and stats ✅
+   - Summary cards (4 metrics)
+   - Pie chart (expense distribution by frequency)
+   - Bar chart (monthly expenses vs income)
+   - Line chart (balance projection)
+   - Quick stats section
+
+9. **[ExpenseManager.jsx](src/components/ExpenseManager.jsx)** - Inline expense editing ✅
+   - Searchable expense table
+   - Inline editing (all fields editable)
+   - Bulk selection and deletion
+   - Add new expense functionality
+
+10. **[MonthlyView.jsx](src/components/MonthlyView.jsx)** - Monthly breakdown table ✅
+    - 12-column month-by-month view
+    - All expenses with monthly amounts
+    - Row and column totals
 
 **Tab Content Components**:
-7. **[BalanceChart.jsx](src/components/BalanceChart.jsx)** - Balance visualization
-8. **[ExpenseDistribution.jsx](src/components/ExpenseDistribution.jsx)** - Expense charts
-9. **[ExpensesTable.jsx](src/components/ExpensesTable.jsx)** - Expenses table with filtering ✅
-10. **[MonthlyOverview.jsx](src/components/MonthlyOverview.jsx)** - 12-month breakdown
-11. **[Settings.jsx](src/components/Settings.jsx)** - Settings with sync status ✅
+11. **[BalanceChart.jsx](src/components/BalanceChart.jsx)** - Balance visualization
+12. **[ExpenseDistribution.jsx](src/components/ExpenseDistribution.jsx)** - Expense charts
+13. **[ExpensesTable.jsx](src/components/ExpensesTable.jsx)** - Expenses table with filtering ✅
+14. **[MonthlyOverview.jsx](src/components/MonthlyOverview.jsx)** - 12-month breakdown
+15. **[Settings.jsx](src/components/Settings.jsx)** - Settings with sync status ✅
 
 **Modal Components**:
-12. **[AddExpenseModal.jsx](src/components/AddExpenseModal.jsx)** - Add expense modal
-13. **[DeleteConfirmation.jsx](src/components/DeleteConfirmation.jsx)** - Delete confirmation
+16. **[AddExpenseModal.jsx](src/components/AddExpenseModal.jsx)** - Add expense modal
+17. **[DeleteConfirmation.jsx](src/components/DeleteConfirmation.jsx)** - Delete confirmation
 
 ### New Features ✅
 
@@ -400,35 +464,55 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 - ✅ CSV import functionality
 - ✅ Automatic data migration
 
+**Phase 4 - Modern App Architecture** (completed): ✅
+- ✅ Layout component with tab navigation
+- ✅ Dashboard with comprehensive visualizations
+  - Pie chart (frequency distribution)
+  - Bar chart (monthly comparison)
+  - Line chart (balance projection)
+  - Quick statistics cards
+- ✅ ExpenseManager with inline editing
+  - Search functionality
+  - Bulk operations (select/delete)
+  - Inline field editing
+- ✅ MonthlyView with 12-month breakdown
+- ✅ PGlite integration for local-first architecture
+- ✅ Settings hook with dual persistence (PGlite + Supabase)
+- ✅ Enhanced calculation utilities (8 functions)
+
 **Current Metrics**:
-- Total components: 17 (15 core + 2 modals)
+- Total components: 20 (17 core + 3 main views + 2 modals)
 - Custom hooks: 8 (useExpenses, useAlert, useLocalStorage, useAuth, useSupabaseSync, useTheme, useExpenseFilters, useSettings)
-- Utility modules: 5 (calculations, validators, exportHelpers, importHelpers, constants)
-- Total codebase: ~3500 lines (modular, maintainable, feature-rich)
+- Utility modules: 6 (calculations, validators, exportHelpers, importHelpers, migration, constants)
+- Calculation functions: 8 (annual, monthly, summary, totals, projection, grouping, breakdown, validation)
+- Total codebase: ~5100 lines (modular, feature-complete, production-ready)
 - ESLint: Clean, no errors
 - Build size: ~280 KB (compressed: ~85 KB)
 
 ## Future Enhancements
 
-**Phase 4 - Advanced Features** (pending):
+**Phase 5 - Advanced Analytics** (pending):
 - Multi-year comparison and historical analysis
 - Budget forecasting with predictive analytics
 - Expense categories with color coding
-- Enhanced chart interactivity
+- Enhanced chart interactivity (tooltips, drill-down)
 - Export to PDF with charts
 - Email notifications
+- Trend analysis and insights
 
-**Phase 5 - Collaboration** (pending):
+**Phase 6 - Collaboration** (pending):
 - Expense sharing between users
 - Budget templates and sharing
 - Collaborative budget planning
 - Family budget management
 
-**Phase 6 - Mobile** (pending):
+**Phase 7 - Mobile & PWA** (pending):
 - Progressive Web App (PWA) support
 - Mobile app (React Native)
 - Push notifications
 - Mobile-optimized charts
+- Offline caching strategies
+- Install prompts
 
 ## Code Quality Standards
 
