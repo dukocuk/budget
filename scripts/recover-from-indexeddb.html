@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>PGlite Data Recovery Tool</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1200px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .success { color: green; }
+    .error { color: red; }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #4CAF50;
+      color: white;
+    }
+    #output {
+      margin-top: 20px;
+      padding: 10px;
+      background: #f5f5f5;
+      border: 1px solid #ccc;
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔧 PGlite Data Recovery Tool</h1>
+  <p>This tool checks your browser's IndexedDB for PGlite budget data.</p>
+
+  <button onclick="checkIndexedDB()">1️⃣ Check IndexedDB Databases</button>
+  <button onclick="checkPGliteData()">2️⃣ Check PGlite Data</button>
+  <button onclick="exportData()">3️⃣ Export Data as JSON</button>
+  <button onclick="clearOutput()">Clear Output</button>
+
+  <div id="output"></div>
+
+  <script>
+    const output = document.getElementById('output');
+
+    function log(message, isError = false) {
+      const className = isError ? 'error' : 'success';
+      output.innerHTML += `<span class="${className}">${message}</span>\n`;
+    }
+
+    function clearOutput() {
+      output.innerHTML = '';
+    }
+
+    async function checkIndexedDB() {
+      clearOutput();
+      log('🔍 Checking IndexedDB databases...\n');
+
+      try {
+        const databases = await indexedDB.databases();
+        log(`Found ${databases.length} databases:\n`);
+        databases.forEach(db => {
+          log(`  - ${db.name} (version ${db.version})`);
+        });
+
+        const budgetDB = databases.find(db => db.name.includes('budget') || db.name.includes('pglite'));
+        if (budgetDB) {
+          log(`\n✅ Found PGlite database: ${budgetDB.name}`, false);
+        } else {
+          log('\n⚠️ No PGlite database found. Data may have been cleared.', true);
+        }
+      } catch (error) {
+        log(`❌ Error: ${error.message}`, true);
+      }
+    }
+
+    async function checkPGliteData() {
+      clearOutput();
+      log('🔍 Attempting to read PGlite data...\n');
+
+      try {
+        // Try to import PGlite module
+        const pgliteModule = await import('/src/lib/pglite.js');
+        const { localDB } = pgliteModule;
+
+        // Query expenses
+        log('Querying expenses table...\n');
+        const expensesResult = await localDB.query('SELECT * FROM expenses');
+        log(`Found ${expensesResult.rows.length} expenses:\n`);
+
+        if (expensesResult.rows.length > 0) {
+          log(JSON.stringify(expensesResult.rows, null, 2));
+          log('\n✅ Data found! Your expenses are safe.\n', false);
+        } else {
+          log('⚠️ No expenses found in PGlite.', true);
+        }
+
+        // Query settings
+        log('\nQuerying settings table...\n');
+        const settingsResult = await localDB.query('SELECT * FROM settings');
+        log(`Found ${settingsResult.rows.length} settings:\n`);
+        log(JSON.stringify(settingsResult.rows, null, 2));
+
+      } catch (error) {
+        log(`❌ Error: ${error.message}`, true);
+        log('\nMake sure you\'re running this on the app page (localhost:5175)', true);
+      }
+    }
+
+    async function exportData() {
+      clearOutput();
+      log('📦 Exporting all PGlite data...\n');
+
+      try {
+        const pgliteModule = await import('/src/lib/pglite.js');
+        const { localDB } = pgliteModule;
+
+        // Get all data
+        const expenses = await localDB.query('SELECT * FROM expenses');
+        const settings = await localDB.query('SELECT * FROM settings');
+
+        const exportData = {
+          exportDate: new Date().toISOString(),
+          expenses: expenses.rows,
+          settings: settings.rows
+        };
+
+        // Create download
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `pglite-backup-${Date.now()}.json`;
+        a.click();
+
+        log(`✅ Exported ${expenses.rows.length} expenses and ${settings.rows.length} settings`, false);
+        log('\nFile downloaded successfully!', false);
+
+      } catch (error) {
+        log(`❌ Error: ${error.message}`, true);
+      }
+    }
+  </script>
+</body>
+</html>

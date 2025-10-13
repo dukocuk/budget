@@ -25,6 +25,10 @@ export const SyncProvider = ({ user, children }) => {
   const syncTimeoutRef = useRef(null)
   const isSyncingRef = useRef(false)
 
+  // Refs for status reset timeouts to ensure cleanup
+  const statusResetTimeoutRef = useRef(null)
+  const errorResetTimeoutRef = useRef(null)
+
   // Monitor online/offline status
   useEffect(() => {
     const handleOnline = () => {
@@ -91,9 +95,13 @@ export const SyncProvider = ({ user, children }) => {
       setSyncStatus('synced')
       setLastSyncTime(new Date())
 
-      // Reset to idle after 2 seconds
-      setTimeout(() => {
+      // Reset to idle after 2 seconds (with cleanup tracking)
+      if (statusResetTimeoutRef.current) {
+        clearTimeout(statusResetTimeoutRef.current)
+      }
+      statusResetTimeoutRef.current = setTimeout(() => {
         setSyncStatus('idle')
+        statusResetTimeoutRef.current = null
       }, 2000)
 
     } catch (error) {
@@ -101,10 +109,14 @@ export const SyncProvider = ({ user, children }) => {
       setSyncError(error.message)
       setSyncStatus('error')
 
-      // Reset error state after 5 seconds
-      setTimeout(() => {
+      // Reset error state after 5 seconds (with cleanup tracking)
+      if (errorResetTimeoutRef.current) {
+        clearTimeout(errorResetTimeoutRef.current)
+      }
+      errorResetTimeoutRef.current = setTimeout(() => {
         setSyncStatus('idle')
         setSyncError(null)
+        errorResetTimeoutRef.current = null
       }, 5000)
     } finally {
       isSyncingRef.current = false
@@ -137,9 +149,13 @@ export const SyncProvider = ({ user, children }) => {
       setSyncStatus('synced')
       setLastSyncTime(new Date())
 
-      // Reset to idle after 2 seconds
-      setTimeout(() => {
+      // Reset to idle after 2 seconds (with cleanup tracking)
+      if (statusResetTimeoutRef.current) {
+        clearTimeout(statusResetTimeoutRef.current)
+      }
+      statusResetTimeoutRef.current = setTimeout(() => {
         setSyncStatus('idle')
+        statusResetTimeoutRef.current = null
       }, 2000)
 
     } catch (error) {
@@ -147,10 +163,14 @@ export const SyncProvider = ({ user, children }) => {
       setSyncError(error.message)
       setSyncStatus('error')
 
-      // Reset error state after 5 seconds
-      setTimeout(() => {
+      // Reset error state after 5 seconds (with cleanup tracking)
+      if (errorResetTimeoutRef.current) {
+        clearTimeout(errorResetTimeoutRef.current)
+      }
+      errorResetTimeoutRef.current = setTimeout(() => {
         setSyncStatus('idle')
         setSyncError(null)
+        errorResetTimeoutRef.current = null
       }, 5000)
     }
   }, [user, isOnline])
@@ -269,12 +289,18 @@ export const SyncProvider = ({ user, children }) => {
   }, [user, isOnline])
 
   /**
-   * Cleanup timeout on unmount
+   * Cleanup all timeouts on unmount to prevent memory leaks
    */
   useEffect(() => {
     return () => {
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current)
+      }
+      if (statusResetTimeoutRef.current) {
+        clearTimeout(statusResetTimeoutRef.current)
+      }
+      if (errorResetTimeoutRef.current) {
+        clearTimeout(errorResetTimeoutRef.current)
       }
     }
   }, [])

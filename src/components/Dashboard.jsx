@@ -1,3 +1,4 @@
+import React from 'react'
 import { useExpenses } from '../hooks/useExpenses'
 import { useSettings } from '../hooks/useSettings'
 import { calculateSummary, calculateMonthlyTotals, calculateBalanceProjection, groupExpensesByFrequency } from '../utils/calculations'
@@ -11,6 +12,45 @@ export default function Dashboard({ userId }) {
   const { expenses, loading: expensesLoading } = useExpenses(userId)
   const { settings, loading: settingsLoading } = useSettings(userId)
 
+  // Memoize expensive calculations
+  const summary = React.useMemo(
+    () => calculateSummary(expenses, settings.monthlyPayment, settings.previousBalance),
+    [expenses, settings.monthlyPayment, settings.previousBalance]
+  )
+
+  const monthlyTotals = React.useMemo(
+    () => calculateMonthlyTotals(expenses),
+    [expenses]
+  )
+
+  const balanceProjection = React.useMemo(
+    () => calculateBalanceProjection(expenses, settings.monthlyPayment, settings.previousBalance),
+    [expenses, settings.monthlyPayment, settings.previousBalance]
+  )
+
+  const expensesByFrequency = React.useMemo(
+    () => groupExpensesByFrequency(expenses),
+    [expenses]
+  )
+
+  // Prepare data for charts (memoized)
+  const monthlyData = React.useMemo(
+    () => months.map((month, index) => ({
+      name: month,
+      udgifter: monthlyTotals[index],
+      indbetaling: settings.monthlyPayment
+    })),
+    [monthlyTotals, settings.monthlyPayment]
+  )
+
+  const balanceData = React.useMemo(
+    () => balanceProjection.map(item => ({
+      name: months[item.month - 1],
+      balance: item.balance
+    })),
+    [balanceProjection]
+  )
+
   if (expensesLoading || settingsLoading) {
     return (
       <div className="dashboard-loading">
@@ -19,23 +59,6 @@ export default function Dashboard({ userId }) {
       </div>
     )
   }
-
-  const summary = calculateSummary(expenses, settings.monthlyPayment, settings.previousBalance)
-  const monthlyTotals = calculateMonthlyTotals(expenses)
-  const balanceProjection = calculateBalanceProjection(expenses, settings.monthlyPayment, settings.previousBalance)
-  const expensesByFrequency = groupExpensesByFrequency(expenses)
-
-  // Prepare data for charts
-  const monthlyData = months.map((month, index) => ({
-    name: month,
-    udgifter: monthlyTotals[index],
-    indbetaling: settings.monthlyPayment
-  }))
-
-  const balanceData = balanceProjection.map(item => ({
-    name: months[item.month - 1],
-    balance: item.balance
-  }))
 
   return (
     <div className="dashboard">

@@ -62,7 +62,7 @@ export async function syncToCloud(userId) {
     }
 
     // Update last sync metadata
-    await localDB.exec(
+    await localDB.query(
       `INSERT INTO sync_metadata (key, value, updated_at)
        VALUES ('last_sync', $1, CURRENT_TIMESTAMP)
        ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = CURRENT_TIMESTAMP`,
@@ -92,7 +92,7 @@ export async function syncFromCloud(userId) {
 
     // Upsert each expense to local DB
     for (const expense of cloudExpenses || []) {
-      await localDB.exec(
+      await localDB.query(
         `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT (id) DO UPDATE SET
@@ -128,7 +128,7 @@ export async function syncFromCloud(userId) {
     }
 
     if (cloudSettings) {
-      await localDB.exec(
+      await localDB.query(
         `INSERT INTO settings (user_id, monthly_payment, previous_balance, updated_at)
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (user_id) DO UPDATE SET
@@ -145,7 +145,7 @@ export async function syncFromCloud(userId) {
     }
 
     // Update last sync metadata
-    await localDB.exec(
+    await localDB.query(
       `INSERT INTO sync_metadata (key, value, updated_at)
        VALUES ('last_sync', $1, CURRENT_TIMESTAMP)
        ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = CURRENT_TIMESTAMP`,
@@ -180,7 +180,7 @@ export function setupRealtimeSync(userId, onUpdate) {
         try {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const expense = payload.new
-            await localDB.exec(
+            await localDB.query(
               `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, created_at, updated_at)
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                ON CONFLICT (id) DO UPDATE SET
@@ -204,7 +204,7 @@ export function setupRealtimeSync(userId, onUpdate) {
             )
             onUpdate()
           } else if (payload.eventType === 'DELETE') {
-            await localDB.exec('DELETE FROM expenses WHERE id = $1', [payload.old.id])
+            await localDB.query('DELETE FROM expenses WHERE id = $1', [payload.old.id])
             onUpdate()
           }
         } catch (error) {
@@ -226,7 +226,7 @@ export function setupRealtimeSync(userId, onUpdate) {
         try {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const settings = payload.new
-            await localDB.exec(
+            await localDB.query(
               `INSERT INTO settings (user_id, monthly_payment, previous_balance, updated_at)
                VALUES ($1, $2, $3, $4)
                ON CONFLICT (user_id) DO UPDATE SET

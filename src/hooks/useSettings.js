@@ -53,7 +53,7 @@ export function useSettings(userId) {
       }
 
       // Update local DB
-      await localDB.exec(
+      await localDB.query(
         `INSERT INTO settings (user_id, monthly_payment, previous_balance, updated_at)
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (user_id) DO UPDATE SET

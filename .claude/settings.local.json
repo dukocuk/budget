@@ -16,7 +16,8 @@
       "Bash(wc:*)",
       "Bash(test:*)",
       "Bash(git checkout:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\hooks\\useLocalStorage.js\")"
     ],
     "deny": [],
     "ask": []

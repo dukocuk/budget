@@ -190,7 +190,7 @@ export function validateExpense(expense) {
   }
 
   return {
-    isValid: errors.length === 0,
+    valid: errors.length === 0,
     errors
   }
 }

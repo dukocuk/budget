@@ -27,18 +27,43 @@ export const validateMonthRange = (startMonth, endMonth) => {
 /**
  * Validate expense object
  * @param {Object} expense - Expense object to validate
- * @returns {boolean} True if valid
+ * @returns {Object} Validation result with {valid: boolean, errors: string[]}
  */
 export const validateExpense = (expense) => {
-  if (!expense) return false
-  if (!expense.name || typeof expense.name !== 'string') return false
-  if (typeof expense.amount !== 'number' || expense.amount < 0) return false
-  if (!['monthly', 'quarterly', 'yearly'].includes(expense.frequency)) return false
-  if (typeof expense.startMonth !== 'number' || expense.startMonth < 1 || expense.startMonth > 12) return false
-  if (typeof expense.endMonth !== 'number' || expense.endMonth < 1 || expense.endMonth > 12) return false
-  if (expense.startMonth > expense.endMonth) return false
+  const errors = []
 
-  return true
+  if (!expense) {
+    return { valid: false, errors: ['Udgift objekt mangler'] }
+  }
+
+  if (!expense.name || typeof expense.name !== 'string') {
+    errors.push('Udgiftsnavn er påkrævet')
+  }
+
+  if (typeof expense.amount !== 'number' || expense.amount < 0) {
+    errors.push('Beløb skal være et positivt tal')
+  }
+
+  if (!['monthly', 'quarterly', 'yearly'].includes(expense.frequency)) {
+    errors.push('Ugyldig frekvens (skal være monthly, quarterly eller yearly)')
+  }
+
+  if (typeof expense.startMonth !== 'number' || expense.startMonth < 1 || expense.startMonth > 12) {
+    errors.push('Startmåned skal være mellem 1 og 12')
+  }
+
+  if (typeof expense.endMonth !== 'number' || expense.endMonth < 1 || expense.endMonth > 12) {
+    errors.push('Slutmåned skal være mellem 1 og 12')
+  }
+
+  if (expense.startMonth > expense.endMonth) {
+    errors.push('Startmåned kan ikke være efter slutmåned')
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors
+  }
 }
 
 /**

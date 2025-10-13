@@ -3,30 +3,29 @@
  * Uses Recharts to visualize income, expenses, and running balance
  */
 
+import React from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { calculateBalanceProjection } from '../utils/calculations'
 import { MONTHS } from '../utils/constants'
 import './BalanceChart.css'
 
-export const BalanceChart = ({ expenses, monthlyPayment, previousBalance }) => {
-  const balanceData = calculateBalanceProjection(expenses, monthlyPayment, previousBalance)
+export const BalanceChart = React.memo(({ expenses, monthlyPayment, previousBalance }) => {
+  // Memoize expensive calculations to prevent re-renders
+  const balanceData = React.useMemo(
+    () => calculateBalanceProjection(expenses, monthlyPayment, previousBalance),
+    [expenses, monthlyPayment, previousBalance]
+  )
 
-  // Debug logging
-  console.log('📊 BalanceChart - Input:', {
-    expenseCount: expenses.length,
-    monthlyPayment,
-    previousBalance,
-    sampleExpense: expenses[0]
-  })
-  console.log('📊 BalanceChart - Calculated balance data:', balanceData.slice(0, 3))
-
-  // Format data for Recharts
-  const chartData = balanceData.map((item, index) => ({
-    month: MONTHS[index],
-    balance: item.balance,
-    income: item.income,
-    expenses: item.expenses
-  }))
+  // Format data for Recharts (also memoized)
+  const chartData = React.useMemo(
+    () => balanceData.map((item, index) => ({
+      month: MONTHS[index],
+      balance: item.balance,
+      income: item.income,
+      expenses: item.expenses
+    })),
+    [balanceData]
+  )
 
   // Custom tooltip formatter
   const CustomTooltip = ({ active, payload, label }) => {
@@ -121,4 +120,4 @@ export const BalanceChart = ({ expenses, monthlyPayment, previousBalance }) => {
       </div>
     </div>
   )
-}
+})

@@ -1,6 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useExpenses } from '../hooks/useExpenses'
 import { calculateAnnualAmount } from '../utils/calculations'
+import { DeleteConfirmation } from './DeleteConfirmation'
+import { Alert } from './Alert'
+import { useAlert } from '../hooks/useAlert'
 import './ExpenseManager.css'
 
 const months = ["Jan", "Feb", "Mar", "Apr", "Maj", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dec"]
@@ -9,6 +12,15 @@ export default function ExpenseManager({ userId }) {
   const { expenses, loading, addExpense, updateExpense, deleteExpense, deleteExpenses } = useExpenses(userId)
   const [selectedIds, setSelectedIds] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
+  const { alert, showAlert } = useAlert()
+
+  // Delete confirmation state
+  const [deleteConfirmation, setDeleteConfirmation] = useState({
+    isOpen: false,
+    expenseId: null,
+    expenseName: null,
+    count: 0
+  })
 
   // Local input state to prevent focus loss during sync
   const [localValues, setLocalValues] = useState({})
@@ -45,7 +57,7 @@ export default function ExpenseManager({ userId }) {
         const updates = { [field]: value }
         await updateExpense(id, updates)
       } catch (error) {
-        alert('Fejl ved opdatering: ' + error.message)
+        showAlert('❌ Fejl ved opdatering: ' + error.message, 'error')
         // Revert local value on error
         const expense = expenses.find(e => e.id === id)
         if (expense) {
@@ -54,7 +66,7 @@ export default function ExpenseManager({ userId }) {
       }
       delete updateTimeouts.current[key]
     }, 300) // 300ms debounce
-  }, [updateExpense, expenses])
+  }, [updateExpense, expenses, showAlert])
 
   /**
    * Immediate update handler for select fields (no debounce needed)
@@ -64,9 +76,9 @@ export default function ExpenseManager({ userId }) {
       const updates = { [field]: value }
       await updateExpense(id, updates)
     } catch (error) {
-      alert('Fejl ved opdatering: ' + error.message)
+      showAlert('❌ Fejl ved opdatering: ' + error.message, 'error')
     }
-  }, [updateExpense])
+  }, [updateExpense, showAlert])
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -94,35 +106,60 @@ export default function ExpenseManager({ userId }) {
         startMonth: 1,
         endMonth: 12
       })
+      showAlert('✅ Ny udgift tilføjet', 'success')
     } catch (error) {
-      alert('Fejl ved tilføjelse: ' + error.message)
+      showAlert('❌ Fejl ved tilføjelse: ' + error.message, 'error')
     }
   }
 
-  const handleDelete = async (id, name) => {
-    if (window.confirm(`Er du sikker på at du vil slette "${name}"?`)) {
-      try {
-        await deleteExpense(id)
-      } catch (error) {
-        alert('Fejl ved sletning: ' + error.message)
-      }
-    }
+  // Open delete confirmation modal for single expense
+  const handleDelete = (id, name) => {
+    setDeleteConfirmation({
+      isOpen: true,
+      expenseId: id,
+      expenseName: name,
+      count: 0
+    })
   }
 
-  const handleDeleteSelected = async () => {
+  // Open delete confirmation modal for multiple expenses
+  const handleDeleteSelected = () => {
     if (selectedIds.length === 0) {
-      alert('Vælg venligst udgifter at slette')
+      showAlert('⚠️ Vælg venligst udgifter at slette', 'warning')
       return
     }
 
-    if (window.confirm(`Er du sikker på at du vil slette ${selectedIds.length} udgift(er)?`)) {
-      try {
+    setDeleteConfirmation({
+      isOpen: true,
+      expenseId: null,
+      expenseName: null,
+      count: selectedIds.length
+    })
+  }
+
+  // Confirm and execute deletion
+  const confirmDelete = async () => {
+    try {
+      if (deleteConfirmation.count > 0) {
+        // Bulk delete
         await deleteExpenses(selectedIds)
         setSelectedIds([])
-      } catch (error) {
-        alert('Fejl ved sletning: ' + error.message)
+        showAlert(`✅ ${deleteConfirmation.count} udgift(er) slettet`, 'success')
+      } else {
+        // Single delete
+        await deleteExpense(deleteConfirmation.expenseId)
+        showAlert('✅ Udgift slettet', 'success')
       }
+      setDeleteConfirmation({ isOpen: false, expenseId: null, expenseName: null, count: 0 })
+    } catch (error) {
+      showAlert('❌ Fejl ved sletning: ' + error.message, 'error')
+      setDeleteConfirmation({ isOpen: false, expenseId: null, expenseName: null, count: 0 })
     }
+  }
+
+  // Cancel deletion
+  const cancelDelete = () => {
+    setDeleteConfirmation({ isOpen: false, expenseId: null, expenseName: null, count: 0 })
   }
 
   const toggleSelection = (id) => {
@@ -139,6 +176,16 @@ export default function ExpenseManager({ userId }) {
 
   return (
     <div className="expense-manager">
+      {alert && <Alert message={alert.message} type={alert.type} />}
+
+      <DeleteConfirmation
+        isOpen={deleteConfirmation.isOpen}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        expenseName={deleteConfirmation.expenseName}
+        count={deleteConfirmation.count}
+      />
+
       <div className="manager-header">
         <h2>💰 Dine udgifter</h2>
         <div className="manager-actions">

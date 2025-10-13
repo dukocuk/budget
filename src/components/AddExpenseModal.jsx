@@ -5,7 +5,6 @@
 import { useState, useEffect } from 'react'
 import Modal from 'react-modal'
 import { MONTHS, FREQUENCY_LABELS, FREQUENCY_TYPES, DEFAULT_EXPENSE } from '../utils/constants'
-import { validateAmount } from '../utils/validators'
 import './AddExpenseModal.css'
 
 // Set app element for accessibility

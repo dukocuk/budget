@@ -2,7 +2,7 @@
  * Main Application Component - Refactored with modular architecture + Cloud Sync
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useReducer, useRef } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Header } from './components/Header'
 import { Alert } from './components/Alert'
@@ -14,6 +14,7 @@ import { TabView } from './components/TabView'
 import { BalanceChart } from './components/BalanceChart'
 import { ExpenseDistribution } from './components/ExpenseDistribution'
 import { AddExpenseModal } from './components/AddExpenseModal'
+import { DeleteConfirmation } from './components/DeleteConfirmation'
 import Auth from './components/Auth'
 import { useExpenses } from './hooks/useExpenses'
 import { useAlert } from './hooks/useAlert'
@@ -28,21 +29,54 @@ import { DEFAULT_SETTINGS } from './utils/constants'
 import './App.css'
 
 /**
+ * Settings reducer - Batches monthlyPayment and previousBalance updates
+ */
+const settingsReducer = (state, action) => {
+  switch (action.type) {
+    case 'SET_MONTHLY_PAYMENT':
+      return { ...state, monthlyPayment: action.payload }
+    case 'SET_PREVIOUS_BALANCE':
+      return { ...state, previousBalance: action.payload }
+    case 'SET_BOTH':
+      return {
+        monthlyPayment: action.payload.monthlyPayment,
+        previousBalance: action.payload.previousBalance
+      }
+    default:
+      return state
+  }
+}
+
+/**
  * AppContent - The main application logic (wrapped by SyncProvider)
  */
 function AppContent() {
-  const [monthlyPayment, setMonthlyPayment] = useState(DEFAULT_SETTINGS.monthlyPayment)
-  const [previousBalance, setPreviousBalance] = useState(DEFAULT_SETTINGS.previousBalance)
+  // Use reducer to batch settings updates (prevents multiple re-renders)
+  const [settings, dispatchSettings] = useReducer(settingsReducer, {
+    monthlyPayment: DEFAULT_SETTINGS.monthlyPayment,
+    previousBalance: DEFAULT_SETTINGS.previousBalance
+  })
+
   const [isInitialized, setIsInitialized] = useState(false)
-  const [hasLoadedFromCloud, setHasLoadedFromCloud] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [activeTab, setActiveTab] = useState(0)
   const [showAddModal, setShowAddModal] = useState(false)
 
+  // Delete confirmation state
+  const [deleteConfirmation, setDeleteConfirmation] = useState({
+    isOpen: false,
+    expenseId: null,
+    expenseName: null,
+    count: 0
+  })
+
+  // Track if we're in initial data load to prevent sync triggers
+  const isInitialLoadRef = useRef(true)
+
   // Authentication
   const { user } = useAuth()
 
-  // Expenses management
+  // Expenses management (pass user ID for PGlite filtering)
   const {
     expenses,
     selectedExpenses,
@@ -57,7 +91,7 @@ function AppContent() {
     redo,
     canUndo,
     canRedo
-  } = useExpenses()
+  } = useExpenses(user?.id)
 
   // Cloud sync (from isolated context to prevent re-renders)
   const {
@@ -72,79 +106,71 @@ function AppContent() {
   const { alert, showAlert } = useAlert()
   const { theme, toggleTheme } = useTheme()
 
-  const summary = calculateSummary(expenses, monthlyPayment, previousBalance)
+  // Memoize expensive calculations to prevent chart re-renders
+  const summary = useMemo(() =>
+    calculateSummary(expenses, settings.monthlyPayment, settings.previousBalance),
+    [expenses, settings.monthlyPayment, settings.previousBalance]
+  )
 
-  // Load data from cloud when user logs in
+  // Load data from cloud when user logs in (SINGLE-PASS: no sync triggers during init)
   useEffect(() => {
     if (user && !isInitialized) {
-      console.log('🔄 Initializing user data...')
-      setIsLoadingData(true)
-
       const loadData = async () => {
+        setIsLoadingData(true)
+
         try {
-          console.log('📥 Loading data from cloud...')
+          // Load expenses and settings in PARALLEL to reduce load time
+          const [expensesResult, settingsResult] = await Promise.all([
+            loadExpenses(),
+            loadSettings()
+          ])
 
-          // Load expenses FIRST - critical to prevent data loss
-          const expensesResult = await loadExpenses()
-          console.log('📥 Load expenses result:', expensesResult)
+          // BATCH all state updates in a single synchronous block
+          // This triggers only ONE render instead of three separate renders
 
-          if (expensesResult.success) {
-            if (expensesResult.data.length > 0) {
-              console.log(`📥 Setting ${expensesResult.data.length} expenses to state:`, expensesResult.data)
-              setAllExpenses(expensesResult.data)
-              console.log(`✅ Loaded ${expensesResult.data.length} expenses from cloud`)
-            } else {
-              console.log('ℹ️ No expenses found in cloud (new user or empty state)')
-              console.log('ℹ️ Keeping current local expenses:', expenses.length)
-            }
-          } else {
-            console.warn('⚠️ Failed to load expenses from cloud, keeping local state')
+          // Update expenses first (if available)
+          if (expensesResult.success && expensesResult.data.length > 0) {
+            setAllExpenses(expensesResult.data)
           }
 
-          // Load settings
-          const settingsResult = await loadSettings()
+          // Update settings using reducer (batches both values in single state update)
           if (settingsResult.success && settingsResult.data) {
-            setMonthlyPayment(settingsResult.data.monthlyPayment)
-            setPreviousBalance(settingsResult.data.previousBalance)
-            console.log('✅ Loaded settings from cloud')
+            dispatchSettings({
+              type: 'SET_BOTH',
+              payload: {
+                monthlyPayment: settingsResult.data.monthlyPayment,
+                previousBalance: settingsResult.data.previousBalance
+              }
+            })
           }
-
-          // Mark as loaded from cloud - this MUST happen before sync enables
-          setHasLoadedFromCloud(true)
-          setIsInitialized(true)
-          setIsLoadingData(false)
-          console.log('✅ Initial cloud load complete - sync now enabled')
         } catch (error) {
           console.error('❌ Error loading initial data:', error)
-          // Still mark as initialized to allow app to function
-          setHasLoadedFromCloud(true)
-          setIsInitialized(true)
+        } finally {
+          // Mark initial load as complete BEFORE enabling sync
+          isInitialLoadRef.current = false
           setIsLoadingData(false)
+          setIsInitialized(true)
         }
       }
 
       loadData()
     }
-  }, [user, isInitialized, loadExpenses, loadSettings, setAllExpenses, expenses.length])
+  }, [user, isInitialized, loadExpenses, loadSettings, setAllExpenses])
 
-  // Sync expenses whenever they change (ONLY after initial cloud load)
-  // CRITICAL: This must NOT run during the initial load to prevent race conditions
+  // Sync expenses whenever they change (ONLY after initialization AND initial load complete)
   // NOTE: Debounced sync - for deletions, handleDeleteExpense uses immediateSyncExpenses instead
   useEffect(() => {
-    // Skip sync if not fully initialized
-    if (!user || !isInitialized || !hasLoadedFromCloud) {
-      return
+    if (user && isInitialized && !isLoadingData && !isInitialLoadRef.current) {
+      syncExpenses(expenses)
     }
+  }, [expenses, user, isInitialized, isLoadingData, syncExpenses])
 
-    syncExpenses(expenses)
-  }, [expenses, user, isInitialized, hasLoadedFromCloud, syncExpenses])
-
-  // Sync settings whenever they change (ONLY after initial cloud load)
+  // Sync settings whenever they change (ONLY after initialization AND initial load complete)
   useEffect(() => {
-    if (user && isInitialized && hasLoadedFromCloud) {
-      syncSettings(monthlyPayment, previousBalance)
+    if (user && isInitialized && !isLoadingData && !isInitialLoadRef.current) {
+      syncSettings(settings.monthlyPayment, settings.previousBalance)
     }
-  }, [monthlyPayment, previousBalance, user, isInitialized, hasLoadedFromCloud, syncSettings])
+  }, [settings.monthlyPayment, settings.previousBalance, user, isInitialized, isLoadingData, syncSettings])
 
   // Show loading screen while fetching cloud data
   if (isLoadingData) {
@@ -186,54 +212,84 @@ function AppContent() {
     showAlert('Ny udgift tilføjet!', 'success')
   }
 
-  // Delete expense handler
-  const handleDeleteExpense = async (id) => {
+  // Open delete confirmation modal for single expense
+  const handleDeleteExpense = (id) => {
     const expense = expenses.find(e => e.id === id)
     if (!expense) return
 
-    if (window.confirm(`Er du sikker på at du vil slette "${expense.name}"?`)) {
-      // Calculate updated expenses BEFORE deleting (expenses array hasn't changed yet)
-      const updatedExpenses = expenses.filter(e => e.id !== id)
-
-      // Delete from local state
-      const deletedExpense = deleteExpense(id)
-
-      // Immediately sync to cloud (bypass debounce AND auto-sync for critical operations)
-      if (user && isOnline) {
-        console.log(`🗑️ Immediately syncing delete: ${updatedExpenses.length} expenses remaining`)
-        await immediateSyncExpenses(updatedExpenses)
-      }
-
-      showAlert(`"${deletedExpense.name}" blev slettet`, 'success')
-    }
+    setDeleteConfirmation({
+      isOpen: true,
+      expenseId: id,
+      expenseName: expense.name,
+      count: 0
+    })
   }
 
-  // Delete selected handler
-  const handleDeleteSelected = async () => {
+  // Open delete confirmation modal for multiple expenses
+  const handleDeleteSelected = () => {
     if (selectedExpenses.length === 0) {
-      showAlert('Vælg venligst udgifter at slette først', 'error')
+      showAlert('⚠️ Vælg venligst udgifter at slette først', 'warning')
       return
     }
 
-    const count = selectedExpenses.length
+    setDeleteConfirmation({
+      isOpen: true,
+      expenseId: null,
+      expenseName: null,
+      count: selectedExpenses.length
+    })
+  }
 
-    if (window.confirm(`Er du sikker på at du vil slette ${count} udgift(er)?`)) {
-      const result = deleteSelected()
+  // Confirm and execute deletion
+  const confirmDelete = async () => {
+    try {
+      if (deleteConfirmation.count > 0) {
+        // Bulk delete
+        const count = deleteConfirmation.count
+        const result = deleteSelected()
 
-      // Immediately sync to cloud (bypass debounce for critical operations)
-      if (user && isOnline && result.success) {
-        const updatedExpenses = expenses.filter(e => !selectedExpenses.includes(e.id))
-        await immediateSyncExpenses(updatedExpenses)
+        // Immediately sync to cloud (bypass debounce for critical operations)
+        if (user && isOnline && result.success) {
+          const updatedExpenses = expenses.filter(e => !selectedExpenses.includes(e.id))
+          await immediateSyncExpenses(updatedExpenses)
+        }
+
+        showAlert(`✅ ${count} udgift(er) slettet`, 'success')
+      } else {
+        // Single delete
+        const expense = expenses.find(e => e.id === deleteConfirmation.expenseId)
+
+        // Calculate updated expenses BEFORE deleting
+        const updatedExpenses = expenses.filter(e => e.id !== deleteConfirmation.expenseId)
+
+        // Delete from local state
+        deleteExpense(deleteConfirmation.expenseId)
+
+        // Immediately sync to cloud (bypass debounce for critical operations)
+        if (user && isOnline) {
+          console.log(`🗑️ Immediately syncing delete: ${updatedExpenses.length} expenses remaining`)
+          await immediateSyncExpenses(updatedExpenses)
+        }
+
+        showAlert(`✅ "${expense?.name}" blev slettet`, 'success')
       }
 
-      showAlert(`${count} udgift(er) slettet!`, 'success')
+      setDeleteConfirmation({ isOpen: false, expenseId: null, expenseName: null, count: 0 })
+    } catch (error) {
+      showAlert('❌ Fejl ved sletning: ' + error.message, 'error')
+      setDeleteConfirmation({ isOpen: false, expenseId: null, expenseName: null, count: 0 })
     }
+  }
+
+  // Cancel deletion
+  const cancelDelete = () => {
+    setDeleteConfirmation({ isOpen: false, expenseId: null, expenseName: null, count: 0 })
   }
 
   // Export to CSV
   const handleExport = () => {
     try {
-      const csvContent = generateCSV(expenses, monthlyPayment, previousBalance)
+      const csvContent = generateCSV(expenses, settings.monthlyPayment, settings.previousBalance)
       downloadCSV(csvContent)
       showAlert('CSV fil downloadet!', 'success')
     } catch (error) {
@@ -277,8 +333,8 @@ function AppContent() {
       <div className="charts-container">
         <BalanceChart
           expenses={expenses}
-          monthlyPayment={monthlyPayment}
-          previousBalance={previousBalance}
+          monthlyPayment={settings.monthlyPayment}
+          previousBalance={settings.previousBalance}
         />
         <ExpenseDistribution expenses={expenses} />
       </div>
@@ -322,10 +378,10 @@ function AppContent() {
   const SettingsTab = () => (
     <div className="tab-content-wrapper">
       <Settings
-        monthlyPayment={monthlyPayment}
-        previousBalance={previousBalance}
-        onMonthlyPaymentChange={setMonthlyPayment}
-        onPreviousBalanceChange={setPreviousBalance}
+        monthlyPayment={settings.monthlyPayment}
+        previousBalance={settings.previousBalance}
+        onMonthlyPaymentChange={(value) => dispatchSettings({ type: 'SET_MONTHLY_PAYMENT', payload: value })}
+        onPreviousBalanceChange={(value) => dispatchSettings({ type: 'SET_PREVIOUS_BALANCE', payload: value })}
         onExport={handleExport}
         onImport={handleImport}
         theme={theme}
@@ -339,6 +395,14 @@ function AppContent() {
       <div className="app" onKeyDown={handleKeyPress}>
         <Alert message={alert?.message} type={alert?.type} />
         <Header user={user} />
+
+        <DeleteConfirmation
+          isOpen={deleteConfirmation.isOpen}
+          onConfirm={confirmDelete}
+          onCancel={cancelDelete}
+          expenseName={deleteConfirmation.expenseName}
+          count={deleteConfirmation.count}
+        />
 
         <div className="container">
           <TabView

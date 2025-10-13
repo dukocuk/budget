@@ -13,25 +13,28 @@ import './ExpensesTable.css'
  * Uses local state for input values to maintain focus during typing
  */
 const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onDelete, onClone }) => {
-  // Initialize local state once per expense ID (handles undo/redo properly)
-  const initialName = useMemo(() => expense.name, [expense.id])
-  const initialAmount = useMemo(() => expense.amount, [expense.id])
-
   // Local state for controlled inputs to prevent focus loss
-  const [localName, setLocalName] = useState(initialName)
-  const [localAmount, setLocalAmount] = useState(initialAmount)
+  // Initialize with expense values, update only when ID changes (handles undo/redo)
+  const [localName, setLocalName] = useState(expense.name)
+  const [localAmount, setLocalAmount] = useState(expense.amount)
 
-  // Track if values were changed by user vs external (undo/redo)
+  // Track previous expense ID to detect row changes
   const prevExpenseIdRef = useRef(expense.id)
 
-  // Only update local state if expense ID changed (new row from undo/redo)
+  // Update local state when expense ID changes (new row from undo/redo)
+  // Also update when expense data changes externally (e.g., from cloud sync)
   useEffect(() => {
     if (prevExpenseIdRef.current !== expense.id) {
+      // ID changed - definitely a new row
       setLocalName(expense.name)
       setLocalAmount(expense.amount)
       prevExpenseIdRef.current = expense.id
+    } else if (expense.name !== localName || expense.amount !== localAmount) {
+      // Same ID but data changed externally - update local state
+      setLocalName(expense.name)
+      setLocalAmount(expense.amount)
     }
-  }, [expense.id, expense.name, expense.amount])
+  }, [expense.id, expense.name, expense.amount, localName, localAmount])
 
   // Update handlers - just update local state
   const handleNameChange = useCallback((value) => {

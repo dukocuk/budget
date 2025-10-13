@@ -215,7 +215,7 @@ export const useExpenses = (userId) => {
       values.push(userId)
 
       // Execute update
-      await localDB.exec(
+      await localDB.query(
         `UPDATE expenses
          SET ${updateFields.join(', ')}
          WHERE id = $${paramIndex++} AND user_id = $${paramIndex}`,
@@ -255,7 +255,7 @@ export const useExpenses = (userId) => {
       setError(null)
 
       // Delete from local database
-      await localDB.exec(
+      await localDB.query(
         'DELETE FROM expenses WHERE id = $1 AND user_id = $2',
         [id, userId]
       )
@@ -285,7 +285,7 @@ export const useExpenses = (userId) => {
 
       // Delete from local database
       const placeholders = ids.map((_, i) => `$${i + 1}`).join(',')
-      await localDB.exec(
+      await localDB.query(
         `DELETE FROM expenses WHERE id IN (${placeholders}) AND user_id = $${ids.length + 1}`,
         [...ids, userId]
       )
@@ -314,7 +314,7 @@ export const useExpenses = (userId) => {
       setError(null)
 
       // Delete all existing expenses
-      await localDB.exec(
+      await localDB.query(
         'DELETE FROM expenses WHERE user_id = $1',
         [userId]
       )
@@ -322,7 +322,7 @@ export const useExpenses = (userId) => {
       // Insert new expenses
       for (const expense of newExpenses) {
         const sanitized = sanitizeExpense(expense)
-        await localDB.exec(
+        await localDB.query(
           `INSERT INTO expenses (user_id, name, amount, frequency, start_month, end_month)
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [
@@ -350,15 +350,144 @@ export const useExpenses = (userId) => {
     }
   }, [userId, loadExpenses, debouncedCloudSync])
 
+  // Selection state for bulk operations
+  const [selectedExpenses, setSelectedExpenses] = useState([])
+
+  /**
+   * Toggle expense selection
+   */
+  const toggleExpenseSelection = useCallback((id) => {
+    setSelectedExpenses(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(expId => expId !== id)
+      } else {
+        return [...prev, id]
+      }
+    })
+  }, [])
+
+  /**
+   * Toggle select all expenses
+   */
+  const toggleSelectAll = useCallback(() => {
+    if (selectedExpenses.length === expenses.length) {
+      setSelectedExpenses([])
+    } else {
+      setSelectedExpenses(expenses.map(e => e.id))
+    }
+  }, [selectedExpenses.length, expenses])
+
+  /**
+   * Delete selected expenses
+   */
+  const deleteSelected = useCallback(async () => {
+    if (selectedExpenses.length === 0) {
+      return { success: false, message: 'No expenses selected' }
+    }
+
+    try {
+      await deleteExpenses(selectedExpenses)
+      setSelectedExpenses([])
+      return { success: true, count: selectedExpenses.length }
+    } catch (err) {
+      return { success: false, message: err.message }
+    }
+  }, [selectedExpenses, deleteExpenses])
+
+  /**
+   * Set all expenses (for cloud sync)
+   */
+  const setAllExpenses = useCallback((newExpenses) => {
+    setExpenses(newExpenses)
+  }, [])
+
+  // Undo/Redo functionality (simplified - no local DB for history)
+  const [history, setHistory] = useState([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+  const canUndo = historyIndex > 0
+  const canRedo = historyIndex < history.length - 1
+
+  const undo = useCallback(() => {
+    if (canUndo) {
+      setHistoryIndex(prev => prev - 1)
+      setExpenses(history[historyIndex - 1])
+      needsSyncRef.current = true
+      debouncedCloudSync()
+      return true
+    }
+    return false
+  }, [canUndo, history, historyIndex, debouncedCloudSync])
+
+  const redo = useCallback(() => {
+    if (canRedo) {
+      setHistoryIndex(prev => prev + 1)
+      setExpenses(history[historyIndex + 1])
+      needsSyncRef.current = true
+      debouncedCloudSync()
+      return true
+    }
+    return false
+  }, [canRedo, history, historyIndex, debouncedCloudSync])
+
+  // Mark initial load as complete after first expenses load
+  useEffect(() => {
+    if (isInitialLoad && !loading && expenses.length >= 0) {
+      setIsInitialLoad(false)
+    }
+  }, [isInitialLoad, loading, expenses.length])
+
+  // Track changes for undo/redo (ONLY after initial load)
+  // CRITICAL FIX: Removed history/historyIndex from dependencies to prevent infinite loop
+  // Uses ref to track if history was actually updated to conditionally update index
+  const historyUpdatedRef = useRef(false)
+
+  useEffect(() => {
+    // Skip history tracking during initial load to prevent unnecessary re-renders
+    if (isInitialLoad || loading) {
+      return
+    }
+
+    // Reset the update flag
+    historyUpdatedRef.current = false
+
+    // Update history only if expenses changed
+    setHistory(prev => {
+      const lastSnapshot = prev[prev.length - 1]
+      const expensesChanged = JSON.stringify(lastSnapshot) !== JSON.stringify(expenses)
+
+      if (expensesChanged) {
+        historyUpdatedRef.current = true
+        return [...prev, expenses]
+      }
+      return prev
+    })
+
+    // Update index only if history was actually updated
+    if (historyUpdatedRef.current) {
+      setHistoryIndex(prev => prev + 1)
+    }
+  }, [expenses, isInitialLoad, loading])
+
   return {
     expenses,
     loading,
     error,
+    selectedExpenses,
     addExpense,
     updateExpense,
     deleteExpense,
     deleteExpenses,
+    deleteSelected,
     importExpenses,
+    toggleExpenseSelection,
+    toggleSelectAll,
+    setAllExpenses,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
     reload: loadExpenses
   }
 }

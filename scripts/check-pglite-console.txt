@@ -1,0 +1,27 @@
+/**
+ * Copy and paste this into your browser console (F12) to check PGlite data
+ */
+
+// Step 1: Import PGlite
+const { localDB } = await import('/src/lib/pglite.js')
+
+// Step 2: Check expenses table
+console.log('🔍 Checking PGlite expenses...')
+const expenses = await localDB.query('SELECT * FROM expenses')
+console.log(`Found ${expenses.rows.length} expenses:`)
+console.table(expenses.rows)
+
+// Step 3: Check settings table
+console.log('🔍 Checking PGlite settings...')
+const settings = await localDB.query('SELECT * FROM settings')
+console.log(`Found ${settings.rows.length} settings:`)
+console.table(settings.rows)
+
+// Step 4: Check all tables
+console.log('🔍 Listing all tables in PGlite...')
+const tables = await localDB.query(`
+  SELECT tablename
+  FROM pg_tables
+  WHERE schemaname = 'public'
+`)
+console.table(tables.rows)

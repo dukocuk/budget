@@ -57,7 +57,6 @@ budget/
 │   ├── hooks/               # Custom React hooks
 │   │   ├── useExpenses.js  # Expense CRUD + undo/redo + sync ✅
 │   │   ├── useAlert.js     # Alert notifications
-│   │   ├── useLocalStorage.js # Storage operations
 │   │   ├── useAuth.js      # Authentication ✅
 │   │   ├── useSupabaseSync.js # Automatic cloud sync ✅
 │   │   ├── useTheme.js     # Dark/light mode ✅
@@ -142,10 +141,6 @@ budget/
   - `alert`: Current notification `{message, type}`
   - `showAlert()`: Display notification with auto-dismiss
 
-- **`useLocalStorage()`**: Generic localStorage operations
-  - `savedData`: Current saved state
-  - `saveData()`, `loadData()`, `clearData()`: Storage operations with error handling
-
 - **`useSettings(userId)`**: Settings management with dual persistence ✅
   - `settings`: Settings object `{monthlyPayment, previousBalance}`
   - `loading`: Loading state during settings operations
@@ -222,17 +217,17 @@ budget/
   - **Instant Access**: No network latency for reads/writes
   - **Full Offline**: Complete functionality without internet
 
-- **Cloud Storage** ([hooks/useSupabaseSync.js](src/hooks/useSupabaseSync.js)): ✅
+- **Cloud Storage** ([contexts/SyncContext.jsx](src/contexts/SyncContext.jsx)): ✅
   - **Database tables**: `expenses`, `settings` with Row Level Security
   - **Automatic sync**: Debounced (1 second delay) after changes
   - **Real-time updates**: Multi-device sync via Supabase realtime
   - **Offline-first**: Works without internet, syncs when reconnected
   - **Backup & Sync**: Cloud serves as backup and multi-device sync layer
 
-- **Local Storage** ([hooks/useLocalStorage.js](src/hooks/useLocalStorage.js)):
-  - **LocalStorage key**: `budgetData`
-  - **Legacy Support**: Used before PGlite migration
-  - **Export**: CSV with UTF-8 BOM for Excel compatibility
+- **Browser localStorage**:
+  - **Theme preference**: Stored in `budgetTheme` key ([useTheme.js](src/hooks/useTheme.js))
+  - **Migration tracking**: One-time flags for data migration ([migration.js](src/utils/migration.js))
+  - **NO expense/settings data**: All app data now in PGlite + Supabase only
 
 **Data Migration** ([utils/migration.js](src/utils/migration.js)): ✅
 - Automatic localStorage → Supabase migration on first login
@@ -440,7 +435,7 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 
 **Phase 1 - Modular Refactoring** (completed):
 - ✅ Component-based architecture
-- ✅ Custom hooks (useExpenses, useAlert, useLocalStorage)
+- ✅ Custom hooks (useExpenses, useAlert, useAuth, useTheme, useExpenseFilters, useSettings)
 - ✅ Pure utility functions
 - ✅ Undo/Redo functionality
 - ✅ ErrorBoundary
@@ -480,18 +475,26 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 - ✅ Settings hook with dual persistence (PGlite + Supabase)
 - ✅ Enhanced calculation utilities (8 functions)
 
+**Phase 5 - Performance Optimization** (completed): ✅
+- ✅ Removed debug console.logs from chart components
+- ✅ Added React.useMemo for expensive calculations
+- ✅ Memoized chart rendering to prevent re-renders
+- ✅ Simplified data loading logic (consolidated useEffect hooks)
+- ✅ Removed unused useLocalStorage hook
+- ✅ Cleaner, more maintainable initialization flow
+
 **Current Metrics**:
 - Total components: 20 (17 core + 3 main views + 2 modals)
-- Custom hooks: 8 (useExpenses, useAlert, useLocalStorage, useAuth, useSupabaseSync, useTheme, useExpenseFilters, useSettings)
+- Custom hooks: 7 (useExpenses, useAlert, useAuth, useSupabaseSync, useTheme, useExpenseFilters, useSettings)
 - Utility modules: 6 (calculations, validators, exportHelpers, importHelpers, migration, constants)
 - Calculation functions: 8 (annual, monthly, summary, totals, projection, grouping, breakdown, validation)
-- Total codebase: ~5100 lines (modular, feature-complete, production-ready)
+- Total codebase: ~5000 lines (modular, optimized, production-ready)
 - ESLint: Clean, no errors
 - Build size: ~280 KB (compressed: ~85 KB)
 
 ## Future Enhancements
 
-**Phase 5 - Advanced Analytics** (pending):
+**Phase 6 - Advanced Analytics** (pending):
 - Multi-year comparison and historical analysis
 - Budget forecasting with predictive analytics
 - Expense categories with color coding
@@ -500,13 +503,13 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 - Email notifications
 - Trend analysis and insights
 
-**Phase 6 - Collaboration** (pending):
+**Phase 7 - Collaboration** (pending):
 - Expense sharing between users
 - Budget templates and sharing
 - Collaborative budget planning
 - Family budget management
 
-**Phase 7 - Mobile & PWA** (pending):
+**Phase 8 - Mobile & PWA** (pending):
 - Progressive Web App (PWA) support
 - Mobile app (React Native)
 - Push notifications

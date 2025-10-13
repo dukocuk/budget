@@ -3,6 +3,7 @@
  * Uses Recharts to visualize monthly/quarterly/yearly expense distribution across the year
  */
 
+import React from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { calculateMonthlyBreakdownByFrequency, groupExpensesByFrequency } from '../utils/calculations'
 import './ExpenseDistribution.css'
@@ -19,16 +20,17 @@ const LABELS = {
   yearly: 'Årlig'
 }
 
-export const ExpenseDistribution = ({ expenses }) => {
-  const monthlyBreakdown = calculateMonthlyBreakdownByFrequency(expenses)
-  const totalDistribution = groupExpensesByFrequency(expenses)
+export const ExpenseDistribution = React.memo(({ expenses }) => {
+  // Memoize expensive calculations to prevent re-renders
+  const monthlyBreakdown = React.useMemo(
+    () => calculateMonthlyBreakdownByFrequency(expenses),
+    [expenses]
+  )
 
-  // Debug logging
-  console.log('🥧 ExpenseDistribution - Input:', {
-    expenseCount: expenses.length,
-    sampleExpense: expenses[0]
-  })
-  console.log('🥧 ExpenseDistribution - Monthly breakdown:', monthlyBreakdown.slice(0, 3))
+  const totalDistribution = React.useMemo(
+    () => groupExpensesByFrequency(expenses),
+    [expenses]
+  )
 
   // Custom tooltip formatter
   const CustomTooltip = ({ active, payload, label }) => {
@@ -151,4 +153,4 @@ export const ExpenseDistribution = ({ expenses }) => {
       </div>
     </div>
   )
-}
+})
