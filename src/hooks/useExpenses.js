@@ -1,9 +1,10 @@
 /**
  * Custom hook for expense management with PGlite local database + cloud sync
  * Implements optimistic UI updates to prevent focus loss during sync
+ * OPTIMIZATION: Uses useLayoutEffect for history tracking to batch with render cycle
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { localDB } from '../lib/pglite'
 import { useSyncContext } from './useSyncContext'
 import { sanitizeExpense } from '../utils/validators'
@@ -439,11 +440,11 @@ export const useExpenses = (userId) => {
   }, [isInitialLoad, loading, expenses.length])
 
   // Track changes for undo/redo (ONLY after initial load)
-  // CRITICAL FIX: Removed history/historyIndex from dependencies to prevent infinite loop
-  // Uses ref to track if history was actually updated to conditionally update index
+  // OPTIMIZATION: Use useLayoutEffect to batch history updates with render cycle
+  // This prevents additional re-renders and improves performance
   const historyUpdatedRef = useRef(false)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     // Skip history tracking during initial load to prevent unnecessary re-renders
     if (isInitialLoad || loading) {
       return
@@ -452,9 +453,17 @@ export const useExpenses = (userId) => {
     // Reset the update flag
     historyUpdatedRef.current = false
 
-    // Update history only if expenses changed
+    // Update history only if expenses changed (shallow equality check first)
     setHistory(prev => {
       const lastSnapshot = prev[prev.length - 1]
+
+      // Fast path: check length first (most common change)
+      if (!lastSnapshot || lastSnapshot.length !== expenses.length) {
+        historyUpdatedRef.current = true
+        return [...prev, expenses]
+      }
+
+      // Slower path: deep equality check only if lengths match
       const expensesChanged = JSON.stringify(lastSnapshot) !== JSON.stringify(expenses)
 
       if (expensesChanged) {

@@ -9,8 +9,12 @@ import './Settings.css'
 export const Settings = ({
   monthlyPayment,
   previousBalance,
+  monthlyPayments, // NEW: Array of 12 values or null
+  useVariablePayments, // NEW: Boolean toggle
   onMonthlyPaymentChange,
   onPreviousBalanceChange,
+  onMonthlyPaymentsChange, // NEW: Handler for array updates
+  onTogglePaymentMode, // NEW: Toggle fixed/variable
   onExport,
   onImport,
   theme,
@@ -23,6 +27,12 @@ export const Settings = ({
   // Local state for input fields to prevent sync spam
   const [localMonthlyPayment, setLocalMonthlyPayment] = useState(monthlyPayment)
   const [localPreviousBalance, setLocalPreviousBalance] = useState(previousBalance)
+  const [localMonthlyPayments, setLocalMonthlyPayments] = useState(
+    monthlyPayments || Array(12).fill(monthlyPayment)
+  )
+  const [localPaymentMode, setLocalPaymentMode] = useState(
+    useVariablePayments ? 'variable' : 'fixed'
+  )
 
   // Sync local state when props change (e.g., loaded from cloud)
   useEffect(() => {
@@ -32,6 +42,14 @@ export const Settings = ({
   useEffect(() => {
     setLocalPreviousBalance(previousBalance)
   }, [previousBalance])
+
+  useEffect(() => {
+    setLocalMonthlyPayments(monthlyPayments || Array(12).fill(monthlyPayment))
+  }, [monthlyPayments, monthlyPayment])
+
+  useEffect(() => {
+    setLocalPaymentMode(useVariablePayments ? 'variable' : 'fixed')
+  }, [useVariablePayments])
 
   const handleImportClick = () => {
     fileInputRef.current?.click()
@@ -45,6 +63,42 @@ export const Settings = ({
       event.target.value = ''
     }
   }
+
+  // Handler for payment mode toggle
+  const handlePaymentModeChange = (mode) => {
+    setLocalPaymentMode(mode)
+    if (mode === 'fixed') {
+      // Switch to fixed: clear variable payments
+      if (onTogglePaymentMode) {
+        onTogglePaymentMode(false)
+      }
+    } else {
+      // Switch to variable: initialize array with current fixed amount
+      const initialArray = Array(12).fill(localMonthlyPayment)
+      setLocalMonthlyPayments(initialArray)
+      if (onMonthlyPaymentsChange) {
+        onMonthlyPaymentsChange(initialArray)
+      }
+      if (onTogglePaymentMode) {
+        onTogglePaymentMode(true)
+      }
+    }
+  }
+
+  // Handler for updating specific month
+  const handleMonthPaymentChange = (monthIndex, value) => {
+    const newPayments = [...localMonthlyPayments]
+    newPayments[monthIndex] = value === '' ? 0 : parseFloat(value) || 0
+    setLocalMonthlyPayments(newPayments)
+  }
+
+  // Handler for blur (save to database)
+  const handleMonthPaymentBlur = () => {
+    if (onMonthlyPaymentsChange) {
+      onMonthlyPaymentsChange(localMonthlyPayments)
+    }
+  }
+
   // Helper function to get sync status display
   const getSyncStatusDisplay = () => {
     if (!isOnline) {
@@ -92,33 +146,78 @@ export const Settings = ({
       </div>
 
       <div className="settings-grid">
-        <div className="settings-item">
-          <label htmlFor="monthlyPayment">
-            Månedlig indbetaling til budgetkonto:
-          </label>
-          <input
-            type="number"
-            id="monthlyPayment"
-            value={localMonthlyPayment}
-            onChange={(e) => {
-              const value = e.target.value
-              // Update local state immediately for responsive UI
-              if (value === '') {
-                setLocalMonthlyPayment(0)
-              } else {
-                const parsed = parseFloat(value)
-                if (!isNaN(parsed)) {
-                  setLocalMonthlyPayment(parsed)
-                }
-              }
-            }}
-            onBlur={() => {
-              // Only trigger parent update (and sync) on blur
-              if (localMonthlyPayment !== monthlyPayment) {
-                onMonthlyPaymentChange(localMonthlyPayment)
-              }
-            }}
-          />
+        <div className="settings-item settings-payment-mode">
+          <h3>💰 Månedlige indbetalinger</h3>
+
+          <div className="payment-mode-selector">
+            <label className="radio-option">
+              <input
+                type="radio"
+                name="paymentMode"
+                value="fixed"
+                checked={localPaymentMode === 'fixed'}
+                onChange={() => handlePaymentModeChange('fixed')}
+              />
+              <span className="radio-label">Fast beløb for hele året</span>
+            </label>
+
+            {localPaymentMode === 'fixed' && (
+              <div className="fixed-payment-input">
+                <input
+                  type="number"
+                  id="monthlyPayment"
+                  value={localMonthlyPayment}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === '') {
+                      setLocalMonthlyPayment(0)
+                    } else {
+                      const parsed = parseFloat(value)
+                      if (!isNaN(parsed)) {
+                        setLocalMonthlyPayment(parsed)
+                      }
+                    }
+                  }}
+                  onBlur={() => {
+                    if (localMonthlyPayment !== monthlyPayment) {
+                      onMonthlyPaymentChange(localMonthlyPayment)
+                    }
+                  }}
+                  placeholder="5700"
+                />
+                <span className="input-suffix">kr./måned</span>
+              </div>
+            )}
+
+            <label className="radio-option">
+              <input
+                type="radio"
+                name="paymentMode"
+                value="variable"
+                checked={localPaymentMode === 'variable'}
+                onChange={() => handlePaymentModeChange('variable')}
+              />
+              <span className="radio-label">Variabel beløb per måned</span>
+            </label>
+
+            {localPaymentMode === 'variable' && (
+              <div className="monthly-payments-grid">
+                {['Jan', 'Feb', 'Mar', 'Apr', 'Maj', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'].map((month, index) => (
+                  <div key={month} className="month-payment-item">
+                    <label htmlFor={`month-${index}`}>{month}</label>
+                    <input
+                      type="number"
+                      id={`month-${index}`}
+                      value={localMonthlyPayments[index]}
+                      onChange={(e) => handleMonthPaymentChange(index, e.target.value)}
+                      onBlur={handleMonthPaymentBlur}
+                      placeholder="0"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div className="settings-item">
           <label htmlFor="previousBalance">

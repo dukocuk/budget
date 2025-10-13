@@ -1,8 +1,9 @@
 /**
  * Main Application Component - Refactored with modular architecture + Cloud Sync
+ * OPTIMIZATION: Uses React.startTransition for batched state updates to prevent chart re-renders
  */
 
-import { useState, useEffect, useMemo, useReducer, useRef } from 'react'
+import { useState, useEffect, useMemo, useReducer, useRef, startTransition } from 'react'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Header } from './components/Header'
 import { Alert } from './components/Alert'
@@ -29,7 +30,7 @@ import { DEFAULT_SETTINGS } from './utils/constants'
 import './App.css'
 
 /**
- * Settings reducer - Batches monthlyPayment and previousBalance updates
+ * Settings reducer - Batches monthlyPayment, previousBalance, and monthlyPayments array updates
  */
 const settingsReducer = (state, action) => {
   switch (action.type) {
@@ -37,10 +38,21 @@ const settingsReducer = (state, action) => {
       return { ...state, monthlyPayment: action.payload }
     case 'SET_PREVIOUS_BALANCE':
       return { ...state, previousBalance: action.payload }
+    case 'SET_MONTHLY_PAYMENTS':
+      return { ...state, monthlyPayments: action.payload, useVariablePayments: action.payload !== null }
+    case 'SET_PAYMENT_MODE':
+      return { ...state, useVariablePayments: action.payload, monthlyPayments: action.payload ? state.monthlyPayments : null }
     case 'SET_BOTH':
       return {
         monthlyPayment: action.payload.monthlyPayment,
         previousBalance: action.payload.previousBalance
+      }
+    case 'SET_ALL':
+      return {
+        monthlyPayment: action.payload.monthlyPayment,
+        previousBalance: action.payload.previousBalance,
+        monthlyPayments: action.payload.monthlyPayments || null,
+        useVariablePayments: action.payload.monthlyPayments !== null && action.payload.monthlyPayments !== undefined
       }
     default:
       return state
@@ -54,7 +66,9 @@ function AppContent() {
   // Use reducer to batch settings updates (prevents multiple re-renders)
   const [settings, dispatchSettings] = useReducer(settingsReducer, {
     monthlyPayment: DEFAULT_SETTINGS.monthlyPayment,
-    previousBalance: DEFAULT_SETTINGS.previousBalance
+    previousBalance: DEFAULT_SETTINGS.previousBalance,
+    monthlyPayments: null,
+    useVariablePayments: false
   })
 
   const [isInitialized, setIsInitialized] = useState(false)
@@ -72,6 +86,10 @@ function AppContent() {
 
   // Track if we're in initial data load to prevent sync triggers
   const isInitialLoadRef = useRef(true)
+
+  // Track last synced values to prevent cascading syncs
+  const lastSyncedExpensesRef = useRef(null)
+  const lastSyncedSettingsRef = useRef({ monthlyPayment: 0, previousBalance: 0, monthlyPayments: null })
 
   // Authentication
   const { user } = useAuth()
@@ -107,12 +125,13 @@ function AppContent() {
   const { theme, toggleTheme } = useTheme()
 
   // Memoize expensive calculations to prevent chart re-renders
-  const summary = useMemo(() =>
-    calculateSummary(expenses, settings.monthlyPayment, settings.previousBalance),
-    [expenses, settings.monthlyPayment, settings.previousBalance]
-  )
+  // Use monthlyPayments array if available, otherwise fallback to single monthlyPayment
+  const summary = useMemo(() => {
+    const paymentValue = settings.monthlyPayments || settings.monthlyPayment
+    return calculateSummary(expenses, paymentValue, settings.previousBalance)
+  }, [expenses, settings.monthlyPayment, settings.monthlyPayments, settings.previousBalance])
 
-  // Load data from cloud when user logs in (SINGLE-PASS: no sync triggers during init)
+  // Load data from cloud when user logs in (OPTIMIZED: batched updates prevent multiple re-renders)
   useEffect(() => {
     if (user && !isInitialized) {
       const loadData = async () => {
@@ -125,31 +144,39 @@ function AppContent() {
             loadSettings()
           ])
 
-          // BATCH all state updates in a single synchronous block
-          // This triggers only ONE render instead of three separate renders
+          // ATOMIC UPDATE: Use startTransition to batch ALL state updates into a single render
+          // This prevents charts from re-rendering multiple times during initialization
+          startTransition(() => {
+            // Update expenses first (if available)
+            if (expensesResult.success && expensesResult.data.length > 0) {
+              setAllExpenses(expensesResult.data)
+            }
 
-          // Update expenses first (if available)
-          if (expensesResult.success && expensesResult.data.length > 0) {
-            setAllExpenses(expensesResult.data)
-          }
+            // Update settings using reducer (batches all values in single state update)
+            if (settingsResult.success && settingsResult.data) {
+              dispatchSettings({
+                type: 'SET_ALL',
+                payload: {
+                  monthlyPayment: settingsResult.data.monthlyPayment,
+                  previousBalance: settingsResult.data.previousBalance,
+                  monthlyPayments: settingsResult.data.monthlyPayments || null
+                }
+              })
+            }
 
-          // Update settings using reducer (batches both values in single state update)
-          if (settingsResult.success && settingsResult.data) {
-            dispatchSettings({
-              type: 'SET_BOTH',
-              payload: {
-                monthlyPayment: settingsResult.data.monthlyPayment,
-                previousBalance: settingsResult.data.previousBalance
-              }
-            })
-          }
+            // Mark initial load as complete BEFORE enabling sync
+            isInitialLoadRef.current = false
+            setIsLoadingData(false)
+            setIsInitialized(true)
+          })
         } catch (error) {
           console.error('❌ Error loading initial data:', error)
-        } finally {
-          // Mark initial load as complete BEFORE enabling sync
-          isInitialLoadRef.current = false
-          setIsLoadingData(false)
-          setIsInitialized(true)
+          // Even on error, ensure loading state is cleared
+          startTransition(() => {
+            isInitialLoadRef.current = false
+            setIsLoadingData(false)
+            setIsInitialized(true)
+          })
         }
       }
 
@@ -158,19 +185,36 @@ function AppContent() {
   }, [user, isInitialized, loadExpenses, loadSettings, setAllExpenses])
 
   // Sync expenses whenever they change (ONLY after initialization AND initial load complete)
-  // NOTE: Debounced sync - for deletions, handleDeleteExpense uses immediateSyncExpenses instead
+  // OPTIMIZATION: Only sync if expenses actually changed to prevent cascading syncs
   useEffect(() => {
     if (user && isInitialized && !isLoadingData && !isInitialLoadRef.current) {
-      syncExpenses(expenses)
+      // Compare with last synced state to avoid redundant syncs
+      const expensesChanged = JSON.stringify(expenses) !== JSON.stringify(lastSyncedExpensesRef.current)
+
+      if (expensesChanged) {
+        lastSyncedExpensesRef.current = expenses
+        syncExpenses(expenses)
+      }
     }
   }, [expenses, user, isInitialized, isLoadingData, syncExpenses])
 
   // Sync settings whenever they change (ONLY after initialization AND initial load complete)
+  // OPTIMIZATION: Only sync if settings actually changed to prevent cascading syncs
   useEffect(() => {
     if (user && isInitialized && !isLoadingData && !isInitialLoadRef.current) {
-      syncSettings(settings.monthlyPayment, settings.previousBalance)
+      // Compare with last synced state to avoid redundant syncs
+      const monthlyPaymentsChanged = JSON.stringify(settings.monthlyPayments) !== JSON.stringify(lastSyncedSettingsRef.current.monthlyPayments)
+      const settingsChanged =
+        settings.monthlyPayment !== lastSyncedSettingsRef.current.monthlyPayment ||
+        settings.previousBalance !== lastSyncedSettingsRef.current.previousBalance ||
+        monthlyPaymentsChanged
+
+      if (settingsChanged) {
+        lastSyncedSettingsRef.current = { ...settings }
+        syncSettings(settings.monthlyPayment, settings.previousBalance, settings.monthlyPayments)
+      }
     }
-  }, [settings.monthlyPayment, settings.previousBalance, user, isInitialized, isLoadingData, syncSettings])
+  }, [settings.monthlyPayment, settings.previousBalance, settings.monthlyPayments, settings, user, isInitialized, isLoadingData, syncSettings])
 
   // Show loading screen while fetching cloud data
   if (isLoadingData) {
@@ -380,8 +424,12 @@ function AppContent() {
       <Settings
         monthlyPayment={settings.monthlyPayment}
         previousBalance={settings.previousBalance}
+        monthlyPayments={settings.monthlyPayments}
+        useVariablePayments={settings.useVariablePayments}
         onMonthlyPaymentChange={(value) => dispatchSettings({ type: 'SET_MONTHLY_PAYMENT', payload: value })}
         onPreviousBalanceChange={(value) => dispatchSettings({ type: 'SET_PREVIOUS_BALANCE', payload: value })}
+        onMonthlyPaymentsChange={(paymentsArray) => dispatchSettings({ type: 'SET_MONTHLY_PAYMENTS', payload: paymentsArray })}
+        onTogglePaymentMode={(useVariable) => dispatchSettings({ type: 'SET_PAYMENT_MODE', payload: useVariable })}
         onExport={handleExport}
         onImport={handleImport}
         theme={theme}

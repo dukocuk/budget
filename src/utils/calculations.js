@@ -43,19 +43,53 @@ export function getMonthlyAmount(expense, month) {
 }
 
 /**
- * Calculate budget summary
+ * Get monthly payment for a specific month
+ * Handles both fixed (single value) and variable (array) payment modes
+ * @param {number} defaultPayment - Default monthly payment (fallback)
+ * @param {number[]|null} monthlyPayments - Array of 12 monthly payments
+ * @param {number} month - Month number (1-12)
+ * @returns {number} Payment for that month
  */
-export function calculateSummary(expenses, monthlyPayment, previousBalance) {
+export function getMonthlyPayment(defaultPayment, monthlyPayments, month) {
+  if (month < 1 || month > 12) {
+    throw new Error('Month must be between 1 and 12')
+  }
+
+  // Use monthly payments array if available and valid
+  if (monthlyPayments && Array.isArray(monthlyPayments) && monthlyPayments.length === 12) {
+    return monthlyPayments[month - 1] || 0
+  }
+
+  // Fallback to default payment
+  return defaultPayment
+}
+
+/**
+ * Calculate budget summary
+ * Supports both fixed monthly payment and variable monthly payments array
+ */
+export function calculateSummary(expenses, monthlyPaymentOrArray, previousBalance) {
   const totalAnnual = expenses.reduce((sum, expense) =>
     sum + calculateAnnualAmount(expense), 0
   )
+
+  // Calculate total annual income (handle both fixed and variable)
+  let totalAnnualIncome
+  if (Array.isArray(monthlyPaymentOrArray)) {
+    totalAnnualIncome = monthlyPaymentOrArray.reduce((sum, val) => sum + (val || 0), 0)
+  } else {
+    totalAnnualIncome = monthlyPaymentOrArray * 12
+  }
+
   const avgMonthly = totalAnnual / 12
-  const monthlyBalance = monthlyPayment - avgMonthly
+  const avgMonthlyIncome = totalAnnualIncome / 12
+  const monthlyBalance = avgMonthlyIncome - avgMonthly
   const annualReserve = (monthlyBalance * 12) + previousBalance
 
   return {
     totalAnnual: Math.round(totalAnnual),
     avgMonthly: Math.round(avgMonthly),
+    avgMonthlyIncome: Math.round(avgMonthlyIncome),
     monthlyBalance: Math.round(monthlyBalance),
     annualReserve: Math.round(annualReserve)
   }
@@ -78,21 +112,29 @@ export function calculateMonthlyTotals(expenses) {
 
 /**
  * Calculate balance projection for each month
+ * Supports both fixed monthly payment and variable monthly payments array
  */
-export function calculateBalanceProjection(expenses, monthlyPayment, previousBalance) {
+export function calculateBalanceProjection(expenses, monthlyPaymentOrArray, previousBalance) {
   const balances = []
   let runningBalance = previousBalance
+
+  // Convert to array for consistent handling
+  const payments = Array.isArray(monthlyPaymentOrArray)
+    ? monthlyPaymentOrArray
+    : Array(12).fill(monthlyPaymentOrArray)
 
   for (let month = 1; month <= 12; month++) {
     const monthlyExpenses = expenses.reduce((sum, expense) =>
       sum + getMonthlyAmount(expense, month), 0
     )
 
-    runningBalance = runningBalance + monthlyPayment - monthlyExpenses
+    const monthlyIncome = payments[month - 1] || 0
+
+    runningBalance = runningBalance + monthlyIncome - monthlyExpenses
     balances.push({
       month,
       balance: Math.round(runningBalance),
-      income: monthlyPayment,
+      income: monthlyIncome,
       expenses: Math.round(monthlyExpenses)
     })
   }

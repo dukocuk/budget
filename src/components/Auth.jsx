@@ -24,6 +24,7 @@ export default function Auth() {
               src={user.user_metadata.avatar_url}
               alt={user.user_metadata?.full_name || user.email}
               className="user-avatar"
+              crossOrigin="anonymous"
             />
           )}
           <div className="user-details">

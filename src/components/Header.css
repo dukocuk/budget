@@ -108,6 +108,18 @@
   object-fit: cover;
 }
 
+/* Fallback avatar when image fails to load (e.g., rate limiting) */
+.user-avatar-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+  text-transform: uppercase;
+}
+
 .user-details {
   display: flex;
   flex-direction: column;

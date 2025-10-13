@@ -12,10 +12,13 @@ export default function Dashboard({ userId }) {
   const { expenses, loading: expensesLoading } = useExpenses(userId)
   const { settings, loading: settingsLoading } = useSettings(userId)
 
+  // Use monthlyPayments array if available, otherwise fallback to single monthlyPayment
+  const paymentValue = settings.monthlyPayments || settings.monthlyPayment
+
   // Memoize expensive calculations
   const summary = React.useMemo(
-    () => calculateSummary(expenses, settings.monthlyPayment, settings.previousBalance),
-    [expenses, settings.monthlyPayment, settings.previousBalance]
+    () => calculateSummary(expenses, paymentValue, settings.previousBalance),
+    [expenses, paymentValue, settings.previousBalance]
   )
 
   const monthlyTotals = React.useMemo(
@@ -24,8 +27,8 @@ export default function Dashboard({ userId }) {
   )
 
   const balanceProjection = React.useMemo(
-    () => calculateBalanceProjection(expenses, settings.monthlyPayment, settings.previousBalance),
-    [expenses, settings.monthlyPayment, settings.previousBalance]
+    () => calculateBalanceProjection(expenses, paymentValue, settings.previousBalance),
+    [expenses, paymentValue, settings.previousBalance]
   )
 
   const expensesByFrequency = React.useMemo(
@@ -34,13 +37,20 @@ export default function Dashboard({ userId }) {
   )
 
   // Prepare data for charts (memoized)
+  // Handle variable monthly payments: use array if available, otherwise use fixed value
   const monthlyData = React.useMemo(
-    () => months.map((month, index) => ({
-      name: month,
-      udgifter: monthlyTotals[index],
-      indbetaling: settings.monthlyPayment
-    })),
-    [monthlyTotals, settings.monthlyPayment]
+    () => {
+      const payments = Array.isArray(paymentValue)
+        ? paymentValue
+        : Array(12).fill(paymentValue)
+
+      return months.map((month, index) => ({
+        name: month,
+        udgifter: monthlyTotals[index],
+        indbetaling: payments[index] || 0
+      }))
+    },
+    [monthlyTotals, paymentValue]
   )
 
   const balanceData = React.useMemo(

@@ -1,6 +1,9 @@
 /**
  * SyncContext - Isolated context for cloud sync state
  * Prevents sync status updates from triggering re-renders in data editing components
+ *
+ * OPTIMIZATION: Sync status is managed via refs to prevent unnecessary re-renders
+ * Only UI-facing components (Header) subscribe to status changes
  */
 
 import { createContext, useState, useEffect, useCallback, useRef } from 'react'
@@ -16,9 +19,16 @@ export const SyncContext = createContext(null)
  * @param {ReactNode} props.children - Child components
  */
 export const SyncProvider = ({ user, children }) => {
-  const [syncStatus, setSyncStatus] = useState('idle') // idle, syncing, synced, error, offline
-  const [lastSyncTime, setLastSyncTime] = useState(null)
-  const [syncError, setSyncError] = useState(null)
+  // Use refs for sync status to avoid triggering re-renders
+  // Only update state when UI components explicitly need updates
+  const syncStatusRef = useRef('idle') // idle, syncing, synced, error, offline
+  const lastSyncTimeRef = useRef(null)
+  const syncErrorRef = useRef(null)
+
+  // Keep state ONLY for UI components that need to react to changes
+  const [uiSyncStatus, setUiSyncStatus] = useState('idle')
+  const [uiLastSyncTime, setUiLastSyncTime] = useState(null)
+  const [uiSyncError, setUiSyncError] = useState(null)
   const [isOnline, setIsOnline] = useState(navigator.onLine)
 
   // Refs for debouncing and preventing duplicate syncs
@@ -29,16 +39,43 @@ export const SyncProvider = ({ user, children }) => {
   const statusResetTimeoutRef = useRef(null)
   const errorResetTimeoutRef = useRef(null)
 
+  /**
+   * Update sync status - updates both ref and UI state
+   * @param {string} status - New sync status
+   */
+  const updateSyncStatus = useCallback((status) => {
+    syncStatusRef.current = status
+    setUiSyncStatus(status)
+  }, [])
+
+  /**
+   * Update sync error - updates both ref and UI state
+   * @param {string|null} error - Error message or null
+   */
+  const updateSyncError = useCallback((error) => {
+    syncErrorRef.current = error
+    setUiSyncError(error)
+  }, [])
+
+  /**
+   * Update last sync time - updates both ref and UI state
+   * @param {Date} time - Last sync timestamp
+   */
+  const updateLastSyncTime = useCallback((time) => {
+    lastSyncTimeRef.current = time
+    setUiLastSyncTime(time)
+  }, [])
+
   // Monitor online/offline status
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true)
-      setSyncStatus('idle')
+      updateSyncStatus('idle')
     }
 
     const handleOffline = () => {
       setIsOnline(false)
-      setSyncStatus('offline')
+      updateSyncStatus('offline')
     }
 
     window.addEventListener('online', handleOnline)
@@ -48,7 +85,7 @@ export const SyncProvider = ({ user, children }) => {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
-  }, [])
+  }, [updateSyncStatus])
 
   /**
    * Sync expenses to Supabase using transaction-safe replace strategy
@@ -59,8 +96,8 @@ export const SyncProvider = ({ user, children }) => {
 
     try {
       isSyncingRef.current = true
-      setSyncStatus('syncing')
-      setSyncError(null)
+      updateSyncStatus('syncing')
+      updateSyncError(null)
 
       // Atomically replace all expenses with current state
       // This handles adds, updates, AND deletions (including deleting all)
@@ -92,46 +129,46 @@ export const SyncProvider = ({ user, children }) => {
         if (insertError) throw insertError
       }
 
-      setSyncStatus('synced')
-      setLastSyncTime(new Date())
+      updateSyncStatus('synced')
+      updateLastSyncTime(new Date())
 
       // Reset to idle after 2 seconds (with cleanup tracking)
       if (statusResetTimeoutRef.current) {
         clearTimeout(statusResetTimeoutRef.current)
       }
       statusResetTimeoutRef.current = setTimeout(() => {
-        setSyncStatus('idle')
+        updateSyncStatus('idle')
         statusResetTimeoutRef.current = null
       }, 2000)
 
     } catch (error) {
       console.error('❌ Error syncing expenses:', error)
-      setSyncError(error.message)
-      setSyncStatus('error')
+      updateSyncError(error.message)
+      updateSyncStatus('error')
 
       // Reset error state after 5 seconds (with cleanup tracking)
       if (errorResetTimeoutRef.current) {
         clearTimeout(errorResetTimeoutRef.current)
       }
       errorResetTimeoutRef.current = setTimeout(() => {
-        setSyncStatus('idle')
-        setSyncError(null)
+        updateSyncStatus('idle')
+        updateSyncError(null)
         errorResetTimeoutRef.current = null
       }, 5000)
     } finally {
       isSyncingRef.current = false
     }
-  }, [user, isOnline])
+  }, [user, isOnline, updateSyncStatus, updateSyncError, updateLastSyncTime])
 
   /**
    * Sync settings to Supabase
    */
-  const syncSettings = useCallback(async (monthlyPayment, previousBalance) => {
+  const syncSettings = useCallback(async (monthlyPayment, previousBalance, monthlyPayments = null) => {
     if (!user || !isOnline || isSyncingRef.current) return
 
     try {
-      setSyncStatus('syncing')
-      setSyncError(null)
+      updateSyncStatus('syncing')
+      updateSyncError(null)
 
       const { error } = await supabase
         .from('settings')
@@ -139,6 +176,7 @@ export const SyncProvider = ({ user, children }) => {
           user_id: user.id,
           monthly_payment: monthlyPayment,
           previous_balance: previousBalance,
+          monthly_payments: monthlyPayments, // Supabase handles JSONB automatically
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'user_id'
@@ -146,34 +184,34 @@ export const SyncProvider = ({ user, children }) => {
 
       if (error) throw error
 
-      setSyncStatus('synced')
-      setLastSyncTime(new Date())
+      updateSyncStatus('synced')
+      updateLastSyncTime(new Date())
 
       // Reset to idle after 2 seconds (with cleanup tracking)
       if (statusResetTimeoutRef.current) {
         clearTimeout(statusResetTimeoutRef.current)
       }
       statusResetTimeoutRef.current = setTimeout(() => {
-        setSyncStatus('idle')
+        updateSyncStatus('idle')
         statusResetTimeoutRef.current = null
       }, 2000)
 
     } catch (error) {
       console.error('Error syncing settings:', error)
-      setSyncError(error.message)
-      setSyncStatus('error')
+      updateSyncError(error.message)
+      updateSyncStatus('error')
 
       // Reset error state after 5 seconds (with cleanup tracking)
       if (errorResetTimeoutRef.current) {
         clearTimeout(errorResetTimeoutRef.current)
       }
       errorResetTimeoutRef.current = setTimeout(() => {
-        setSyncStatus('idle')
-        setSyncError(null)
+        updateSyncStatus('idle')
+        updateSyncError(null)
         errorResetTimeoutRef.current = null
       }, 5000)
     }
-  }, [user, isOnline])
+  }, [user, isOnline, updateSyncStatus, updateSyncError, updateLastSyncTime])
 
   /**
    * Debounced sync for expenses - waits 1 second before syncing
@@ -191,13 +229,13 @@ export const SyncProvider = ({ user, children }) => {
   /**
    * Debounced sync for settings
    */
-  const debouncedSyncSettings = useCallback((monthlyPayment, previousBalance) => {
+  const debouncedSyncSettings = useCallback((monthlyPayment, previousBalance, monthlyPayments = null) => {
     if (syncTimeoutRef.current) {
       clearTimeout(syncTimeoutRef.current)
     }
 
     syncTimeoutRef.current = setTimeout(() => {
-      syncSettings(monthlyPayment, previousBalance)
+      syncSettings(monthlyPayment, previousBalance, monthlyPayments)
     }, 1000)
   }, [syncSettings])
 
@@ -209,7 +247,7 @@ export const SyncProvider = ({ user, children }) => {
     if (!user || !isOnline) return { success: false, data: [] }
 
     try {
-      setSyncStatus('syncing')
+      updateSyncStatus('syncing')
 
       const { data, error } = await supabase
         .from('expenses')
@@ -230,28 +268,28 @@ export const SyncProvider = ({ user, children }) => {
         endMonth: expense.end_month
       }))
 
-      setSyncStatus('synced')
-      setLastSyncTime(new Date())
+      updateSyncStatus('synced')
+      updateLastSyncTime(new Date())
 
       setTimeout(() => {
-        setSyncStatus('idle')
+        updateSyncStatus('idle')
       }, 2000)
 
       return { success: true, data: expenses }
 
     } catch (error) {
       console.error('Error loading expenses:', error)
-      setSyncError(error.message)
-      setSyncStatus('error')
+      updateSyncError(error.message)
+      updateSyncStatus('error')
 
       setTimeout(() => {
-        setSyncStatus('idle')
-        setSyncError(null)
+        updateSyncStatus('idle')
+        updateSyncError(null)
       }, 5000)
 
       return { success: false, data: [] }
     }
-  }, [user, isOnline])
+  }, [user, isOnline, updateSyncStatus, updateSyncError, updateLastSyncTime])
 
   /**
    * Load settings from Supabase
@@ -275,7 +313,8 @@ export const SyncProvider = ({ user, children }) => {
           success: true,
           data: {
             monthlyPayment: parseFloat(data.monthly_payment),
-            previousBalance: parseFloat(data.previous_balance)
+            previousBalance: parseFloat(data.previous_balance),
+            monthlyPayments: data.monthly_payments || null // JSONB automatically parsed
           }
         }
       }
@@ -306,10 +345,16 @@ export const SyncProvider = ({ user, children }) => {
   }, [])
 
   const value = {
-    syncStatus,
-    lastSyncTime,
-    syncError,
+    // Expose UI state for components that need to display status (Header)
+    syncStatus: uiSyncStatus,
+    lastSyncTime: uiLastSyncTime,
+    syncError: uiSyncError,
     isOnline,
+    // Expose ref-based values for components that just need to check status
+    syncStatusRef,
+    lastSyncTimeRef,
+    syncErrorRef,
+    // Sync functions
     syncExpenses: debouncedSyncExpenses,
     syncSettings: debouncedSyncSettings,
     loadExpenses,

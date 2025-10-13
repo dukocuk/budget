@@ -28,6 +28,7 @@ export async function initLocalDB() {
         user_id TEXT PRIMARY KEY,
         monthly_payment INTEGER NOT NULL DEFAULT 0,
         previous_balance INTEGER NOT NULL DEFAULT 0,
+        monthly_payments TEXT DEFAULT NULL,
         updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       )
     `)
@@ -65,6 +66,37 @@ export async function clearLocalDB() {
     console.log('✅ Local database cleared and reinitialized')
   } catch (error) {
     console.error('❌ Error clearing local database:', error)
+    throw error
+  }
+}
+
+// Migration: Add monthly_payments column to settings table
+export async function migrateSettingsTable() {
+  try {
+    // Check if monthly_payments column exists
+    const columnCheck = await localDB.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_name = 'settings'
+      AND column_name = 'monthly_payments'
+    `)
+
+    if (columnCheck.rows.length > 0) {
+      console.log('✅ Settings table already has monthly_payments column')
+      return
+    }
+
+    console.log('🔄 Adding monthly_payments column to settings table...')
+
+    // Add monthly_payments column
+    await localDB.exec(`
+      ALTER TABLE settings
+      ADD COLUMN IF NOT EXISTS monthly_payments TEXT DEFAULT NULL
+    `)
+
+    console.log('✅ Migration complete: Added monthly_payments column to settings')
+  } catch (error) {
+    console.error('❌ Error migrating settings table:', error)
     throw error
   }
 }

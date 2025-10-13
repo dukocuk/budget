@@ -2,12 +2,14 @@
  * Header component with user info and connection status
  */
 
+import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useSyncContext } from '../hooks/useSyncContext'
 import './Header.css'
 
 export const Header = ({ user }) => {
   const { signOut } = useAuth()
+  const [imageError, setImageError] = useState(false)
 
   // Get sync status from isolated context (won't trigger parent re-renders)
   const { syncStatus, isOnline } = useSyncContext()
@@ -32,6 +34,12 @@ export const Header = ({ user }) => {
 
   const connectionStatus = getConnectionStatus()
 
+  // Handle image load errors (rate limiting, network issues)
+  const handleImageError = () => {
+    console.warn('⚠️ Failed to load profile image (possibly rate limited)')
+    setImageError(true)
+  }
+
   return (
     <header className="header">
       <div className="header-content">
@@ -48,12 +56,20 @@ export const Header = ({ user }) => {
             </div>
 
             <div className="user-info">
-              {user.user_metadata?.avatar_url && (
+              {user.user_metadata?.avatar_url && !imageError ? (
                 <img
                   src={user.user_metadata.avatar_url}
                   alt={user.user_metadata?.full_name || user.email}
                   className="user-avatar"
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                  loading="lazy"
+                  onError={handleImageError}
                 />
+              ) : (
+                <div className="user-avatar user-avatar-fallback">
+                  {(user.user_metadata?.full_name || user.email).charAt(0).toUpperCase()}
+                </div>
               )}
               <div className="user-details">
                 <span className="user-name">

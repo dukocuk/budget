@@ -6,6 +6,17 @@ import MonthlyView from './MonthlyView'
 import Settings from './Settings'
 import './Layout.css'
 
+/**
+ * Layout Component (Alternative Layout - NOT CURRENTLY USED)
+ *
+ * WARNING: This component contains a duplicate Google profile image that can cause
+ * HTTP 429 (Too Many Requests) errors from Google's CDN. The main app uses Header.jsx
+ * instead. If you need to use this Layout component, remove the duplicate image or
+ * implement the same rate-limiting prevention strategies as Header.jsx:
+ * - referrerPolicy="no-referrer"
+ * - loading="lazy"
+ * - onError fallback handler
+ */
 export default function Layout() {
   const { user, signOut } = useAuth()
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -48,6 +59,7 @@ export default function Layout() {
                 src={user.user_metadata.avatar_url}
                 alt={user.user_metadata?.full_name || user.email}
                 className="user-avatar"
+                crossOrigin="anonymous"
               />
             )}
             <div className="user-info">
