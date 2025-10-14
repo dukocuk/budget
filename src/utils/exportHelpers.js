@@ -8,12 +8,18 @@ import { calculateAnnualAmount, getMonthlyAmount, calculateSummary } from './cal
 /**
  * Generate CSV content from budget data
  * @param {Array} expenses - Array of expense objects
- * @param {number} monthlyPayment - Monthly payment amount
+ * @param {number|Array} monthlyPaymentOrArray - Monthly payment amount (fixed) or array of 12 values (variable)
  * @param {number} previousBalance - Previous year balance
  * @returns {string} CSV content with UTF-8 BOM
  */
-export const generateCSV = (expenses, monthlyPayment, previousBalance) => {
+export const generateCSV = (expenses, monthlyPaymentOrArray, previousBalance) => {
   let csv = '\ufeff' // UTF-8 BOM for Excel compatibility
+
+  // Determine if using variable payments
+  const isVariablePayments = Array.isArray(monthlyPaymentOrArray)
+  const payments = isVariablePayments
+    ? monthlyPaymentOrArray
+    : Array(12).fill(monthlyPaymentOrArray)
 
   // Section 1: Expense summary
   csv += 'Udgift,Beløb,Frekvens,Start Måned,Slut Måned,Årlig Total\n'
@@ -53,11 +59,26 @@ export const generateCSV = (expenses, monthlyPayment, previousBalance) => {
   }
   csv += `,${grandTotal}\n`
 
-  // Section 3: Summary
-  const summary = calculateSummary(expenses, monthlyPayment, previousBalance)
+  // Section 3: Monthly Payments (if variable)
+  if (isVariablePayments) {
+    csv += '\n\nMånedlige Indbetalinger\n'
+    csv += MONTHS.join(',') + ',Total\n'
+    const totalAnnualIncome = payments.reduce((sum, val) => sum + (val || 0), 0)
+    csv += payments.map(p => p || 0).join(',') + `,${totalAnnualIncome}\n`
+  }
+
+  // Section 4: Summary
+  const summary = calculateSummary(expenses, monthlyPaymentOrArray, previousBalance)
   csv += '\n\nOpsummering\n'
   csv += `Årlige udgifter,${summary.totalAnnual}\n`
-  csv += `Månedlig indbetaling,${monthlyPayment}\n`
+
+  if (isVariablePayments) {
+    csv += `Månedlige indbetalinger,Variabel (se oversigt ovenfor)\n`
+    csv += `Gennemsnitlig månedlig indbetaling,${summary.avgMonthlyIncome}\n`
+  } else {
+    csv += `Månedlig indbetaling,${monthlyPaymentOrArray}\n`
+  }
+
   csv += `Overført fra sidste år,${previousBalance}\n`
 
   return csv

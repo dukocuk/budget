@@ -22,7 +22,6 @@ import { useAlert } from './hooks/useAlert'
 import { useAuth } from './hooks/useAuth'
 import { SyncProvider } from './contexts/SyncContext'
 import { useSyncContext } from './hooks/useSyncContext'
-import { useTheme } from './hooks/useTheme'
 import { calculateSummary } from './utils/calculations'
 import { generateCSV, downloadCSV } from './utils/exportHelpers'
 import { parseCSV } from './utils/importHelpers'
@@ -122,7 +121,6 @@ function AppContent() {
   } = useSyncContext()
 
   const { alert, showAlert } = useAlert()
-  const { theme, toggleTheme } = useTheme()
 
   // Memoize expensive calculations to prevent chart re-renders
   // Use monthlyPayments array if available, otherwise fallback to single monthlyPayment
@@ -333,7 +331,8 @@ function AppContent() {
   // Export to CSV
   const handleExport = () => {
     try {
-      const csvContent = generateCSV(expenses, settings.monthlyPayment, settings.previousBalance)
+      const paymentValue = settings.monthlyPayments || settings.monthlyPayment
+      const csvContent = generateCSV(expenses, paymentValue, settings.previousBalance)
       downloadCSV(csvContent)
       showAlert('CSV fil downloadet!', 'success')
     } catch (error) {
@@ -432,8 +431,6 @@ function AppContent() {
         onTogglePaymentMode={(useVariable) => dispatchSettings({ type: 'SET_PAYMENT_MODE', payload: useVariable })}
         onExport={handleExport}
         onImport={handleImport}
-        theme={theme}
-        onToggleTheme={toggleTheme}
       />
     </div>
   )

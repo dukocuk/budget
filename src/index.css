@@ -1,5 +1,5 @@
-/* CSS Custom Properties for Light Theme (Default) */
-:root[data-theme="light"] {
+/* CSS Custom Properties (Light Theme) */
+:root {
   /* Primary colors */
   --color-primary: #667eea;
   --color-primary-dark: #764ba2;
@@ -50,97 +50,6 @@
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s ease;
   --transition-slow: 0.35s ease;
-}
-
-/* CSS Custom Properties for Dark Theme */
-:root[data-theme="dark"] {
-  /* Primary colors (slightly brighter for dark mode) */
-  --color-primary: #818cf8;
-  --color-primary-dark: #9333ea;
-  --color-primary-hover: #6366f1;
-
-  /* Status colors */
-  --color-success: #34d399;
-  --color-success-dark: #10b981;
-  --color-error: #f87171;
-  --color-error-dark: #ef4444;
-  --color-info: #60a5fa;
-  --color-warning: #fbbf24;
-
-  /* Neutral grays (inverted) */
-  --color-gray-50: #1a1a1a;
-  --color-gray-100: #2d2d2d;
-  --color-gray-200: #3f3f3f;
-  --color-gray-300: #525252;
-  --color-gray-400: #737373;
-  --color-gray-500: #a3a3a3;
-  --color-gray-600: #d4d4d4;
-  --color-gray-700: #e5e5e5;
-  --color-gray-800: #f5f5f5;
-  --color-gray-900: #fafafa;
-
-  /* Semantic colors */
-  --color-background: #0f0f0f;
-  --color-background-alt: #1a1a1a;
-  --color-surface: #1f1f1f;
-  --color-text: #f5f5f5;
-  --color-text-secondary: #a3a3a3;
-  --color-border: #3f3f3f;
-  --color-border-dark: #525252;
-
-  /* Gradients (adjusted for dark mode) */
-  --gradient-primary: linear-gradient(135deg, #818cf8 0%, #9333ea 100%);
-  --gradient-background: linear-gradient(135deg, #1a1a1a 0%, #2d1a3d 100%);
-  --gradient-success: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-  --gradient-error: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
-
-  /* Shadows (darker and more pronounced) */
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
-
-  /* Transitions */
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.25s ease;
-  --transition-slow: 0.35s ease;
-}
-
-/* Default theme (light) for initial load */
-:root {
-  /* Primary colors */
-  --color-primary: #667eea;
-  --color-primary-dark: #764ba2;
-  --color-primary-hover: #5568d3;
-
-  /* Status colors */
-  --color-success: #10b981;
-  --color-success-dark: #059669;
-  --color-error: #ef4444;
-  --color-error-dark: #dc2626;
-  --color-info: #3b82f6;
-  --color-warning: #f59e0b;
-
-  /* Neutral grays */
-  --color-gray-50: #f9fafb;
-  --color-gray-100: #f3f4f6;
-  --color-gray-200: #e5e7eb;
-  --color-gray-300: #d1d5db;
-  --color-gray-400: #9ca3af;
-  --color-gray-500: #6b7280;
-  --color-gray-600: #4b5563;
-  --color-gray-700: #374151;
-  --color-gray-800: #1f2937;
-  --color-gray-900: #111827;
-
-  /* Semantic colors */
-  --color-background: #ffffff;
-  --color-background-alt: #f9fafb;
-  --color-surface: #ffffff;
-  --color-text: #1f2937;
-  --color-text-secondary: #6b7280;
-  --color-border: #e5e7eb;
-  --color-border-dark: #d1d5db;
 
   /* Typography */
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -166,19 +75,6 @@ body {
   min-height: 100vh;
   background: var(--color-background);
   color: var(--color-text);
-  transition: background-color var(--transition-normal), color var(--transition-normal);
-}
-
-/* Smooth theme transitions */
-body * {
-  transition: background-color var(--transition-normal),
-              color var(--transition-normal),
-              border-color var(--transition-normal);
-}
-
-/* Prevent transition on page load */
-body.preload * {
-  transition: none !important;
 }
 
 a {
@@ -211,5 +107,3 @@ button {
   cursor: pointer;
   transition: all var(--transition-fast);
 }
-
-/* Remove dark mode media query since we're using data-theme attribute */

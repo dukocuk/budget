@@ -16,9 +16,7 @@ export const Settings = ({
   onMonthlyPaymentsChange, // NEW: Handler for array updates
   onTogglePaymentMode, // NEW: Toggle fixed/variable
   onExport,
-  onImport,
-  theme,
-  onToggleTheme
+  onImport
 }) => {
   // Get sync status from isolated context (won't trigger parent re-renders)
   const { syncStatus, lastSyncTime, syncError, isOnline } = useSyncContext()
@@ -246,28 +244,6 @@ export const Settings = ({
               }
             }}
           />
-        </div>
-      </div>
-
-      <div className="settings-actions">
-        <h3>Udseende</h3>
-        <div className="theme-toggle-container">
-          <button
-            className="btn btn-theme-toggle"
-            onClick={onToggleTheme}
-            aria-label={`Skift til ${theme === 'light' ? 'mørk' : 'lys'} tilstand`}
-            title={`Skift til ${theme === 'light' ? 'mørk' : 'lys'} tilstand`}
-          >
-            <span className="theme-icon">{theme === 'light' ? '🌙' : '☀️'}</span>
-            <span className="theme-label">
-              {theme === 'light' ? 'Mørk tilstand' : 'Lys tilstand'}
-            </span>
-          </button>
-          <p className="theme-description">
-            {theme === 'light'
-              ? 'Skift til mørk tilstand for at reducere øjentræt om aftenen'
-              : 'Skift til lys tilstand for bedre læsbarhed i dagslys'}
-          </p>
         </div>
       </div>
 

@@ -23,7 +23,10 @@
       "Bash(dir /b /s \"c:\\Users\\duran\\source\\repos\\budget\")",
       "Bash(findstr:*)",
       "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\App.new.jsx\")",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(npx eslint:*)",
+      "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\hooks\\useTheme.js\")",
+      "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\hooks\\useTheme.test.js\")"
     ],
     "deny": [],
     "ask": []

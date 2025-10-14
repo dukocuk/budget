@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Personal budget tracker application for managing fixed expenses in DKK (Danish Kroner). Single-page React application built with Vite, featuring automatic cloud synchronization, real-time multi-device sync, dark mode, expense filtering, and CSV import/export.
+Personal budget tracker application for managing fixed expenses in DKK (Danish Kroner). Single-page React application built with Vite, featuring automatic cloud synchronization, real-time multi-device sync, expense filtering, and CSV import/export.
 
 **Technology Stack**:
 - React 19.1.1 with Hooks
@@ -75,7 +75,6 @@ budget/
 │   │   ├── useAlert.js     # Alert notifications
 │   │   ├── useAuth.js      # Authentication ✅
 │   │   ├── useSupabaseSync.js # Automatic cloud sync ✅
-│   │   ├── useTheme.js     # Dark/light mode ✅
 │   │   ├── useExpenseFilters.js # Search & filtering ✅
 │   │   └── useSettings.js  # Settings management with PGlite ✅
 │   ├── lib/                # External integrations
@@ -92,8 +91,8 @@ budget/
 │   │   ├── importHelpers.js # CSV import logic ✅
 │   │   └── migration.js    # Data migration ✅
 │   ├── App.jsx            # Main app orchestration with auth wrapper ✅
-│   ├── App.css            # Comprehensive styling with dark mode ✅
-│   ├── index.css          # Global styles with theme variables ✅
+│   ├── App.css            # Comprehensive styling ✅
+│   ├── index.css          # Global styles with CSS variables ✅
 │   └── main.jsx           # React entry point
 ├── test/                  # Test utilities
 │   └── setup.js          # Vitest test setup and configuration ✅
@@ -142,13 +141,6 @@ budget/
   - `syncSettings()`: Debounced settings sync
   - `loadExpenses()`, `loadSettings()`: Load data from cloud
   - Real-time subscriptions for multi-device sync
-
-- **`useTheme()`**: Dark/light mode management ✅
-  - `theme`: Current theme ('light' or 'dark')
-  - `toggleTheme()`: Switch between themes
-  - `isDark`, `isLight`: Boolean helpers
-  - System preference detection
-  - LocalStorage persistence
 
 - **`useExpenseFilters()`**: Search and filtering ✅
   - `filteredExpenses`: Filtered expense array
@@ -248,7 +240,6 @@ budget/
   - **Context Hook**: `useSyncContext()` for accessing sync state and operations
 
 - **Browser localStorage**:
-  - **Theme preference**: Stored in `budgetTheme` key ([useTheme.js](src/hooks/useTheme.js))
   - **Migration tracking**: One-time flags for data migration ([migration.js](src/utils/migration.js))
   - **NO expense/settings data**: All app data now in PGlite + Supabase only
 
@@ -333,12 +324,6 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 
 ### New Features ✅
 
-**Dark Mode** ([useTheme](src/hooks/useTheme.js)):
-- Toggle button in header
-- System preference detection
-- Smooth transitions
-- LocalStorage persistence
-
 **Search & Filtering** ([useExpenseFilters](src/hooks/useExpenseFilters.js)):
 - Text search across expense names
 - Filter by frequency (monthly/quarterly/yearly)
@@ -384,12 +369,6 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 - Click "Ryd filtre" to reset
 - See count of filtered expenses
 
-**Theme Toggle** ✅:
-- Click theme toggle button in header
-- Switch between light and dark mode
-- System preference auto-detected on first use
-- Preference saved to localStorage
-
 **CSV Import** ✅:
 - Go to Settings tab
 - Click "📊 Importer fra CSV"
@@ -407,32 +386,14 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 ## Styling System
 
 **Color Palette**:
-- **Light Mode**:
-  - Primary gradient: `#667eea` → `#764ba2` (purple)
-  - Success: `#10b981` (green)
-  - Error: `#ef4444` (red)
-  - Background: `#f9fafb`
+- Primary gradient: `#667eea` → `#764ba2` (purple)
+- Success: `#10b981` (green)
+- Error: `#ef4444` (red)
+- Background: `#f9fafb`
 
-- **Dark Mode**: ✅
-  - Primary gradient: `#7c3aed` → `#a855f7` (purple)
-  - Success: `#34d399` (green)
-  - Error: `#f87171` (red)
-  - Background: `#1f2937`
-
-**CSS Variables**:
-```css
-[data-theme="light"] {
-  --bg-primary: #f9fafb;
-  --text-primary: #1f2937;
-  /* ... */
-}
-
-[data-theme="dark"] {
-  --bg-primary: #1f2937;
-  --text-primary: #f9fafb;
-  /* ... */
-}
-```
+**CSS Variables**: Defined in [:root](src/index.css)
+- All colors, shadows, and transitions centralized
+- Use `var(--color-primary)`, `var(--shadow-md)`, etc.
 
 **Responsive Breakpoints**:
 - Desktop: Default (>768px)
@@ -458,7 +419,7 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 
 **Phase 1 - Modular Refactoring** (completed):
 - ✅ Component-based architecture
-- ✅ Custom hooks (useExpenses, useAlert, useAuth, useTheme, useExpenseFilters, useSettings)
+- ✅ Custom hooks (useExpenses, useAlert, useAuth, useExpenseFilters, useSettings)
 - ✅ Pure utility functions
 - ✅ Undo/Redo functionality
 - ✅ ErrorBoundary
@@ -477,7 +438,6 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 - ✅ Google OAuth authentication
 - ✅ Real-time multi-device sync
 - ✅ Offline-first architecture
-- ✅ Dark mode support
 - ✅ Search and filter expenses
 - ✅ CSV import functionality
 - ✅ Automatic data migration
@@ -516,7 +476,6 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
   - [ErrorBoundary.test.jsx](src/components/ErrorBoundary.test.jsx) - Error handling
 - ✅ Hook tests for custom hooks:
   - [useAlert.test.js](src/hooks/useAlert.test.js) - Alert notifications
-  - [useTheme.test.js](src/hooks/useTheme.test.js) - Dark mode management
   - [useExpenseFilters.test.js](src/hooks/useExpenseFilters.test.js) - Search & filtering
 - ✅ Utility tests for business logic:
   - [calculations.test.js](src/utils/calculations.test.js) - Budget calculations
@@ -525,10 +484,10 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 
 **Current Metrics**:
 - Total components: 20 (17 core + 3 main views + 2 modals)
-- Custom hooks: 8 (useExpenses, useAlert, useAuth, useSupabaseSync, useTheme, useExpenseFilters, useSettings, useSyncContext)
+- Custom hooks: 7 (useExpenses, useAlert, useAuth, useSupabaseSync, useExpenseFilters, useSettings, useSyncContext)
 - Utility modules: 6 (calculations, validators, exportHelpers, importHelpers, migration, constants)
 - Calculation functions: 8 (annual, monthly, summary, totals, projection, grouping, breakdown, validation)
-- Test files: 8 (comprehensive coverage for hooks, components, and utilities)
+- Test files: 7 (comprehensive coverage for hooks, components, and utilities)
 - Total codebase: ~5500 lines (modular, optimized, test-covered, production-ready)
 - ESLint: Clean, no errors
 - Build size: ~280 KB (compressed: ~85 KB)
@@ -607,7 +566,7 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 ### Adding a New Component
 1. Create `ComponentName.jsx` in [src/components/](src/components/)
 2. Create corresponding `ComponentName.css`
-3. Add dark mode styles with CSS variables
+3. Use CSS variables for consistent styling
 4. Follow prop patterns (callbacks, not setState)
 5. Add JSDoc comments
 6. Export for use in App.jsx
@@ -619,8 +578,7 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 2. **Auth not working**: Verify Google OAuth configuration
 3. **Sync failures**: Check browser console and Supabase logs
 4. **RLS errors**: Verify database policies are correct
-5. **Dark mode issues**: Check CSS variable definitions
-6. **Filter not working**: Verify filter logic in useExpenseFilters
+5. **Filter not working**: Verify filter logic in useExpenseFilters
 
 **Debugging Strategy**:
 - **Pure functions**: Easy to test in isolation
@@ -633,7 +591,7 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 - **Unit Tests**: Comprehensive tests for hooks, utilities, and components
 - **Component Tests**: React Testing Library for UI component behavior
 - **Integration Tests**: Hook interactions and state management
-- **Test Coverage**: Hooks (useAlert, useTheme, useExpenseFilters), Components (Alert, SummaryCards, ErrorBoundary), Utils (calculations, validators)
+- **Test Coverage**: Hooks (useAlert, useExpenseFilters), Components (Alert, SummaryCards, ErrorBoundary), Utils (calculations, validators)
 - **Testing Framework**: Vitest with happy-dom for fast, reliable tests
 
 **Manual Testing Checklist**:
@@ -642,7 +600,6 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 - [ ] Cloud sync (add/edit/delete)
 - [ ] Multi-device sync
 - [ ] Offline operation
-- [ ] Dark mode toggle
 - [ ] Search and filters
 - [ ] CSV import/export
 - [ ] Tab navigation
