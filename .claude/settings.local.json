@@ -19,7 +19,11 @@
       "Bash(cat:*)",
       "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\hooks\\useLocalStorage.js\")",
       "Bash(npm test:*)",
-      "Bash(npm run test:*)"
+      "Bash(npm run test:*)",
+      "Bash(dir /b /s \"c:\\Users\\duran\\source\\repos\\budget\")",
+      "Bash(findstr:*)",
+      "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\App.new.jsx\")",
+      "Bash(git reset:*)"
     ],
     "deny": [],
     "ask": []
