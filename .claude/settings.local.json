@@ -17,7 +17,9 @@
       "Bash(test:*)",
       "Bash(git checkout:*)",
       "Bash(cat:*)",
-      "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\hooks\\useLocalStorage.js\")"
+      "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\hooks\\useLocalStorage.js\")",
+      "Bash(npm test:*)",
+      "Bash(npm run test:*)"
     ],
     "deny": [],
     "ask": []
