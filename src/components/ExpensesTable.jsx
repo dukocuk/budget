@@ -48,13 +48,13 @@ const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onD
   // Update parent on blur - only if value actually changed
   const handleNameBlur = useCallback(() => {
     if (localName !== expense.name) {
-      onUpdate(expense.id, 'name', localName)
+      onUpdate(expense.id, { name: localName })
     }
   }, [expense.id, expense.name, localName, onUpdate])
 
   const handleAmountBlur = useCallback(() => {
     if (localAmount !== expense.amount) {
-      onUpdate(expense.id, 'amount', localAmount)
+      onUpdate(expense.id, { amount: localAmount })
     }
   }, [expense.id, expense.amount, localAmount, onUpdate])
 
@@ -90,7 +90,7 @@ const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onD
       <td>
         <select
           value={expense.frequency}
-          onChange={(e) => onUpdate(expense.id, 'frequency', e.target.value)}
+          onChange={(e) => onUpdate(expense.id, { frequency: e.target.value })}
           aria-label="Frekvens"
         >
           <option value={FREQUENCY_TYPES.MONTHLY}>
@@ -107,7 +107,7 @@ const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onD
       <td>
         <select
           value={expense.startMonth}
-          onChange={(e) => onUpdate(expense.id, 'startMonth', e.target.value)}
+          onChange={(e) => onUpdate(expense.id, { startMonth: parseInt(e.target.value) })}
           aria-label="Start måned"
         >
           {MONTHS.map((month, index) => (
@@ -118,7 +118,7 @@ const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onD
       <td>
         <select
           value={expense.endMonth}
-          onChange={(e) => onUpdate(expense.id, 'endMonth', e.target.value)}
+          onChange={(e) => onUpdate(expense.id, { endMonth: parseInt(e.target.value) })}
           aria-label="Slut måned"
         >
           {MONTHS.map((month, index) => (
