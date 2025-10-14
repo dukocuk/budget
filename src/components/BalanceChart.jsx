@@ -9,11 +9,11 @@ import { calculateBalanceProjection } from '../utils/calculations'
 import { MONTHS } from '../utils/constants'
 import './BalanceChart.css'
 
-export const BalanceChart = React.memo(({ expenses, monthlyPayment, previousBalance }) => {
+export const BalanceChart = React.memo(({ expenses, monthlyPaymentOrArray, previousBalance }) => {
   // Memoize expensive calculations to prevent re-renders
   const balanceData = React.useMemo(
-    () => calculateBalanceProjection(expenses, monthlyPayment, previousBalance),
-    [expenses, monthlyPayment, previousBalance]
+    () => calculateBalanceProjection(expenses, monthlyPaymentOrArray, previousBalance),
+    [expenses, monthlyPaymentOrArray, previousBalance]
   )
 
   // Format data for Recharts (also memoized)
@@ -111,7 +111,11 @@ export const BalanceChart = React.memo(({ expenses, monthlyPayment, previousBala
         </div>
         <div className="legend-item">
           <span className="legend-line legend-dashed" style={{ borderColor: '#10b981' }}></span>
-          <span>Indbetaling: Fast månedlig overførsel til budgetkonto</span>
+          <span>
+            Indbetaling: {Array.isArray(monthlyPaymentOrArray)
+              ? 'Variabel månedlig overførsel til budgetkonto'
+              : 'Fast månedlig overførsel til budgetkonto'}
+          </span>
         </div>
         <div className="legend-item">
           <span className="legend-line legend-dashed" style={{ borderColor: '#ef4444' }}></span>

@@ -377,7 +377,7 @@ function AppContent() {
       <div className="charts-container">
         <BalanceChart
           expenses={expenses}
-          monthlyPayment={settings.monthlyPayment}
+          monthlyPaymentOrArray={settings.monthlyPayments || settings.monthlyPayment}
           previousBalance={settings.previousBalance}
         />
         <ExpenseDistribution expenses={expenses} />
