@@ -98,9 +98,9 @@
 }
 
 .btn-cancel-delete {
-  background: #e5e7eb;
-  color: #374151;
-  border: none;
+  background: #ffffff;
+  color: #1f2937;
+  border: 2px solid #d1d5db;
   padding: 12px 24px;
   border-radius: 8px;
   font-size: 15px;
@@ -111,7 +111,8 @@
 }
 
 .btn-cancel-delete:hover {
-  background: #d1d5db;
+  background: #f9fafb;
+  border-color: #9ca3af;
   transform: translateY(-1px);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
@@ -120,9 +121,15 @@
   transform: translateY(0);
 }
 
+.btn-cancel-delete:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
 .btn-confirm-delete {
   background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  color: white;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
   border: none;
   padding: 12px 24px;
   border-radius: 8px;
@@ -145,6 +152,11 @@
 
 .btn-confirm-delete:active {
   transform: translateY(0);
+}
+
+.btn-confirm-delete:focus {
+  outline: 2px solid #ef4444;
+  outline-offset: 2px;
 }
 
 .delete-confirmation-shortcuts {

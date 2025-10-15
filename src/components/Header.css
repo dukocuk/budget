@@ -135,6 +135,32 @@
   max-width: 150px;
 }
 
+.btn-settings {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-settings:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-settings:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
 .btn-logout {
   background: rgba(239, 68, 68, 0.2);
   color: white;
@@ -205,6 +231,11 @@
 
   .user-name {
     font-size: 12px;
+  }
+
+  .btn-settings {
+    font-size: 14px;
+    padding: 6px 10px;
   }
 
   .btn-logout {

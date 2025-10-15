@@ -42,3 +42,25 @@ export const ALERT_DURATION = 3000
 export const STORAGE_KEY = 'budgetData'
 
 export const INITIAL_EXPENSES = []
+
+/**
+ * Debounce delays for various operations (in milliseconds)
+ */
+export const DEBOUNCE_DELAYS = {
+  INPUT: 300,          // For text input fields (ExpenseManager inline editing)
+  SYNC: 1000,          // For cloud sync operations (useExpenses, SyncContext)
+  SEARCH: 300          // For search/filter inputs
+}
+
+/**
+ * Chart color palette
+ */
+export const CHART_COLORS = ['#667eea', '#764ba2', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+
+/**
+ * Sync status reset timeouts (in milliseconds)
+ */
+export const SYNC_TIMEOUTS = {
+  SUCCESS: 2000,       // How long to show "synced" status before resetting to idle
+  ERROR: 5000          // How long to show error status before resetting to idle
+}

@@ -8,11 +8,67 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react
 import { localDB } from '../lib/pglite'
 import { useSyncContext } from './useSyncContext'
 import { sanitizeExpense } from '../utils/validators'
+import { logger } from '../utils/logger'
 
 /**
  * Hook for managing expenses with local-first architecture
- * @param {string} userId - User ID for filtering expenses
- * @returns {Object} Expense management methods and state
+ *
+ * Features:
+ * - Local-first data storage with PGlite
+ * - Automatic cloud synchronization with debouncing
+ * - Optimistic UI updates for instant feedback
+ * - Undo/Redo functionality with history tracking
+ * - Bulk operations (select/delete multiple expenses)
+ *
+ * @param {string} userId - User ID for filtering expenses (from authentication)
+ *
+ * @returns {Object} Expense management interface
+ * @returns {Array<Object>} returns.expenses - Array of expense objects
+ * @returns {boolean} returns.loading - Loading state during initial data fetch
+ * @returns {string|null} returns.error - Error message if operation failed
+ * @returns {Array<number>} returns.selectedExpenses - Array of selected expense IDs for bulk operations
+ * @returns {Function} returns.addExpense - Add new expense (async)
+ * @returns {Function} returns.updateExpense - Update existing expense (async)
+ * @returns {Function} returns.deleteExpense - Delete single expense (async)
+ * @returns {Function} returns.deleteExpenses - Delete multiple expenses (async)
+ * @returns {Function} returns.deleteSelected - Delete all selected expenses (async)
+ * @returns {Function} returns.importExpenses - Replace all expenses with imported data (async)
+ * @returns {Function} returns.toggleExpenseSelection - Toggle selection state for an expense
+ * @returns {Function} returns.toggleSelectAll - Toggle selection for all expenses
+ * @returns {Function} returns.setAllExpenses - Replace expenses array (for cloud sync)
+ * @returns {Function} returns.undo - Undo last operation
+ * @returns {Function} returns.redo - Redo previously undone operation
+ * @returns {boolean} returns.canUndo - Whether undo is available
+ * @returns {boolean} returns.canRedo - Whether redo is available
+ * @returns {Function} returns.reload - Manually reload expenses from local database
+ *
+ * @example
+ * const {
+ *   expenses,
+ *   loading,
+ *   addExpense,
+ *   updateExpense,
+ *   deleteExpense,
+ *   undo,
+ *   canUndo
+ * } = useExpenses(user.id)
+ *
+ * // Add new expense
+ * await addExpense({
+ *   name: 'Netflix',
+ *   amount: 79,
+ *   frequency: 'monthly',
+ *   startMonth: 1,
+ *   endMonth: 12
+ * })
+ *
+ * // Update expense
+ * await updateExpense(expenseId, { amount: 89 })
+ *
+ * // Undo if needed
+ * if (canUndo) {
+ *   undo()
+ * }
  */
 export const useExpenses = (userId) => {
   const [expenses, setExpenses] = useState([])
@@ -58,7 +114,7 @@ export const useExpenses = (userId) => {
       setExpenses(loadedExpenses)
       setLoading(false)
     } catch (err) {
-      console.error('❌ Error loading expenses from local DB:', err)
+      logger.error('❌ Error loading expenses from local DB:', err)
       setError(err.message)
       setLoading(false)
     }
@@ -90,7 +146,7 @@ export const useExpenses = (userId) => {
           syncExpenses(expensesToSync)
           needsSyncRef.current = false
         }).catch(err => {
-          console.error('❌ Error syncing to cloud:', err)
+          logger.error('❌ Error syncing to cloud:', err)
         })
       }
     }, 1000) // Sync 1 second after last change
@@ -167,7 +223,7 @@ export const useExpenses = (userId) => {
 
       return newExpense
     } catch (err) {
-      console.error('❌ Error adding expense:', err)
+      logger.error('❌ Error adding expense:', err)
       setError(err.message)
       throw err
     }
@@ -240,7 +296,7 @@ export const useExpenses = (userId) => {
       debouncedCloudSync()
 
     } catch (err) {
-      console.error('❌ Error updating expense:', err)
+      logger.error('❌ Error updating expense:', err)
       setError(err.message)
       throw err
     }
@@ -269,7 +325,7 @@ export const useExpenses = (userId) => {
       debouncedCloudSync()
 
     } catch (err) {
-      console.error('❌ Error deleting expense:', err)
+      logger.error('❌ Error deleting expense:', err)
       setError(err.message)
       throw err
     }
@@ -299,7 +355,7 @@ export const useExpenses = (userId) => {
       debouncedCloudSync()
 
     } catch (err) {
-      console.error('❌ Error deleting expenses:', err)
+      logger.error('❌ Error deleting expenses:', err)
       setError(err.message)
       throw err
     }
@@ -345,7 +401,7 @@ export const useExpenses = (userId) => {
       debouncedCloudSync()
 
     } catch (err) {
-      console.error('❌ Error importing expenses:', err)
+      logger.error('❌ Error importing expenses:', err)
       setError(err.message)
       throw err
     }

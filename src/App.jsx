@@ -7,7 +7,6 @@ import { useState, useEffect, useMemo, useReducer, useRef, startTransition } fro
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Header } from './components/Header'
 import { Alert } from './components/Alert'
-import { Settings } from './components/Settings'
 import { SummaryCards } from './components/SummaryCards'
 import { ExpensesTable } from './components/ExpensesTable'
 import { MonthlyOverview } from './components/MonthlyOverview'
@@ -15,6 +14,7 @@ import { TabView } from './components/TabView'
 import { BalanceChart } from './components/BalanceChart'
 import { ExpenseDistribution } from './components/ExpenseDistribution'
 import { AddExpenseModal } from './components/AddExpenseModal'
+import { SettingsModal } from './components/SettingsModal'
 import { DeleteConfirmation } from './components/DeleteConfirmation'
 import Auth from './components/Auth'
 import { useExpenses } from './hooks/useExpenses'
@@ -26,6 +26,7 @@ import { calculateSummary } from './utils/calculations'
 import { generateCSV, downloadCSV } from './utils/exportHelpers'
 import { parseCSV } from './utils/importHelpers'
 import { DEFAULT_SETTINGS } from './utils/constants'
+import { logger } from './utils/logger'
 import './App.css'
 
 /**
@@ -74,6 +75,7 @@ function AppContent() {
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [activeTab, setActiveTab] = useState(0)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
 
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState({
@@ -168,7 +170,7 @@ function AppContent() {
             setIsInitialized(true)
           })
         } catch (error) {
-          console.error('❌ Error loading initial data:', error)
+          logger.error('❌ Error loading initial data:', error)
           // Even on error, ensure loading state is cleared
           startTransition(() => {
             isInitialLoadRef.current = false
@@ -309,7 +311,7 @@ function AppContent() {
 
         // Immediately sync to cloud (bypass debounce for critical operations)
         if (user && isOnline) {
-          console.log(`🗑️ Immediately syncing delete: ${updatedExpenses.length} expenses remaining`)
+          logger.log(`🗑️ Immediately syncing delete: ${updatedExpenses.length} expenses remaining`)
           await immediateSyncExpenses(updatedExpenses)
         }
 
@@ -336,7 +338,7 @@ function AppContent() {
       downloadCSV(csvContent)
       showAlert('CSV fil downloadet!', 'success')
     } catch (error) {
-      console.error('Export error:', error)
+      logger.error('Export error:', error)
       showAlert('Kunne ikke eksportere CSV', 'error')
     }
   }
@@ -364,7 +366,7 @@ function AppContent() {
 
       showAlert(`${result.expenses.length} udgift(er) importeret!`, 'success')
     } catch (error) {
-      console.error('Import error:', error)
+      logger.error('Import error:', error)
       showAlert('Kunne ikke importere CSV fil', 'error')
     }
   }
@@ -418,28 +420,11 @@ function AppContent() {
     </div>
   )
 
-  const SettingsTab = () => (
-    <div className="tab-content-wrapper">
-      <Settings
-        monthlyPayment={settings.monthlyPayment}
-        previousBalance={settings.previousBalance}
-        monthlyPayments={settings.monthlyPayments}
-        useVariablePayments={settings.useVariablePayments}
-        onMonthlyPaymentChange={(value) => dispatchSettings({ type: 'SET_MONTHLY_PAYMENT', payload: value })}
-        onPreviousBalanceChange={(value) => dispatchSettings({ type: 'SET_PREVIOUS_BALANCE', payload: value })}
-        onMonthlyPaymentsChange={(paymentsArray) => dispatchSettings({ type: 'SET_MONTHLY_PAYMENTS', payload: paymentsArray })}
-        onTogglePaymentMode={(useVariable) => dispatchSettings({ type: 'SET_PAYMENT_MODE', payload: useVariable })}
-        onExport={handleExport}
-        onImport={handleImport}
-      />
-    </div>
-  )
-
   return (
     <ErrorBoundary>
       <div className="app" onKeyDown={handleKeyPress}>
         <Alert message={alert?.message} type={alert?.type} />
-        <Header user={user} />
+        <Header user={user} onOpenSettings={() => setShowSettingsModal(true)} />
 
         <DeleteConfirmation
           isOpen={deleteConfirmation.isOpen}
@@ -468,11 +453,6 @@ function AppContent() {
                 icon: '📅',
                 label: 'Månedlig oversigt',
                 content: <MonthlyTab />
-              },
-              {
-                icon: '⚙️',
-                label: 'Indstillinger',
-                content: <SettingsTab />
               }
             ]}
           />
@@ -483,6 +463,22 @@ function AppContent() {
           isOpen={showAddModal}
           onClose={() => setShowAddModal(false)}
           onAdd={handleAddExpense}
+        />
+
+        {/* Settings Modal */}
+        <SettingsModal
+          isOpen={showSettingsModal}
+          onClose={() => setShowSettingsModal(false)}
+          monthlyPayment={settings.monthlyPayment}
+          previousBalance={settings.previousBalance}
+          monthlyPayments={settings.monthlyPayments}
+          useVariablePayments={settings.useVariablePayments}
+          onMonthlyPaymentChange={(value) => dispatchSettings({ type: 'SET_MONTHLY_PAYMENT', payload: value })}
+          onPreviousBalanceChange={(value) => dispatchSettings({ type: 'SET_PREVIOUS_BALANCE', payload: value })}
+          onMonthlyPaymentsChange={(paymentsArray) => dispatchSettings({ type: 'SET_MONTHLY_PAYMENTS', payload: paymentsArray })}
+          onTogglePaymentMode={(useVariable) => dispatchSettings({ type: 'SET_PAYMENT_MODE', payload: useVariable })}
+          onExport={handleExport}
+          onImport={handleImport}
         />
 
         {/* Floating Action Button (FAB) */}

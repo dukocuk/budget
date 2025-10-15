@@ -3,10 +3,8 @@ import { useExpenses } from '../hooks/useExpenses'
 import { useSettings } from '../hooks/useSettings'
 import { calculateSummary, calculateMonthlyTotals, calculateBalanceProjection, groupExpensesByFrequency } from '../utils/calculations'
 import { PieChart, Pie, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
+import { CHART_COLORS, MONTHS } from '../utils/constants'
 import './Dashboard.css'
-
-const COLORS = ['#667eea', '#764ba2', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
-const months = ["Jan", "Feb", "Mar", "Apr", "Maj", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dec"]
 
 export default function Dashboard({ userId }) {
   const { expenses, loading: expensesLoading } = useExpenses(userId)
@@ -44,7 +42,7 @@ export default function Dashboard({ userId }) {
         ? paymentValue
         : Array(12).fill(paymentValue)
 
-      return months.map((month, index) => ({
+      return MONTHS.map((month, index) => ({
         name: month,
         udgifter: monthlyTotals[index],
         indbetaling: payments[index] || 0
@@ -55,7 +53,7 @@ export default function Dashboard({ userId }) {
 
   const balanceData = React.useMemo(
     () => balanceProjection.map(item => ({
-      name: months[item.month - 1],
+      name: MONTHS[item.month - 1],
       balance: item.balance
     })),
     [balanceProjection]
@@ -116,7 +114,7 @@ export default function Dashboard({ userId }) {
                   dataKey="value"
                 >
                   {expensesByFrequency.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip formatter={(value) => `${value.toLocaleString('da-DK')} kr.`} />

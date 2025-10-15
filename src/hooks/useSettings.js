@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { localDB } from '../lib/pglite'
+import { logger } from '../utils/logger'
 
 export function useSettings(userId) {
   const [settings, setSettings] = useState({
@@ -31,7 +32,7 @@ export function useSettings(userId) {
           try {
             monthlyPayments = JSON.parse(dbSettings.monthly_payments)
           } catch (e) {
-            console.error('Error parsing monthly_payments:', e)
+            logger.error('Error parsing monthly_payments:', e)
           }
         }
 
@@ -45,7 +46,7 @@ export function useSettings(userId) {
 
       setLoading(false)
     } catch (err) {
-      console.error('Error loading settings:', err)
+      logger.error('Error loading settings:', err)
       setError(err.message)
       setLoading(false)
     }
@@ -111,7 +112,7 @@ export function useSettings(userId) {
         useVariablePayments: (newSettings.monthlyPayments !== undefined ? newSettings.monthlyPayments : settings.monthlyPayments) !== null
       })
     } catch (err) {
-      console.error('Error updating settings:', err)
+      logger.error('Error updating settings:', err)
       setError(err.message)
       throw err
     }

@@ -4,6 +4,7 @@
 
 import { useRef, useState, useEffect } from 'react'
 import { useSyncContext } from '../hooks/useSyncContext'
+import { PaymentModeConfirmation } from './PaymentModeConfirmation'
 import './Settings.css'
 
 export const Settings = ({
@@ -31,6 +32,8 @@ export const Settings = ({
   const [localPaymentMode, setLocalPaymentMode] = useState(
     useVariablePayments ? 'variable' : 'fixed'
   )
+  const [showModeConfirmation, setShowModeConfirmation] = useState(false)
+  const [pendingMode, setPendingMode] = useState(null)
 
   // Sync local state when props change (e.g., loaded from cloud)
   useEffect(() => {
@@ -64,6 +67,22 @@ export const Settings = ({
 
   // Handler for payment mode toggle
   const handlePaymentModeChange = (mode) => {
+    // Skip confirmation if already in the selected mode
+    if ((mode === 'fixed' && localPaymentMode === 'fixed') ||
+        (mode === 'variable' && localPaymentMode === 'variable')) {
+      return
+    }
+
+    // Show confirmation modal
+    setPendingMode(mode)
+    setShowModeConfirmation(true)
+  }
+
+  // Handler for confirming mode change
+  const handleConfirmModeChange = () => {
+    setShowModeConfirmation(false)
+    const mode = pendingMode
+
     setLocalPaymentMode(mode)
     if (mode === 'fixed') {
       // Switch to fixed: clear variable payments
@@ -81,6 +100,13 @@ export const Settings = ({
         onTogglePaymentMode(true)
       }
     }
+    setPendingMode(null)
+  }
+
+  // Handler for cancelling mode change
+  const handleCancelModeChange = () => {
+    setShowModeConfirmation(false)
+    setPendingMode(null)
   }
 
   // Handler for updating specific month
@@ -118,8 +144,15 @@ export const Settings = ({
   const statusDisplay = getSyncStatusDisplay()
 
   return (
-    <section className="settings-section">
-      <h2>⚙️ Indstillinger</h2>
+    <>
+      <PaymentModeConfirmation
+        isOpen={showModeConfirmation}
+        mode={pendingMode}
+        onConfirm={handleConfirmModeChange}
+        onCancel={handleCancelModeChange}
+      />
+      <section className="settings-section">
+        <h2>⚙️ Indstillinger</h2>
 
       {/* Sync Status */}
       <div className="sync-status-container">
@@ -272,5 +305,6 @@ export const Settings = ({
         </p>
       </div>
     </section>
+    </>
   )
 }

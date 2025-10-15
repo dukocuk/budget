@@ -2,9 +2,10 @@
  * Summary cards component
  */
 
+import { memo } from 'react'
 import './SummaryCards.css'
 
-export const SummaryCards = ({ summary }) => {
+export const SummaryCards = memo(({ summary }) => {
   const { totalAnnual, avgMonthly, monthlyBalance, annualReserve } = summary
 
   return (
@@ -36,4 +37,4 @@ export const SummaryCards = ({ summary }) => {
       </div>
     </section>
   )
-}
+})

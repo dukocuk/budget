@@ -65,8 +65,32 @@ export function getMonthlyPayment(defaultPayment, monthlyPayments, month) {
 }
 
 /**
- * Calculate budget summary
+ * Calculate budget summary with annual and monthly metrics
  * Supports both fixed monthly payment and variable monthly payments array
+ *
+ * @param {Array<Object>} expenses - Array of expense objects
+ * @param {number|Array<number>} monthlyPaymentOrArray - Fixed monthly amount or array of 12 monthly amounts
+ * @param {number} previousBalance - Carryover balance from previous year
+ *
+ * @returns {Object} Budget summary metrics
+ * @returns {number} returns.totalAnnual - Total annual expenses
+ * @returns {number} returns.avgMonthly - Average monthly expenses
+ * @returns {number} returns.avgMonthlyIncome - Average monthly income
+ * @returns {number} returns.monthlyBalance - Monthly surplus/deficit
+ * @returns {number} returns.annualReserve - Projected year-end balance
+ *
+ * @example
+ * const summary = calculateSummary(
+ *   expenses,
+ *   5700, // Fixed monthly payment
+ *   4831  // Previous balance
+ * )
+ * console.log(summary.monthlyBalance) // e.g., +1200 kr. surplus
+ *
+ * @example
+ * // Variable payments
+ * const payments = [5000, 5000, 5000, ...] // 12 values
+ * const summary = calculateSummary(expenses, payments, 4831)
  */
 export function calculateSummary(expenses, monthlyPaymentOrArray, previousBalance) {
   const totalAnnual = expenses.reduce((sum, expense) =>

@@ -2,9 +2,10 @@
  * Alert notification component
  */
 
+import { memo } from 'react'
 import './Alert.css'
 
-export const Alert = ({ message, type }) => {
+export const Alert = memo(({ message, type }) => {
   if (!message) return null
 
   return (
@@ -12,4 +13,4 @@ export const Alert = ({ message, type }) => {
       {message}
     </div>
   )
-}
+})

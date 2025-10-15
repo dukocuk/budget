@@ -2,7 +2,7 @@
  * Delete confirmation component - replaces browser alerts with custom UI
  */
 
-import { useEffect } from 'react'
+import { useEffect, memo } from 'react'
 import './DeleteConfirmation.css'
 
 /**
@@ -13,7 +13,7 @@ import './DeleteConfirmation.css'
  * @param {string} expenseName - Name of expense to delete (for single delete)
  * @param {number} count - Number of expenses to delete (for bulk delete)
  */
-export const DeleteConfirmation = ({ isOpen, onConfirm, onCancel, expenseName, count }) => {
+export const DeleteConfirmation = memo(({ isOpen, onConfirm, onCancel, expenseName, count }) => {
   // Handle keyboard shortcuts
   useEffect(() => {
     if (!isOpen) return
@@ -75,4 +75,4 @@ export const DeleteConfirmation = ({ isOpen, onConfirm, onCancel, expenseName, c
       </div>
     </>
   )
-}
+})

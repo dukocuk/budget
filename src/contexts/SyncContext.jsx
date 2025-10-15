@@ -8,6 +8,7 @@
 
 import { createContext, useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { logger } from '../utils/logger'
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const SyncContext = createContext(null)
@@ -142,7 +143,7 @@ export const SyncProvider = ({ user, children }) => {
       }, 2000)
 
     } catch (error) {
-      console.error('❌ Error syncing expenses:', error)
+      logger.error('❌ Error syncing expenses:', error)
       updateSyncError(error.message)
       updateSyncStatus('error')
 
@@ -197,7 +198,7 @@ export const SyncProvider = ({ user, children }) => {
       }, 2000)
 
     } catch (error) {
-      console.error('Error syncing settings:', error)
+      logger.error('Error syncing settings:', error)
       updateSyncError(error.message)
       updateSyncStatus('error')
 
@@ -278,7 +279,7 @@ export const SyncProvider = ({ user, children }) => {
       return { success: true, data: expenses }
 
     } catch (error) {
-      console.error('Error loading expenses:', error)
+      logger.error('Error loading expenses:', error)
       updateSyncError(error.message)
       updateSyncStatus('error')
 
@@ -322,7 +323,7 @@ export const SyncProvider = ({ user, children }) => {
       return { success: false, data: null }
 
     } catch (error) {
-      console.error('Error loading settings:', error)
+      logger.error('Error loading settings:', error)
       return { success: false, data: null }
     }
   }, [user, isOnline])

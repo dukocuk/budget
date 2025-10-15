@@ -26,7 +26,9 @@
       "Bash(git reset:*)",
       "Bash(npx eslint:*)",
       "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\hooks\\useTheme.js\")",
-      "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\hooks\\useTheme.test.js\")"
+      "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\hooks\\useTheme.test.js\")",
+      "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\hooks\\useSupabaseSync.js\")",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

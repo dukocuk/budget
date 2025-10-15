@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useSyncContext } from '../hooks/useSyncContext'
 import './Header.css'
 
-export const Header = ({ user }) => {
+export const Header = ({ user, onOpenSettings }) => {
   const { signOut } = useAuth()
   const [imageError, setImageError] = useState(false)
 
@@ -77,6 +77,10 @@ export const Header = ({ user }) => {
                 </span>
               </div>
             </div>
+
+            <button onClick={onOpenSettings} className="btn-settings" title="Indstillinger">
+              ⚙️
+            </button>
 
             <button onClick={signOut} className="btn-logout" title="Log ud">
               ↪️ Log ud
