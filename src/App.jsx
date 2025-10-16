@@ -27,6 +27,7 @@ import { generateCSV, downloadCSV } from './utils/exportHelpers'
 import { parseCSV } from './utils/importHelpers'
 import { DEFAULT_SETTINGS } from './utils/constants'
 import { logger } from './utils/logger'
+import { migrateExpensesToUUID } from './lib/pglite'
 import './App.css'
 
 /**
@@ -138,6 +139,9 @@ function AppContent() {
         setIsLoadingData(true)
 
         try {
+          // MIGRATION: Convert numeric IDs to UUIDs (one-time operation)
+          await migrateExpensesToUUID()
+
           // Load expenses and settings in PARALLEL to reduce load time
           const [expensesResult, settingsResult] = await Promise.all([
             loadExpenses(),

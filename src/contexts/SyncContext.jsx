@@ -89,8 +89,9 @@ export const SyncProvider = ({ user, children }) => {
   }, [updateSyncStatus])
 
   /**
-   * Sync expenses to Supabase using transaction-safe replace strategy
-   * Uses a single transaction to ensure data consistency
+   * Smart sync expenses to Supabase using merge-based strategy
+   * Implements last-write-wins conflict resolution with timestamp comparison
+   * Preserves UUIDs and handles concurrent edits from multiple devices
    */
   const syncExpenses = useCallback(async (expenses) => {
     if (!user || !isOnline || isSyncingRef.current) return
@@ -100,34 +101,89 @@ export const SyncProvider = ({ user, children }) => {
       updateSyncStatus('syncing')
       updateSyncError(null)
 
-      // Atomically replace all expenses with current state
-      // This handles adds, updates, AND deletions (including deleting all)
-
-      // Delete all existing expenses for this user
-      const { error: deleteError } = await supabase
+      // Step 1: Fetch current cloud state
+      const { data: cloudExpenses, error: fetchError } = await supabase
         .from('expenses')
-        .delete()
+        .select('*')
         .eq('user_id', user.id)
 
-      if (deleteError) throw deleteError
+      if (fetchError) throw fetchError
 
-      // Insert all current expenses (let Supabase generate UUIDs)
-      if (expenses.length > 0) {
-        const expensesData = expenses.map(expense => ({
-          // Omit 'id' - let database generate UUID automatically
-          user_id: user.id,
-          name: expense.name,
-          amount: expense.amount,
-          frequency: expense.frequency,
-          start_month: expense.startMonth,
-          end_month: expense.endMonth
-        }))
+      // Step 2: Build maps for efficient comparison
+      const cloudMap = new Map((cloudExpenses || []).map(e => [e.id, e]))
+      const localMap = new Map(expenses.map(e => [e.id, e]))
 
-        const { error: insertError } = await supabase
+      // Step 3: Determine operations (upsert, delete)
+      const toUpsert = []
+      const toDelete = []
+
+      // Check local expenses for upserts (add or update)
+      for (const localExpense of expenses) {
+        const cloudExpense = cloudMap.get(localExpense.id)
+
+        if (!cloudExpense) {
+          // New expense - insert with client-provided UUID
+          toUpsert.push({
+            id: localExpense.id,
+            user_id: user.id,
+            name: localExpense.name,
+            amount: localExpense.amount,
+            frequency: localExpense.frequency,
+            start_month: localExpense.startMonth,
+            end_month: localExpense.endMonth,
+            updated_at: new Date().toISOString()
+          })
+        } else {
+          // Existing expense - check if local is newer
+          const localUpdated = new Date(localExpense.updatedAt || 0)
+          const cloudUpdated = new Date(cloudExpense.updated_at || 0)
+
+          if (localUpdated >= cloudUpdated) {
+            // Local version is newer or equal - update cloud
+            toUpsert.push({
+              id: localExpense.id,
+              user_id: user.id,
+              name: localExpense.name,
+              amount: localExpense.amount,
+              frequency: localExpense.frequency,
+              start_month: localExpense.startMonth,
+              end_month: localExpense.endMonth,
+              updated_at: localUpdated.toISOString()
+            })
+          }
+          // If cloud is newer, we skip (don't overwrite newer cloud data)
+        }
+      }
+
+      // Check cloud expenses for deletions
+      for (const cloudExpense of cloudExpenses || []) {
+        if (!localMap.has(cloudExpense.id)) {
+          // Expense exists in cloud but not local - delete from cloud
+          toDelete.push(cloudExpense.id)
+        }
+      }
+
+      // Step 4: Execute operations
+      if (toUpsert.length > 0) {
+        const { error: upsertError } = await supabase
           .from('expenses')
-          .insert(expensesData)
+          .upsert(toUpsert, {
+            onConflict: 'id',
+            ignoreDuplicates: false
+          })
 
-        if (insertError) throw insertError
+        if (upsertError) throw upsertError
+        logger.log(`✅ Synced ${toUpsert.length} expenses to cloud`)
+      }
+
+      if (toDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('expenses')
+          .delete()
+          .in('id', toDelete)
+
+        if (deleteError) throw deleteError
+        logger.log(`🗑️ Deleted ${toDelete.length} expenses from cloud`)
       }
 
       updateSyncStatus('synced')
@@ -242,7 +298,7 @@ export const SyncProvider = ({ user, children }) => {
 
   /**
    * Load expenses from Supabase
-   * Note: Converts UUID to local numeric IDs for backward compatibility
+   * Preserves UUIDs for consistent multi-device sync
    */
   const loadExpenses = useCallback(async () => {
     if (!user || !isOnline) return { success: false, data: [] }
@@ -258,15 +314,16 @@ export const SyncProvider = ({ user, children }) => {
 
       if (error) throw error
 
-      // Transform data to match app format
-      // Convert UUID to numeric ID for local state (sequential numbering)
-      const expenses = (data || []).map((expense, index) => ({
-        id: index + 1, // Generate sequential local IDs
+      // Transform data to match app format - preserve UUIDs
+      const expenses = (data || []).map((expense) => ({
+        id: expense.id, // Preserve UUID from cloud
         name: expense.name,
         amount: parseFloat(expense.amount),
         frequency: expense.frequency,
         startMonth: expense.start_month,
-        endMonth: expense.end_month
+        endMonth: expense.end_month,
+        createdAt: expense.created_at,
+        updatedAt: expense.updated_at
       }))
 
       updateSyncStatus('synced')

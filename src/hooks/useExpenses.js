@@ -9,6 +9,7 @@ import { localDB } from '../lib/pglite'
 import { useSyncContext } from './useSyncContext'
 import { sanitizeExpense } from '../utils/validators'
 import { logger } from '../utils/logger'
+import { generateUUID } from '../utils/uuid'
 
 /**
  * Hook for managing expenses with local-first architecture
@@ -171,13 +172,16 @@ export const useExpenses = (userId) => {
   }, [])
 
   /**
-   * Add new expense (optimistic update)
+   * Add new expense (optimistic update with UUID)
    */
   const addExpense = useCallback(async (expenseData) => {
     if (!userId) return
 
     try {
       setError(null)
+
+      // Generate UUID for new expense
+      const newId = generateUUID()
 
       // Sanitize input
       const sanitized = sanitizeExpense({
@@ -188,30 +192,34 @@ export const useExpenses = (userId) => {
         endMonth: expenseData.endMonth || 12
       })
 
-      // Insert into local database
-      const result = await localDB.query(
-        `INSERT INTO expenses (user_id, name, amount, frequency, start_month, end_month)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING *`,
+      const now = new Date().toISOString()
+
+      // Insert into local database with client-generated UUID
+      await localDB.query(
+        `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
+          newId,
           userId,
           sanitized.name,
           sanitized.amount,
           sanitized.frequency,
           sanitized.startMonth,
-          sanitized.endMonth
+          sanitized.endMonth,
+          now,
+          now
         ]
       )
 
       const newExpense = {
-        id: result.rows[0].id,
-        name: result.rows[0].name,
-        amount: result.rows[0].amount,
-        frequency: result.rows[0].frequency,
-        startMonth: result.rows[0].start_month,
-        endMonth: result.rows[0].end_month,
-        createdAt: result.rows[0].created_at,
-        updatedAt: result.rows[0].updated_at
+        id: newId,
+        name: sanitized.name,
+        amount: sanitized.amount,
+        frequency: sanitized.frequency,
+        startMonth: sanitized.startMonth,
+        endMonth: sanitized.endMonth,
+        createdAt: now,
+        updatedAt: now
       }
 
       // Optimistic UI update - add to local state immediately
@@ -362,7 +370,7 @@ export const useExpenses = (userId) => {
   }, [userId, debouncedCloudSync])
 
   /**
-   * Import expenses (replace all)
+   * Import expenses (replace all with UUID generation)
    */
   const importExpenses = useCallback(async (newExpenses) => {
     if (!userId) return
@@ -376,19 +384,26 @@ export const useExpenses = (userId) => {
         [userId]
       )
 
-      // Insert new expenses
+      const now = new Date().toISOString()
+
+      // Insert new expenses with generated UUIDs
       for (const expense of newExpenses) {
         const sanitized = sanitizeExpense(expense)
+        const newId = generateUUID()
+
         await localDB.query(
-          `INSERT INTO expenses (user_id, name, amount, frequency, start_month, end_month)
-           VALUES ($1, $2, $3, $4, $5, $6)`,
+          `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
           [
+            newId,
             userId,
             sanitized.name,
             sanitized.amount,
             sanitized.frequency,
             sanitized.startMonth,
-            sanitized.endMonth
+            sanitized.endMonth,
+            now,
+            now
           ]
         )
       }

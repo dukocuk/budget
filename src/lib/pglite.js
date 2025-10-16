@@ -7,10 +7,10 @@ export const localDB = new PGlite('idb://budget-db')
 // Initialize local database schema (mirrors Supabase schema)
 export async function initLocalDB() {
   try {
-    // Expenses table
+    // Expenses table - Using UUID for consistent IDs across local and cloud
     await localDB.exec(`
       CREATE TABLE IF NOT EXISTS expenses (
-        id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         name TEXT NOT NULL,
         amount INTEGER NOT NULL CHECK (amount > 0),
@@ -101,34 +101,37 @@ export async function migrateSettingsTable() {
   }
 }
 
-// Migration: Fix expenses table to use auto-incrementing ID
-export async function migrateExpensesTable() {
+// Migration: Migrate expenses table from numeric IDs to UUIDs
+export async function migrateExpensesToUUID() {
   try {
-    // Check if migration is needed by testing if ID is auto-increment
+    // Check if migration is needed by testing ID column type
     const testResult = await localDB.query(`
-      SELECT column_default
+      SELECT data_type
       FROM information_schema.columns
       WHERE table_name = 'expenses'
       AND column_name = 'id'
     `)
 
-    const hasAutoIncrement = testResult.rows[0]?.column_default?.includes('nextval')
+    const isTextId = testResult.rows[0]?.data_type === 'text'
 
-    if (hasAutoIncrement) {
-      console.log('✅ Expenses table already has auto-increment ID')
+    if (isTextId) {
+      console.log('✅ Expenses table already uses UUID (TEXT) IDs')
       return
     }
 
-    console.log('🔄 Migrating expenses table to use auto-increment ID...')
+    console.log('🔄 Migrating expenses table from numeric IDs to UUIDs...')
+
+    // Import UUID generator
+    const { generateUUID } = await import('../utils/uuid.js')
 
     // Backup existing data
     const backup = await localDB.query('SELECT * FROM expenses')
 
-    // Drop and recreate table with correct schema
+    // Drop and recreate table with UUID schema
     await localDB.exec('DROP TABLE IF EXISTS expenses CASCADE')
     await localDB.exec(`
       CREATE TABLE expenses (
-        id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         name TEXT NOT NULL,
         amount INTEGER NOT NULL CHECK (amount > 0),
@@ -140,12 +143,14 @@ export async function migrateExpensesTable() {
       )
     `)
 
-    // Restore data (without explicit IDs - let them auto-generate)
+    // Restore data with new UUIDs
     for (const row of backup.rows) {
+      const newId = generateUUID()
       await localDB.query(
-        `INSERT INTO expenses (user_id, name, amount, frequency, start_month, end_month, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
+          newId,
           row.user_id,
           row.name,
           row.amount,
@@ -164,9 +169,9 @@ export async function migrateExpensesTable() {
       CREATE INDEX IF NOT EXISTS idx_expenses_frequency ON expenses(frequency);
     `)
 
-    console.log(`✅ Migration complete: Restored ${backup.rows.length} expenses with new auto-increment IDs`)
+    console.log(`✅ Migration complete: Converted ${backup.rows.length} expenses to UUID-based IDs`)
   } catch (error) {
-    console.error('❌ Error migrating expenses table:', error)
+    console.error('❌ Error migrating expenses table to UUID:', error)
     throw error
   }
 }
