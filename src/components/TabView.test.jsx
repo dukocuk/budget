@@ -165,8 +165,8 @@ describe('TabView', () => {
       const chartsTab = screen.getByLabelText('Charts')
       fireEvent.mouseEnter(chartsTab.closest('.tab-wrapper'))
 
-      expect(screen.getByText('Line Chart')).toBeInTheDocument()
-      expect(screen.getByText('Pie Chart')).toBeInTheDocument()
+      expect(screen.getByText('Line Chart', { selector: '.dropdown-label' })).toBeInTheDocument()
+      expect(screen.getByText('Pie Chart', { selector: '.dropdown-label' })).toBeInTheDocument()
     })
 
     it('should hide dropdown on mouse leave', () => {
@@ -174,10 +174,10 @@ describe('TabView', () => {
 
       const wrapper = screen.getByLabelText('Charts').closest('.tab-wrapper')
       fireEvent.mouseEnter(wrapper)
-      expect(screen.getByText('Line Chart')).toBeInTheDocument()
+      expect(screen.getByText('Line Chart', { selector: '.dropdown-label' })).toBeInTheDocument()
 
       fireEvent.mouseLeave(wrapper)
-      expect(screen.queryByText('Line Chart')).not.toBeInTheDocument()
+      expect(screen.queryByText('Line Chart', { selector: '.dropdown-label' })).not.toBeInTheDocument()
     })
 
     it('should show first dropdown item content by default', () => {

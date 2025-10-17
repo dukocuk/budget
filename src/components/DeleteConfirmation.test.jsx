@@ -51,7 +51,9 @@ describe('DeleteConfirmation', () => {
         />
       )
 
-      expect(screen.getByText('🗑️')).toBeInTheDocument()
+      const icon = document.querySelector('.delete-confirmation-icon')
+      expect(icon).toBeInTheDocument()
+      expect(icon).toHaveTextContent('🗑️')
     })
 
     it('should render action buttons', () => {

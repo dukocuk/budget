@@ -234,15 +234,21 @@ describe('useExpenses', () => {
         expect(result.current.loading).toBe(false)
       })
 
-      await expect(
-        act(async () => {
+      let thrownError
+      try {
+        await act(async () => {
           await result.current.addExpense({ name: 'Test' })
         })
-      ).rejects.toThrow('Insert failed')
+      } catch (error) {
+        thrownError = error
+      }
 
-      await waitFor(() => {
-        expect(result.current.error).toBe('Insert failed')
-      })
+      expect(thrownError).toBeDefined()
+      expect(thrownError.message).toBe('Insert failed')
+
+      await new Promise(resolve => setTimeout(resolve, 0))
+
+      expect(result.current.error).toBe('Insert failed')
     })
   })
 
@@ -374,15 +380,21 @@ describe('useExpenses', () => {
 
       mockQuery.mockRejectedValueOnce(new Error('Update failed'))
 
-      await expect(
-        act(async () => {
+      let thrownError
+      try {
+        await act(async () => {
           await result.current.updateExpense('exp-1', { amount: 89 })
         })
-      ).rejects.toThrow('Update failed')
+      } catch (error) {
+        thrownError = error
+      }
 
-      await waitFor(() => {
-        expect(result.current.error).toBe('Update failed')
-      })
+      expect(thrownError).toBeDefined()
+      expect(thrownError.message).toBe('Update failed')
+
+      await new Promise(resolve => setTimeout(resolve, 0))
+
+      expect(result.current.error).toBe('Update failed')
     })
   })
 
@@ -481,15 +493,21 @@ describe('useExpenses', () => {
 
       mockQuery.mockRejectedValueOnce(new Error('Delete failed'))
 
-      await expect(
-        act(async () => {
+      let thrownError
+      try {
+        await act(async () => {
           await result.current.deleteExpense('exp-1')
         })
-      ).rejects.toThrow('Delete failed')
+      } catch (error) {
+        thrownError = error
+      }
 
-      await waitFor(() => {
-        expect(result.current.error).toBe('Delete failed')
-      })
+      expect(thrownError).toBeDefined()
+      expect(thrownError.message).toBe('Delete failed')
+
+      await new Promise(resolve => setTimeout(resolve, 0))
+
+      expect(result.current.error).toBe('Delete failed')
     })
   })
 

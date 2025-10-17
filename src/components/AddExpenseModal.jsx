@@ -7,8 +7,10 @@ import Modal from 'react-modal'
 import { MONTHS, FREQUENCY_LABELS, FREQUENCY_TYPES, DEFAULT_EXPENSE } from '../utils/constants'
 import './AddExpenseModal.css'
 
-// Set app element for accessibility
-Modal.setAppElement('#root')
+// Set app element for accessibility (only if root exists)
+if (typeof document !== 'undefined' && document.querySelector('#root')) {
+  Modal.setAppElement('#root')
+}
 
 /**
  * AddExpenseModal component

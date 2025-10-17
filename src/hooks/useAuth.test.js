@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { useAuth } from './useAuth'
 
 // Mock Supabase
@@ -177,7 +177,9 @@ describe('useAuth', () => {
         expect(result.current.loading).toBe(false)
       })
 
-      await result.current.signInWithGoogle()
+      await act(async () => {
+        await result.current.signInWithGoogle()
+      })
 
       expect(mockSignInWithOAuth).toHaveBeenCalledWith({
         provider: 'google',
@@ -203,7 +205,9 @@ describe('useAuth', () => {
         expect(result.current.error).toBe('Previous error')
       })
 
-      await result.current.signInWithGoogle()
+      await act(async () => {
+        await result.current.signInWithGoogle()
+      })
 
       // Error should be cleared during sign in attempt
       await waitFor(() => {
@@ -221,8 +225,19 @@ describe('useAuth', () => {
       const mockError = { message: 'Google OAuth failed' }
       mockSignInWithOAuth.mockResolvedValue({ error: mockError })
 
-      await expect(result.current.signInWithGoogle()).rejects.toThrow()
+      let thrownError
+      try {
+        await act(async () => {
+          await result.current.signInWithGoogle()
+        })
+      } catch (error) {
+        thrownError = error
+      }
 
+      expect(thrownError).toBeDefined()
+      expect(thrownError.message).toBe('Google OAuth failed')
+
+      // Wait for error state to be set
       await waitFor(() => {
         expect(result.current.error).toBe('Google OAuth failed')
       })
@@ -239,12 +254,19 @@ describe('useAuth', () => {
         error: { message: 'Network error' }
       })
 
+      let thrownError
       try {
-        await result.current.signInWithGoogle()
+        await act(async () => {
+          await result.current.signInWithGoogle()
+        })
       } catch (error) {
-        // Expected to throw
+        thrownError = error
       }
 
+      expect(thrownError).toBeDefined()
+      expect(thrownError.message).toBe('Network error')
+
+      // Wait for error state to be set
       await waitFor(() => {
         expect(result.current.error).toBe('Network error')
       })
@@ -259,7 +281,9 @@ describe('useAuth', () => {
         expect(result.current.loading).toBe(false)
       })
 
-      await result.current.signOut()
+      await act(async () => {
+        await result.current.signOut()
+      })
 
       expect(mockSignOut).toHaveBeenCalled()
     })
@@ -276,7 +300,9 @@ describe('useAuth', () => {
         expect(result.current.error).toBe('Previous error')
       })
 
-      await result.current.signOut()
+      await act(async () => {
+        await result.current.signOut()
+      })
 
       // Error should be cleared
       await waitFor(() => {
@@ -294,11 +320,21 @@ describe('useAuth', () => {
       const mockError = { message: 'Sign out failed' }
       mockSignOut.mockResolvedValue({ error: mockError })
 
-      await expect(result.current.signOut()).rejects.toThrow()
+      let thrownError
+      try {
+        await act(async () => {
+          await result.current.signOut()
+        })
+      } catch (error) {
+        thrownError = error
+      }
 
-      await waitFor(() => {
-        expect(result.current.error).toBe('Sign out failed')
-      })
+      expect(thrownError).toBeDefined()
+      expect(thrownError.message).toBe('Sign out failed')
+
+      await new Promise(resolve => setTimeout(resolve, 0))
+
+      expect(result.current.error).toBe('Sign out failed')
     })
   })
 
@@ -371,10 +407,11 @@ describe('useAuth', () => {
       })
 
       // Call signInWithGoogle twice concurrently
-      const promise1 = result.current.signInWithGoogle()
-      const promise2 = result.current.signInWithGoogle()
-
-      await Promise.all([promise1, promise2])
+      await act(async () => {
+        const promise1 = result.current.signInWithGoogle()
+        const promise2 = result.current.signInWithGoogle()
+        await Promise.all([promise1, promise2])
+      })
 
       // Should have been called twice
       expect(mockSignInWithOAuth).toHaveBeenCalledTimes(2)
