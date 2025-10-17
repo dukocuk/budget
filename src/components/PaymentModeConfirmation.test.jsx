@@ -31,7 +31,7 @@ describe('PaymentModeConfirmation', () => {
     )
 
     expect(screen.getByText('💰 Skift til fast beløb?')).toBeInTheDocument()
-    expect(screen.getByText(/Dine variable månedlige beløb vil blive nulstillet/)).toBeInTheDocument()
+    expect(screen.getByText(/Dine nuværende variable beløb vil blive nulstillet/)).toBeInTheDocument()
   })
 
   it('should render with variable mode message', () => {
@@ -45,7 +45,7 @@ describe('PaymentModeConfirmation', () => {
     )
 
     expect(screen.getByText('💰 Skift til variabel beløb?')).toBeInTheDocument()
-    expect(screen.getByText(/Alle måneder vil blive initialiseret med det aktuelle faste beløb/)).toBeInTheDocument()
+    expect(screen.getByText(/Alle måneder initialiseres med det faste beløb/)).toBeInTheDocument()
   })
 
   it('should call onCancel when cancel button is clicked', async () => {

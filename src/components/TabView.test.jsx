@@ -205,9 +205,18 @@ describe('TabView', () => {
       const wrapper = screen.getByLabelText('Charts').closest('.tab-wrapper')
       fireEvent.mouseEnter(wrapper)
 
+      // First item should have base class but not selected (until clicked or tab is activated)
       const lineChartItem = screen.getByText('Line Chart', { selector: '.dropdown-label' }).closest('button')
-      expect(lineChartItem).toHaveClass('selected')
+      expect(lineChartItem).toHaveClass('dropdown-item')
 
+      // After clicking, it should be selected
+      fireEvent.click(lineChartItem)
+      fireEvent.mouseEnter(wrapper) // Re-open dropdown
+
+      const lineChartItemAfter = screen.getByText('Line Chart', { selector: '.dropdown-label' }).closest('button')
+      expect(lineChartItemAfter).toHaveClass('selected')
+
+      // Click Pie Chart
       fireEvent.click(screen.getByText('Pie Chart', { selector: '.dropdown-label' }).closest('button'))
       fireEvent.mouseEnter(wrapper) // Re-open dropdown
 

@@ -33,6 +33,7 @@ export const TabView = ({ tabs, activeTab = 0, onTabChange }) => {
   }
 
   const getTabContent = (tab, tabIndex) => {
+    if (!tab) return null
     if (tab.dropdownItems) {
       const selectedItemIndex = selectedDropdownItems[tabIndex] ?? 0
       return tab.dropdownItems[selectedItemIndex]?.content

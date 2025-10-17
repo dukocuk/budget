@@ -86,11 +86,13 @@ export function useAuth() {
         }
       })
 
-      if (error) throw error
+      if (error) {
+        logger.error('Error signing in with Google:', error)
+        setError(error.message)
+      }
     } catch (err) {
       logger.error('Error signing in with Google:', err)
       setError(err.message)
-      throw err
     }
   }
 
@@ -98,11 +100,13 @@ export function useAuth() {
     try {
       setError(null)
       const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      if (error) {
+        logger.error('Error signing out:', error)
+        setError(error.message)
+      }
     } catch (err) {
       logger.error('Error signing out:', err)
       setError(err.message)
-      throw err
     }
   }
 

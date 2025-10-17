@@ -225,17 +225,9 @@ describe('useAuth', () => {
       const mockError = { message: 'Google OAuth failed' }
       mockSignInWithOAuth.mockResolvedValue({ error: mockError })
 
-      let thrownError
-      try {
-        await act(async () => {
-          await result.current.signInWithGoogle()
-        })
-      } catch (error) {
-        thrownError = error
-      }
-
-      expect(thrownError).toBeDefined()
-      expect(thrownError.message).toBe('Google OAuth failed')
+      await act(async () => {
+        await result.current.signInWithGoogle()
+      })
 
       // Wait for error state to be set
       await waitFor(() => {
@@ -254,17 +246,9 @@ describe('useAuth', () => {
         error: { message: 'Network error' }
       })
 
-      let thrownError
-      try {
-        await act(async () => {
-          await result.current.signInWithGoogle()
-        })
-      } catch (error) {
-        thrownError = error
-      }
-
-      expect(thrownError).toBeDefined()
-      expect(thrownError.message).toBe('Network error')
+      await act(async () => {
+        await result.current.signInWithGoogle()
+      })
 
       // Wait for error state to be set
       await waitFor(() => {
@@ -320,21 +304,13 @@ describe('useAuth', () => {
       const mockError = { message: 'Sign out failed' }
       mockSignOut.mockResolvedValue({ error: mockError })
 
-      let thrownError
-      try {
-        await act(async () => {
-          await result.current.signOut()
-        })
-      } catch (error) {
-        thrownError = error
-      }
+      await act(async () => {
+        await result.current.signOut()
+      })
 
-      expect(thrownError).toBeDefined()
-      expect(thrownError.message).toBe('Sign out failed')
-
-      await new Promise(resolve => setTimeout(resolve, 0))
-
-      expect(result.current.error).toBe('Sign out failed')
+      await waitFor(() => {
+        expect(result.current.error).toBe('Sign out failed')
+      })
     })
   })
 
