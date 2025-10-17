@@ -53,7 +53,14 @@ export function parseCSV(csvContent) {
       const line = lines[i].trim()
 
       // Stop at empty line or summary section
-      if (!line || line.toLowerCase().includes('total') || line.toLowerCase().includes('månedlig')) {
+      // Check if the line starts with common section headers (not expense data)
+      const lineLower = line.toLowerCase()
+      if (!line ||
+          lineLower.startsWith('total') ||
+          lineLower.startsWith('månedlig oversigt') ||
+          lineLower.startsWith('opsummering') ||
+          lineLower.startsWith('monthly overview') ||
+          lineLower.startsWith('summary')) {
         break
       }
 
@@ -88,8 +95,25 @@ export function parseCSV(csvContent) {
  * @returns {Object|null} Expense object or null
  */
 function parseExpenseLine(line) {
-  // Split by comma (handle quoted fields)
-  const fields = line.split(',').map(f => f.trim().replace(/^"|"$/g, ''))
+  // Split by comma, properly handling quoted fields with commas inside
+  const fields = []
+  let currentField = ''
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+
+    if (char === '"') {
+      inQuotes = !inQuotes
+    } else if (char === ',' && !inQuotes) {
+      fields.push(currentField.trim().replace(/^"|"$/g, ''))
+      currentField = ''
+    } else {
+      currentField += char
+    }
+  }
+  // Push the last field
+  fields.push(currentField.trim().replace(/^"|"$/g, ''))
 
   if (fields.length < 5) {
     throw new Error('Mangler påkrævede felter (mindst 5 kolonner krævet)')

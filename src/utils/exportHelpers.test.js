@@ -127,16 +127,59 @@ describe('generateCSV', () => {
       ]
       const csv = generateCSV(expenses, 5700, 0)
 
+      // Debug: Log the actual CSV to understand the structure
+      // console.log('CSV Output:', csv)
+
+      // The CSV should have zeros for months outside the range (Jan-May, Sep-Dec)
+      // and 500 for months within the range (Jun-Aug)
+      expect(csv).toContain('Summer')
+
+      // Verify the monthly totals in the breakdown section
+      // The Summer expense should only appear in June, July, August
       const lines = csv.split('\n')
-      const summerLine = lines.find(line => line.includes('Summer'))
+
+      // Find the "Månedlig Oversigt" section
+      const monthlyOverviewIndex = lines.findIndex(line => line.includes('Månedlig Oversigt'))
+      expect(monthlyOverviewIndex).toBeGreaterThan(-1)
+
+      // The Summer line should be in the monthly breakdown section (after the header)
+      const summerLine = lines.find(line => line.startsWith('"Summer"') && !line.includes('Jun')) // Exclude the summary section line
 
       expect(summerLine).toBeTruthy()
-      // Should have zeros for Jan-May, 500 for Jun-Aug, zeros for Sep-Dec
-      const values = summerLine.split(',').slice(1, 13).map(v => parseInt(v))
-      expect(values[0]).toBe(0) // Jan
-      expect(values[5]).toBe(500) // Jun
-      expect(values[7]).toBe(500) // Aug
-      expect(values[8]).toBe(0) // Sep
+
+      // According to exportHelpers.js logic:
+      // Section 2 format: Expense name, then 12 monthly values, then total
+      // Row format: `"${expense.name}"` + 12 months + total
+      // Example: "Summer",0,0,0,0,0,500,500,500,0,0,0,0,1500
+
+      const parts = summerLine.split(',')
+
+      // Verify structure
+      expect(parts.length).toBe(14) // name + 12 months + total
+
+      // parts[0] is "Summer", parts[1-12] are monthly values (Jan-Dec), parts[13] is total
+      expect(parts[0]).toBe('"Summer"')
+
+      // Months outside range should be 0
+      expect(parseInt(parts[1])).toBe(0) // Jan
+      expect(parseInt(parts[2])).toBe(0) // Feb
+      expect(parseInt(parts[3])).toBe(0) // Mar
+      expect(parseInt(parts[4])).toBe(0) // Apr
+      expect(parseInt(parts[5])).toBe(0) // May
+
+      // Months within range should be 500
+      expect(parseInt(parts[6])).toBe(500) // Jun
+      expect(parseInt(parts[7])).toBe(500) // Jul
+      expect(parseInt(parts[8])).toBe(500) // Aug
+
+      // Months outside range should be 0
+      expect(parseInt(parts[9])).toBe(0) // Sep
+      expect(parseInt(parts[10])).toBe(0) // Oct
+      expect(parseInt(parts[11])).toBe(0) // Nov
+      expect(parseInt(parts[12])).toBe(0) // Dec
+
+      // Total should be 1500 (3 months * 500)
+      expect(parseInt(parts[13])).toBe(1500)
     })
 
     it('should calculate totals row correctly', () => {
