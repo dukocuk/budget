@@ -89,7 +89,7 @@ budget/
 │   │   ├── validators.js   # Input validation
 │   │   ├── exportHelpers.js # CSV export logic
 │   │   ├── importHelpers.js # CSV import logic ✅
-│   │   └── migration.js    # Data migration ✅
+│   │   └── seed.js         # Test seed data (dev only) ✅
 │   ├── App.jsx            # Main app orchestration with auth wrapper ✅
 │   ├── App.css            # Comprehensive styling ✅
 │   ├── index.css          # Global styles with CSS variables ✅
@@ -98,7 +98,8 @@ budget/
 │   └── setup.js          # Vitest test setup and configuration ✅
 ├── supabase/
 │   └── migrations/
-│       └── 001_initial_schema.sql # Database schema ✅
+│       ├── 001_initial_schema.sql # Database schema ✅
+│       └── 002_monthly_payments.sql # Variable payments ✅
 ├── public/              # Static assets
 ├── .env.example         # Example environment variables ✅
 ├── index.html           # HTML template
@@ -106,9 +107,7 @@ budget/
 ├── vite.config.js       # Vite configuration with Vitest ✅
 ├── eslint.config.js     # ESLint rules
 ├── vitest.config.js     # Vitest test configuration ✅
-├── CLAUDE.md           # This file
-├── CLOUD_SYNC_IMPLEMENTATION.md # Cloud sync details ✅
-└── SETUP_CLOUD_SYNC.md # Setup guide ✅
+└── CLAUDE.md           # This file
 ```
 
 ## Architecture & State Management
@@ -239,15 +238,6 @@ budget/
   - **Backup & Sync**: Cloud serves as backup and multi-device sync layer
   - **Context Hook**: `useSyncContext()` for accessing sync state and operations
 
-- **Browser localStorage**:
-  - **Migration tracking**: One-time flags for data migration ([migration.js](src/utils/migration.js))
-  - **NO expense/settings data**: All app data now in PGlite + Supabase only
-
-**Data Migration** ([utils/migration.js](src/utils/migration.js)): ✅
-- Automatic localStorage → Supabase migration on first login
-- One-time migration with backup creation
-- Restore capability if needed
-
 **CSV Import/Export** ([utils/importHelpers.js](src/utils/importHelpers.js), [utils/exportHelpers.js](src/utils/exportHelpers.js)): ✅
 - **Import**: Parse CSV files with validation and duplicate detection
 - **Export**: Generate CSV with UTF-8 BOM for Excel compatibility
@@ -277,7 +267,7 @@ budget/
 - **Sync Strategy**: Local-first writes, debounced cloud sync, optimistic UI
 
 ### Setup
-See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
+See `.env.example` for required environment variables and Supabase documentation for complete setup instructions.
 
 ## UI Components & Features
 
@@ -359,8 +349,7 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 1. User opens app → Login screen if not authenticated
 2. Click "Log ind med Google"
 3. Authenticate with Google OAuth
-4. Automatic data migration from localStorage (if exists)
-5. App loads with cloud-synced data
+4. App loads with cloud-synced data
 
 **Search & Filter** ✅:
 - Type in search box to filter by name
@@ -440,7 +429,6 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 - ✅ Offline-first architecture
 - ✅ Search and filter expenses
 - ✅ CSV import functionality
-- ✅ Automatic data migration
 
 **Phase 4 - Modern App Architecture** (completed): ✅
 - ✅ Layout component with tab navigation
@@ -490,7 +478,7 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 **Current Metrics**:
 - Total components: 20 (17 core + 3 main views + 2 modals)
 - Custom hooks: 7 (useExpenses, useAlert, useAuth, useSupabaseSync, useExpenseFilters, useSettings, useSyncContext)
-- Utility modules: 6 (calculations, validators, exportHelpers, importHelpers, migration, constants)
+- Utility modules: 6 (calculations, validators, exportHelpers, importHelpers, seed, constants)
 - Calculation functions: 8 (annual, monthly, summary, totals, projection, grouping, breakdown, validation)
 - Test files: 10 (comprehensive coverage for hooks, components, and utilities) ✅
 - Test cases: 240+ passing tests across all modules ✅
@@ -602,7 +590,6 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 
 **Manual Testing Checklist**:
 - [ ] Google OAuth login/logout
-- [ ] Automatic data migration
 - [ ] Cloud sync (add/edit/delete)
 - [ ] Multi-device sync
 - [ ] Offline operation
@@ -616,7 +603,8 @@ See [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md) for complete setup instructions.
 
 ## Documentation
 
-- **Setup Guide**: [SETUP_CLOUD_SYNC.md](SETUP_CLOUD_SYNC.md)
-- **Implementation Details**: [CLOUD_SYNC_IMPLEMENTATION.md](CLOUD_SYNC_IMPLEMENTATION.md)
-- **Project Guide**: This file
-- **Database Schema**: [supabase/migrations/001_initial_schema.sql](supabase/migrations/001_initial_schema.sql)
+- **Project Guide**: This file (CLAUDE.md)
+- **Database Schema**: [supabase/migrations/](supabase/migrations/)
+  - [001_initial_schema.sql](supabase/migrations/001_initial_schema.sql) - Initial tables and RLS
+  - [002_monthly_payments.sql](supabase/migrations/002_monthly_payments.sql) - Variable payments feature
+- **Environment Setup**: [.env.example](.env.example)

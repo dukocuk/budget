@@ -86,6 +86,9 @@ export const Settings = ({
     setLocalPaymentMode(mode)
     if (mode === 'fixed') {
       // Switch to fixed: clear variable payments
+      if (onMonthlyPaymentsChange) {
+        onMonthlyPaymentsChange(null)
+      }
       if (onTogglePaymentMode) {
         onTogglePaymentMode(false)
       }

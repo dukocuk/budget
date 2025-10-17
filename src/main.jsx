@@ -1,5 +1,5 @@
 import { createRoot } from "react-dom/client";
-import { initLocalDB, migrateExpensesTable, migrateSettingsTable } from "./lib/pglite";
+import { initLocalDB, migrateExpensesToUUID, migrateSettingsTable } from "./lib/pglite";
 // import './index.css'
 import App from "./App.jsx";
 
@@ -7,7 +7,7 @@ import App from "./App.jsx";
 initLocalDB()
   .then(() => {
     console.log("✅ Database initialized, checking for migrations...");
-    return migrateExpensesTable();
+    return migrateExpensesToUUID();
   })
   .then(() => {
     console.log("✅ Expenses table migrated, checking settings table...");

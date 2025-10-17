@@ -28,7 +28,9 @@
       "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\hooks\\useTheme.js\")",
       "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\hooks\\useTheme.test.js\")",
       "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\hooks\\useSupabaseSync.js\")",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(del \"C:\\Users\\duran\\source\\repos\\budget\\src\\utils\\migration.js\")",
+      "mcp__sequential-thinking__sequentialthinking"
     ],
     "deny": [],
     "ask": []

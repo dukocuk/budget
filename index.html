@@ -7,18 +7,6 @@
     <title>budget</title>
   </head>
   <body>
-    <script>
-      // Apply saved theme immediately to prevent flash of wrong theme
-      // This runs before React loads, ensuring data-theme attribute is set instantly
-      try {
-        const savedTheme = localStorage.getItem('budgetTheme');
-        if (savedTheme === 'dark' || savedTheme === 'light') {
-          document.documentElement.setAttribute('data-theme', savedTheme);
-        }
-      } catch (error) {
-        console.error('Error loading theme:', error);
-      }
-    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
