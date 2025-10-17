@@ -218,7 +218,72 @@ export const SyncProvider = ({ user, children }) => {
   }, [user, isOnline, updateSyncStatus, updateSyncError, updateLastSyncTime])
 
   /**
-   * Sync settings to Supabase
+   * Sync budget periods to Supabase
+   * Syncs all budget periods for the user
+   */
+  const syncBudgetPeriods = useCallback(async (periods) => {
+    if (!user || !isOnline || isSyncingRef.current) return
+
+    try {
+      updateSyncStatus('syncing')
+      updateSyncError(null)
+
+      // Transform periods to database format
+      const periodsToSync = (periods || []).map(period => ({
+        id: period.id,
+        user_id: user.id,
+        year: period.year,
+        monthly_payment: period.monthlyPayment,
+        previous_balance: period.previousBalance,
+        monthly_payments: period.monthlyPayments, // Supabase handles JSONB automatically
+        status: period.status || 'active',
+        updated_at: new Date().toISOString()
+      }))
+
+      if (periodsToSync.length > 0) {
+        const { error } = await supabase
+          .from('budget_periods')
+          .upsert(periodsToSync, {
+            onConflict: 'id',
+            ignoreDuplicates: false
+          })
+
+        if (error) throw error
+        logger.log(`✅ Synced ${periodsToSync.length} budget periods to cloud`)
+      }
+
+      updateSyncStatus('synced')
+      updateLastSyncTime(new Date())
+
+      // Reset to idle after 2 seconds
+      if (statusResetTimeoutRef.current) {
+        clearTimeout(statusResetTimeoutRef.current)
+      }
+      statusResetTimeoutRef.current = setTimeout(() => {
+        updateSyncStatus('idle')
+        statusResetTimeoutRef.current = null
+      }, 2000)
+
+    } catch (error) {
+      logger.error('❌ Error syncing budget periods:', error)
+      updateSyncError(error.message)
+      updateSyncStatus('error')
+
+      // Reset error state after 5 seconds
+      if (errorResetTimeoutRef.current) {
+        clearTimeout(errorResetTimeoutRef.current)
+      }
+      errorResetTimeoutRef.current = setTimeout(() => {
+        updateSyncStatus('idle')
+        updateSyncError(null)
+        errorResetTimeoutRef.current = null
+      }, 5000)
+    }
+  }, [user, isOnline, updateSyncStatus, updateSyncError, updateLastSyncTime])
+
+  /**
+   * Sync settings to Supabase (DEPRECATED - use syncBudgetPeriods instead)
+   * Kept for backward compatibility during migration
    */
   const syncSettings = useCallback(async (monthlyPayment, previousBalance, monthlyPayments = null) => {
     if (!user || !isOnline || isSyncingRef.current) return
@@ -284,7 +349,20 @@ export const SyncProvider = ({ user, children }) => {
   }, [syncExpenses])
 
   /**
-   * Debounced sync for settings
+   * Debounced sync for budget periods
+   */
+  const debouncedSyncBudgetPeriods = useCallback((periods) => {
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current)
+    }
+
+    syncTimeoutRef.current = setTimeout(() => {
+      syncBudgetPeriods(periods)
+    }, 1000)
+  }, [syncBudgetPeriods])
+
+  /**
+   * Debounced sync for settings (DEPRECATED)
    */
   const debouncedSyncSettings = useCallback((monthlyPayment, previousBalance, monthlyPayments = null) => {
     if (syncTimeoutRef.current) {
@@ -350,7 +428,60 @@ export const SyncProvider = ({ user, children }) => {
   }, [user, isOnline, updateSyncStatus, updateSyncError, updateLastSyncTime])
 
   /**
-   * Load settings from Supabase
+   * Load budget periods from Supabase
+   */
+  const loadBudgetPeriods = useCallback(async () => {
+    if (!user || !isOnline) return { success: false, data: [] }
+
+    try {
+      updateSyncStatus('syncing')
+
+      const { data, error } = await supabase
+        .from('budget_periods')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('year', { ascending: false })
+
+      if (error) throw error
+
+      // Transform data to match app format
+      const periods = (data || []).map((period) => ({
+        id: period.id,
+        userId: period.user_id,
+        year: period.year,
+        monthlyPayment: parseFloat(period.monthly_payment),
+        previousBalance: parseFloat(period.previous_balance),
+        monthlyPayments: period.monthly_payments || null, // JSONB automatically parsed
+        status: period.status,
+        createdAt: period.created_at,
+        updatedAt: period.updated_at
+      }))
+
+      updateSyncStatus('synced')
+      updateLastSyncTime(new Date())
+
+      setTimeout(() => {
+        updateSyncStatus('idle')
+      }, 2000)
+
+      return { success: true, data: periods }
+
+    } catch (error) {
+      logger.error('Error loading budget periods:', error)
+      updateSyncError(error.message)
+      updateSyncStatus('error')
+
+      setTimeout(() => {
+        updateSyncStatus('idle')
+        updateSyncError(null)
+      }, 5000)
+
+      return { success: false, data: [] }
+    }
+  }, [user, isOnline, updateSyncStatus, updateSyncError, updateLastSyncTime])
+
+  /**
+   * Load settings from Supabase (DEPRECATED - use loadBudgetPeriods instead)
    */
   const loadSettings = useCallback(async () => {
     if (!user || !isOnline) return { success: false, data: null }
@@ -414,11 +545,14 @@ export const SyncProvider = ({ user, children }) => {
     syncErrorRef,
     // Sync functions
     syncExpenses: debouncedSyncExpenses,
-    syncSettings: debouncedSyncSettings,
+    syncBudgetPeriods: debouncedSyncBudgetPeriods,
+    syncSettings: debouncedSyncSettings, // DEPRECATED
     loadExpenses,
-    loadSettings,
+    loadBudgetPeriods,
+    loadSettings, // DEPRECATED
     immediateSyncExpenses: syncExpenses, // For cases where immediate sync is needed
-    immediateSyncSettings: syncSettings
+    immediateSyncBudgetPeriods: syncBudgetPeriods,
+    immediateSyncSettings: syncSettings // DEPRECATED
   }
 
   return (

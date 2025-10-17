@@ -20,8 +20,10 @@ import { generateUUID } from '../utils/uuid'
  * - Optimistic UI updates for instant feedback
  * - Undo/Redo functionality with history tracking
  * - Bulk operations (select/delete multiple expenses)
+ * - Multi-year support with budget period filtering
  *
  * @param {string} userId - User ID for filtering expenses (from authentication)
+ * @param {string} periodId - Budget period ID for year filtering (required for multi-year support)
  *
  * @returns {Object} Expense management interface
  * @returns {Array<Object>} returns.expenses - Array of expense objects
@@ -52,7 +54,7 @@ import { generateUUID } from '../utils/uuid'
  *   deleteExpense,
  *   undo,
  *   canUndo
- * } = useExpenses(user.id)
+ * } = useExpenses(user.id, activePeriod.id)
  *
  * // Add new expense
  * await addExpense({
@@ -71,7 +73,7 @@ import { generateUUID } from '../utils/uuid'
  *   undo()
  * }
  */
-export const useExpenses = (userId) => {
+export const useExpenses = (userId, periodId) => {
   const [expenses, setExpenses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -87,7 +89,7 @@ export const useExpenses = (userId) => {
    * Load expenses from local PGlite database
    */
   const loadExpenses = useCallback(async () => {
-    if (!userId) {
+    if (!userId || !periodId) {
       setLoading(false)
       return
     }
@@ -97,8 +99,8 @@ export const useExpenses = (userId) => {
       setError(null)
 
       const result = await localDB.query(
-        'SELECT * FROM expenses WHERE user_id = $1 ORDER BY id DESC',
-        [userId]
+        'SELECT * FROM expenses WHERE user_id = $1 AND budget_period_id = $2 ORDER BY id DESC',
+        [userId, periodId]
       )
 
       const loadedExpenses = result.rows.map(row => ({
@@ -108,6 +110,7 @@ export const useExpenses = (userId) => {
         frequency: row.frequency,
         startMonth: row.start_month,
         endMonth: row.end_month,
+        budgetPeriodId: row.budget_period_id,
         createdAt: row.created_at,
         updatedAt: row.updated_at
       }))
@@ -119,7 +122,7 @@ export const useExpenses = (userId) => {
       setError(err.message)
       setLoading(false)
     }
-  }, [userId])
+  }, [userId, periodId])
 
   /**
    * Debounced cloud sync - only sync after user stops making changes
@@ -130,11 +133,11 @@ export const useExpenses = (userId) => {
     }
 
     syncTimeoutRef.current = setTimeout(() => {
-      if (needsSyncRef.current) {
-        // Get current expenses and sync to cloud
+      if (needsSyncRef.current && periodId) {
+        // Get current expenses for this period and sync to cloud
         localDB.query(
-          'SELECT * FROM expenses WHERE user_id = $1',
-          [userId]
+          'SELECT * FROM expenses WHERE user_id = $1 AND budget_period_id = $2',
+          [userId, periodId]
         ).then(result => {
           const expensesToSync = result.rows.map(row => ({
             id: row.id,
@@ -142,7 +145,8 @@ export const useExpenses = (userId) => {
             amount: row.amount,
             frequency: row.frequency,
             startMonth: row.start_month,
-            endMonth: row.end_month
+            endMonth: row.end_month,
+            budgetPeriodId: row.budget_period_id
           }))
           syncExpenses(expensesToSync)
           needsSyncRef.current = false
@@ -151,7 +155,7 @@ export const useExpenses = (userId) => {
         })
       }
     }, 1000) // Sync 1 second after last change
-  }, [userId, syncExpenses])
+  }, [userId, periodId, syncExpenses])
 
   /**
    * Initial load on mount
@@ -175,7 +179,7 @@ export const useExpenses = (userId) => {
    * Add new expense (optimistic update with UUID)
    */
   const addExpense = useCallback(async (expenseData) => {
-    if (!userId) return
+    if (!userId || !periodId) return
 
     try {
       setError(null)
@@ -196,8 +200,8 @@ export const useExpenses = (userId) => {
 
       // Insert into local database with client-generated UUID
       await localDB.query(
-        `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, budget_period_id, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
           newId,
           userId,
@@ -206,6 +210,7 @@ export const useExpenses = (userId) => {
           sanitized.frequency,
           sanitized.startMonth,
           sanitized.endMonth,
+          periodId,
           now,
           now
         ]
@@ -218,6 +223,7 @@ export const useExpenses = (userId) => {
         frequency: sanitized.frequency,
         startMonth: sanitized.startMonth,
         endMonth: sanitized.endMonth,
+        budgetPeriodId: periodId,
         createdAt: now,
         updatedAt: now
       }
@@ -235,7 +241,7 @@ export const useExpenses = (userId) => {
       setError(err.message)
       throw err
     }
-  }, [userId, debouncedCloudSync])
+  }, [userId, periodId, debouncedCloudSync])
 
   /**
    * Update expense (optimistic update)
@@ -373,15 +379,15 @@ export const useExpenses = (userId) => {
    * Import expenses (replace all with UUID generation)
    */
   const importExpenses = useCallback(async (newExpenses) => {
-    if (!userId) return
+    if (!userId || !periodId) return
 
     try {
       setError(null)
 
-      // Delete all existing expenses
+      // Delete all existing expenses for this period
       await localDB.query(
-        'DELETE FROM expenses WHERE user_id = $1',
-        [userId]
+        'DELETE FROM expenses WHERE user_id = $1 AND budget_period_id = $2',
+        [userId, periodId]
       )
 
       const now = new Date().toISOString()
@@ -392,8 +398,8 @@ export const useExpenses = (userId) => {
         const newId = generateUUID()
 
         await localDB.query(
-          `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, budget_period_id, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
           [
             newId,
             userId,
@@ -402,6 +408,7 @@ export const useExpenses = (userId) => {
             sanitized.frequency,
             sanitized.startMonth,
             sanitized.endMonth,
+            periodId,
             now,
             now
           ]
@@ -420,7 +427,7 @@ export const useExpenses = (userId) => {
       setError(err.message)
       throw err
     }
-  }, [userId, loadExpenses, debouncedCloudSync])
+  }, [userId, periodId, loadExpenses, debouncedCloudSync])
 
   // Selection state for bulk operations
   const [selectedExpenses, setSelectedExpenses] = useState([])

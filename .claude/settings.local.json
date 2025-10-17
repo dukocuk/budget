@@ -30,7 +30,8 @@
       "Bash(del \"c:\\Users\\duran\\source\\repos\\budget\\src\\hooks\\useSupabaseSync.js\")",
       "Bash(dir:*)",
       "Bash(del \"C:\\Users\\duran\\source\\repos\\budget\\src\\utils\\migration.js\")",
-      "mcp__sequential-thinking__sequentialthinking"
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(npm run test:coverage:*)"
     ],
     "deny": [],
     "ask": []

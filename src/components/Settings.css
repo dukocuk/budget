@@ -119,6 +119,120 @@
   font-style: italic;
 }
 
+/* Year Management Section */
+.year-management-container {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 25px;
+  border: 2px solid #e5e7eb;
+}
+
+/* Template Management Section */
+.template-management-container {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 25px;
+  border: 2px solid #e5e7eb;
+}
+
+.template-management-container h3 {
+  color: #374151;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.template-description {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 15px;
+  line-height: 1.5;
+}
+
+.template-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.template-note {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 8px 0 0 0;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.year-management-container h3 {
+  color: #374151;
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.year-info {
+  display: flex;
+  gap: 30px;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.year-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.year-info-label {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.year-info-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.year-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.year-status-badge.active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.year-status-badge.archived {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
+.year-actions {
+  padding-top: 15px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.year-note {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 12px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));

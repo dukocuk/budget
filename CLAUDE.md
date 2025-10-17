@@ -269,6 +269,379 @@ budget/
 ### Setup
 See `.env.example` for required environment variables and Supabase documentation for complete setup instructions.
 
+## Multi-Year Budget Periods Architecture ✅
+
+### Overview
+The application supports multiple budget years with complete data isolation, historical retention, and intelligent balance carryover. Each year is represented as a **budget period** with its own expenses, settings, and status.
+
+### Core Concepts
+
+**Budget Period**: A complete budget year with:
+- **Year**: Calendar year (2025, 2026, etc.)
+- **Settings**: Monthly payment and starting balance (previously balance)
+- **Monthly Payments**: Optional variable payments per month (JSONB)
+- **Status**: 'active' (editable) or 'archived' (read-only)
+- **Expenses**: All expenses linked via foreign key
+
+**Data Isolation**: Each budget period maintains its own:
+- Complete expense list
+- Independent settings
+- Separate calculations and reports
+- Isolated CSV exports
+
+**Historical Retention**: Previous years remain accessible:
+- View historical data anytime
+- Compare year-over-year trends
+- Archive old years (read-only mode)
+- Never lose historical records
+
+### Database Schema
+
+**budget_periods table** ([003_budget_periods.sql](supabase/migrations/003_budget_periods.sql)):
+```sql
+CREATE TABLE budget_periods (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  year INTEGER NOT NULL CHECK (year >= 2000 AND year <= 2100),
+  monthly_payment NUMERIC(10, 2) NOT NULL DEFAULT 5700,
+  previous_balance NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  monthly_payments JSONB DEFAULT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, year)
+);
+```
+
+**expenses table** (modified):
+```sql
+ALTER TABLE expenses
+ADD COLUMN budget_period_id UUID REFERENCES budget_periods(id) ON DELETE CASCADE;
+```
+
+**Foreign Key Relationship**: One-to-many (budget_periods → expenses)
+- Each expense belongs to exactly one budget period
+- Deleting a budget period cascades to delete all its expenses
+- All expense queries filter by budget_period_id
+
+### Data Migration
+
+**Automatic Migration** ([lib/pglite.js](src/lib/pglite.js) - migrateToBudgetPeriods()):
+```javascript
+export async function migrateToBudgetPeriods(userId) {
+  // Check if migration needed (any expenses without budget_period_id)
+  // Create 2025 budget period with current settings
+  // Link all existing expenses to 2025 period
+  // Migration is idempotent (safe to run multiple times)
+}
+```
+
+**Migration Process**:
+1. Detects existing data without budget_period_id
+2. Creates 2025 budget period (year 2025, status 'active')
+3. Migrates settings from deprecated settings table
+4. Links all existing expenses to 2025 period
+5. Runs automatically on first load after upgrade
+
+### Budget Period Management
+
+**useBudgetPeriods Hook** ([hooks/useBudgetPeriods.js](src/hooks/useBudgetPeriods.js)):
+```javascript
+const {
+  periods,              // Array of all budget periods, sorted desc by year
+  activePeriod,         // Currently selected budget period
+  loading,              // Loading state
+  error,                // Error messages
+  createPeriod,         // Create new budget year
+  updatePeriod,         // Update period settings
+  deletePeriod,         // Delete period (use with caution)
+  archivePeriod,        // Mark period as archived (read-only)
+  calculateEndingBalance // Calculate year-end balance for carryover
+} = useBudgetPeriods(userId);
+```
+
+**Key Functions**:
+
+1. **createPeriod(periodData)**
+   - Creates new budget year with validation
+   - Auto-generates UUID for offline-first support
+   - Optional expense copying from previous year
+   - Syncs to cloud automatically
+   ```javascript
+   await createPeriod({
+     year: 2026,
+     monthlyPayment: 5700,
+     previousBalance: 0,
+     monthlyPayments: null,
+     copyExpensesFrom: '2025-period-uuid' // Optional
+   });
+   ```
+
+2. **calculateEndingBalance(periodId)**
+   - Formula: `previous_balance + total_income - total_expenses`
+   - Handles variable monthly payments (JSONB)
+   - Returns ending balance for next year's starting balance
+   - Used for intelligent balance carryover
+
+3. **archivePeriod(periodId)**
+   - Marks period as 'archived' (read-only)
+   - Prevents accidental modifications
+   - Period remains viewable and accessible
+
+### Period-Scoped Data Operations
+
+**useExpenses Hook** (modified):
+```javascript
+// OLD: export const useExpenses = (userId) => {
+// NEW: export const useExpenses = (userId, periodId) => {
+
+const { expenses, ... } = useExpenses(user?.id, activePeriod?.id);
+```
+
+**All expense operations now filter by budget_period_id**:
+- `loadExpenses()`: WHERE budget_period_id = $2
+- `addExpense()`: INSERT ... budget_period_id
+- `updateExpense()`: UPDATE ... WHERE budget_period_id = $2
+- `deleteExpense()`: DELETE ... WHERE budget_period_id = $2
+
+**useSettings Hook** (refactored):
+```javascript
+// OLD: Reads from deprecated settings table
+// NEW: Reads from budget_periods table
+
+const { settings, updateSettings } = useSettings(userId, periodId);
+// Returns: { monthlyPayment, previousBalance, monthlyPayments }
+```
+
+### Cloud Synchronization
+
+**SyncContext Integration** ([contexts/SyncContext.jsx](src/contexts/SyncContext.jsx)):
+```javascript
+const {
+  syncBudgetPeriods,          // Sync periods to cloud
+  loadBudgetPeriods,          // Load periods from cloud
+  immediateSyncBudgetPeriods  // Immediate sync (no debounce)
+} = useSyncContext();
+```
+
+**Automatic Sync**:
+- Budget period creation/update triggers cloud sync
+- Real-time subscriptions for multi-device updates
+- Debounced (1 second delay) to prevent sync spam
+- Offline-first: local changes, sync when online
+
+### User Interface
+
+**YearSelector Component** ([components/YearSelector.jsx](src/components/YearSelector.jsx)):
+- Dropdown in header for year selection
+- Visual badges: ✅ Active / 📦 Archived
+- "Opret nyt år" button for creating new years
+- Click outside to close dropdown
+- Keyboard accessible (Enter, Escape)
+
+**CreateYearModal Component** ([components/CreateYearModal.jsx](src/components/CreateYearModal.jsx)):
+- Modal for creating new budget years
+- Auto-suggests next year (e.g., 2026 if 2025 exists)
+- Auto-calculates starting balance from previous year
+- Option to copy expenses from previous year
+- Form validation (year uniqueness, valid range)
+
+**Settings Year Management** ([components/Settings.jsx](src/components/Settings.jsx)):
+```
+📅 Budgetår
+├─ Aktivt år: 2025
+├─ Status: ✅ Aktiv
+└─ 📦 Arkiver år 2025 (button)
+```
+
+**Read-Only Mode**: Archived periods show:
+- Prominent banner: "📦 Dette er et arkiveret budgetår (YEAR) - kun visning"
+- All inputs disabled (expense table, settings)
+- Delete/edit buttons disabled
+- Clear visual feedback
+
+### User Workflows
+
+**Creating a New Budget Year**:
+1. Click "Opret nyt år" in YearSelector dropdown
+2. CreateYearModal opens with suggested year (2026)
+3. System auto-calculates starting balance from 2025 ending balance
+4. Option: Check "Kopier udgifter fra tidligere år"
+5. Click "Opret budget" → New year created with optional expense copies
+6. Automatically switched to new year
+7. Alert: "✅ Budget for år 2026 oprettet!"
+
+**Switching Between Years**:
+1. Click YearSelector dropdown (shows current year)
+2. Select different year from list
+3. App reloads with selected year's data
+4. All calculations, charts, tables update automatically
+
+**Archiving a Year**:
+1. Go to Settings tab (⚙️ Indstillinger)
+2. Find "📅 Budgetår" section
+3. Click "📦 Arkiver år 2025"
+4. Confirmation prompt
+5. Year status → 'archived', entire app becomes read-only
+6. Alert: "📦 Budgetår 2025 er nu arkiveret"
+
+**Balance Carryover Workflow**:
+1. End of 2025 → Click "Opret nyt år"
+2. System calculates 2025 ending balance: 4831 + (5700×12) - 62000 = 11231 kr.
+3. CreateYearModal pre-fills "Tidligere saldo": 11231 kr.
+4. Create 2026 → Starts with 11231 kr. carried forward
+5. Perfect continuity between years
+
+### CSV Export with Year Support
+
+**Enhanced Export** ([utils/exportHelpers.js](src/utils/exportHelpers.js)):
+```javascript
+const year = activePeriod?.year || new Date().getFullYear();
+const filename = `budget_${year}_${new Date().toISOString().split('T')[0]}.csv`;
+downloadCSV(csvContent, filename);
+```
+
+**Filename Format**: `budget_2025_2025-10-17.csv`
+- Year from active budget period
+- ISO date for uniqueness
+- CSV contains period-specific data only
+
+### Technical Implementation Details
+
+**Period Selection State** (App.jsx):
+```javascript
+const {
+  periods,
+  activePeriod,
+  loading: periodsLoading,
+  createPeriod,
+  archivePeriod,
+  calculateEndingBalance
+} = useBudgetPeriods(user?.id);
+
+// Load settings from active period
+useEffect(() => {
+  if (activePeriod && !periodsLoading) {
+    dispatchSettings({
+      type: "SET_ALL",
+      payload: {
+        monthlyPayment: activePeriod.monthlyPayment,
+        previousBalance: activePeriod.previousBalance,
+        monthlyPayments: activePeriod.monthlyPayments || null
+      }
+    });
+  }
+}, [activePeriod, periodsLoading]);
+
+// Read-only mode enforcement
+const isReadOnly = activePeriod?.status === 'archived';
+```
+
+**Period-Scoped Expense Operations**:
+```javascript
+const { expenses, addExpense, updateExpense, deleteExpense } =
+  useExpenses(user?.id, activePeriod?.id);
+
+// All operations automatically filter by activePeriod.id
+```
+
+**UUID Generation for Offline-First**:
+```javascript
+import { v4 as uuidv4 } from 'uuid';
+
+const periodId = uuidv4(); // Client-side UUID generation
+await createPeriod({ id: periodId, ...periodData });
+// Syncs to cloud when online
+```
+
+### Best Practices
+
+**When to Archive**:
+- End of calendar year (December 31st)
+- After finalizing year-end reports
+- When creating next year's budget
+- To prevent accidental modifications
+
+**When to Create New Year**:
+- Beginning of new calendar year (January 1st)
+- When planning ahead (create 2026 in Q4 2025)
+- After calculating ending balance from previous year
+
+**Data Safety**:
+- Always archive before creating new year
+- Verify ending balance calculation before carryover
+- Export CSV backup before archiving
+- Never delete budget periods (archive instead)
+
+### Migration Guide for Developers
+
+**Upgrading Existing Installations**:
+1. Apply Supabase migration: `003_budget_periods.sql`
+2. Update PGlite schema in `lib/pglite.js`
+3. Run migration function on first load
+4. Verify 2025 period created with existing data
+5. Test expense CRUD operations
+6. Test cloud sync with new table
+7. Verify CSV export includes year
+
+**Future Schema Changes**:
+- Add columns to budget_periods table (not expenses)
+- Maintain foreign key integrity
+- Update migration to handle new columns
+- Preserve backward compatibility
+
+### Common Issues and Solutions
+
+**Issue**: "Expenses not showing after upgrade"
+- **Solution**: Migration not run, call `migrateToBudgetPeriods(userId)`
+
+**Issue**: "Cannot create year - already exists"
+- **Solution**: Unique constraint on (user_id, year), delete or select existing
+
+**Issue**: "Sync failing for budget periods"
+- **Solution**: Check Supabase RLS policies for budget_periods table
+
+**Issue**: "Read-only mode not working"
+- **Solution**: Verify `isReadOnly = activePeriod?.status === 'archived'` passed to components
+
+**Issue**: "Balance not carrying over"
+- **Solution**: Verify `calculateEndingBalance()` includes monthlyPayments JSONB
+
+### Database Helper Functions
+
+**get_active_budget_period(p_user_id)** (Supabase):
+```sql
+-- Returns currently active budget period for user
+-- Used for default period selection
+SELECT * FROM budget_periods
+WHERE user_id = p_user_id AND status = 'active'
+ORDER BY year DESC LIMIT 1;
+```
+
+**calculate_period_ending_balance(p_period_id)** (Supabase):
+```sql
+-- Calculates ending balance for budget period
+-- Formula: previous_balance + total_income - total_expenses
+-- Handles variable monthly_payments (JSONB)
+```
+
+### Performance Considerations
+
+**Efficient Queries**:
+- All queries filter by budget_period_id (indexed)
+- Periods sorted DESC by year (most recent first)
+- Single active period per user (avoid multiple actives)
+
+**Caching Strategy**:
+- Active period cached in App.jsx state
+- Periods list cached in useBudgetPeriods
+- Minimize re-fetches with proper dependencies
+
+**Sync Optimization**:
+- Debounced sync (1 second delay)
+- Batch period updates when possible
+- Real-time subscriptions for multi-device only
+
 ## UI Components & Features
 
 ### Component Overview

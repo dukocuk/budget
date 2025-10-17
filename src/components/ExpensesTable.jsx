@@ -12,7 +12,7 @@ import './ExpensesTable.css'
  * Memoized expense row component to prevent unnecessary re-renders
  * Uses local state for input values to maintain focus during typing
  */
-const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onDelete, onClone }) => {
+const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onDelete, onClone, readOnly = false }) => {
   // Local state for controlled inputs to prevent focus loss
   // Initialize with expense values, update only when ID changes (handles undo/redo)
   const [localName, setLocalName] = useState(expense.name)
@@ -66,6 +66,7 @@ const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onD
           checked={isSelected}
           onChange={() => onToggleSelection(expense.id)}
           aria-label={`Vælg ${expense.name}`}
+          disabled={readOnly}
         />
       </td>
       <td>
@@ -75,6 +76,7 @@ const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onD
           onChange={(e) => handleNameChange(e.target.value)}
           onBlur={handleNameBlur}
           aria-label="Udgiftsnavn"
+          disabled={readOnly}
         />
       </td>
       <td>
@@ -85,6 +87,7 @@ const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onD
           onBlur={handleAmountBlur}
           min="0"
           aria-label="Beløb"
+          disabled={readOnly}
         />
       </td>
       <td>
@@ -92,6 +95,7 @@ const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onD
           value={expense.frequency}
           onChange={(e) => onUpdate(expense.id, { frequency: e.target.value })}
           aria-label="Frekvens"
+          disabled={readOnly}
         >
           <option value={FREQUENCY_TYPES.MONTHLY}>
             {FREQUENCY_LABELS[FREQUENCY_TYPES.MONTHLY]}
@@ -109,6 +113,7 @@ const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onD
           value={expense.startMonth}
           onChange={(e) => onUpdate(expense.id, { startMonth: parseInt(e.target.value) })}
           aria-label="Start måned"
+          disabled={readOnly}
         >
           {MONTHS.map((month, index) => (
             <option key={index} value={index + 1}>{month}</option>
@@ -120,6 +125,7 @@ const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onD
           value={expense.endMonth}
           onChange={(e) => onUpdate(expense.id, { endMonth: parseInt(e.target.value) })}
           aria-label="Slut måned"
+          disabled={readOnly}
         >
           {MONTHS.map((month, index) => (
             <option key={index} value={index + 1}>{month}</option>
@@ -135,7 +141,8 @@ const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onD
             className="btn-clone"
             onClick={() => onClone(expense)}
             aria-label={`Kopier ${expense.name}`}
-            title="Kopier denne udgift"
+            title={readOnly ? "Kan ikke kopiere fra arkiveret år" : "Kopier denne udgift"}
+            disabled={readOnly}
           >
             📋
           </button>
@@ -143,6 +150,7 @@ const ExpenseRow = memo(({ expense, isSelected, onToggleSelection, onUpdate, onD
             className="btn-delete"
             onClick={() => onDelete(expense.id)}
             aria-label={`Slet ${expense.name}`}
+            disabled={readOnly}
           >
             Slet
           </button>
@@ -170,7 +178,8 @@ export const ExpensesTable = ({
   onToggleSelectAll,
   onUpdate,
   onDelete,
-  onAdd
+  onAdd,
+  readOnly = false
 }) => {
   // Use expense filters hook
   const {
@@ -535,6 +544,7 @@ export const ExpensesTable = ({
               onUpdate={onUpdate}
               onDelete={onDelete}
               onClone={handleClone}
+              readOnly={readOnly}
             />
           ))}
         </tbody>

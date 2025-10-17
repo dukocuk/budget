@@ -23,8 +23,12 @@ import { ExpenseDistribution } from "./components/ExpenseDistribution";
 import { AddExpenseModal } from "./components/AddExpenseModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { DeleteConfirmation } from "./components/DeleteConfirmation";
+import YearSelector from "./components/YearSelector";
+import CreateYearModal from "./components/CreateYearModal";
+import YearComparison from "./components/YearComparison";
 import Auth from "./components/Auth";
 import { useExpenses } from "./hooks/useExpenses";
+import { useBudgetPeriods } from "./hooks/useBudgetPeriods";
 import { useAlert } from "./hooks/useAlert";
 import { useAuth } from "./hooks/useAuth";
 import { SyncProvider } from "./contexts/SyncContext";
@@ -80,6 +84,21 @@ const settingsReducer = (state, action) => {
  * AppContent - The main application logic (wrapped by SyncProvider)
  */
 function AppContent() {
+  // Authentication
+  const { user } = useAuth();
+
+  // Budget periods management (multi-year support)
+  const {
+    periods,
+    activePeriod,
+    loading: periodsLoading,
+    createPeriod,
+    createFromTemplate,
+    archivePeriod,
+    calculateEndingBalance,
+    getExpensesForPeriod,
+  } = useBudgetPeriods(user?.id);
+
   // Use reducer to batch settings updates (prevents multiple re-renders)
   const [settings, dispatchSettings] = useReducer(settingsReducer, {
     monthlyPayment: DEFAULT_SETTINGS.monthlyPayment,
@@ -93,6 +112,7 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showCreateYearModal, setShowCreateYearModal] = useState(false);
 
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState({
@@ -113,10 +133,7 @@ function AppContent() {
     monthlyPayments: null,
   });
 
-  // Authentication
-  const { user } = useAuth();
-
-  // Expenses management (pass user ID for PGlite filtering)
+  // Expenses management (pass user ID AND period ID for filtering)
   const {
     expenses,
     selectedExpenses,
@@ -131,13 +148,15 @@ function AppContent() {
     redo,
     canUndo,
     canRedo,
-  } = useExpenses(user?.id);
+  } = useExpenses(user?.id, activePeriod?.id);
 
   // Cloud sync (from isolated context to prevent re-renders)
   const {
     syncExpenses,
+    syncBudgetPeriods,
     syncSettings,
     loadExpenses,
+    loadBudgetPeriods,
     loadSettings,
     immediateSyncExpenses,
     isOnline,
@@ -157,18 +176,33 @@ function AppContent() {
     settings.previousBalance,
   ]);
 
+  // Load settings from active budget period
+  useEffect(() => {
+    if (activePeriod && !periodsLoading) {
+      startTransition(() => {
+        dispatchSettings({
+          type: "SET_ALL",
+          payload: {
+            monthlyPayment: activePeriod.monthlyPayment || DEFAULT_SETTINGS.monthlyPayment,
+            previousBalance: activePeriod.previousBalance || DEFAULT_SETTINGS.previousBalance,
+            monthlyPayments: activePeriod.monthlyPayments || null,
+          },
+        });
+      });
+    }
+  }, [activePeriod, periodsLoading]);
+
   // Load data from cloud when user logs in (OPTIMIZED: batched updates prevent multiple re-renders)
   useEffect(() => {
-    if (user && !isInitialized) {
+    if (user && activePeriod && !isInitialized) {
       const loadData = async () => {
         setIsLoadingData(true);
 
         try {
-
-          // Load expenses and settings in PARALLEL to reduce load time
-          const [expensesResult, settingsResult] = await Promise.all([
+          // Load expenses and budget periods in PARALLEL to reduce load time
+          const [expensesResult, periodsResult] = await Promise.all([
             loadExpenses(),
-            loadSettings(),
+            loadBudgetPeriods(),
           ]);
 
           // ATOMIC UPDATE: Use startTransition to batch ALL state updates into a single render
@@ -179,17 +213,7 @@ function AppContent() {
               setAllExpenses(expensesResult.data);
             }
 
-            // Update settings using reducer (batches all values in single state update)
-            if (settingsResult.success && settingsResult.data) {
-              dispatchSettings({
-                type: "SET_ALL",
-                payload: {
-                  monthlyPayment: settingsResult.data.monthlyPayment,
-                  previousBalance: settingsResult.data.previousBalance,
-                  monthlyPayments: settingsResult.data.monthlyPayments || null,
-                },
-              });
-            }
+            // Settings are loaded from activePeriod (handled by separate useEffect)
 
             // Mark initial load as complete BEFORE enabling sync
             isInitialLoadRef.current = false;
@@ -209,7 +233,7 @@ function AppContent() {
 
       loadData();
     }
-  }, [user, isInitialized, loadExpenses, loadSettings, setAllExpenses]);
+  }, [user, activePeriod, isInitialized, loadExpenses, loadBudgetPeriods, setAllExpenses]);
 
   // Sync expenses whenever they change (ONLY after initialization AND initial load complete)
   // OPTIMIZATION: Only sync if expenses actually changed to prevent cascading syncs
@@ -408,7 +432,10 @@ function AppContent() {
         paymentValue,
         settings.previousBalance
       );
-      downloadCSV(csvContent);
+      // Include year in filename if available
+      const year = activePeriod?.year || new Date().getFullYear();
+      const filename = `budget_${year}_${new Date().toISOString().split('T')[0]}.csv`;
+      downloadCSV(csvContent, filename);
       showAlert("CSV fil downloadet!", "success");
     } catch (error) {
       logger.error("Export error:", error);
@@ -444,6 +471,41 @@ function AppContent() {
     }
   };
 
+  // Create new budget year
+  const handleCreateYear = async (yearData) => {
+    try {
+      // Check if creating from template
+      if (yearData.templateId) {
+        // Create period from template
+        await createFromTemplate({
+          templateId: yearData.templateId,
+          year: yearData.year,
+          previousBalance: yearData.previousBalance,
+        });
+        showAlert(`✅ Budget for år ${yearData.year} oprettet fra skabelon!`, "success");
+      } else {
+        // Create regular period (with optional expense copying)
+        await createPeriod(yearData);
+        showAlert(`✅ Budget for år ${yearData.year} oprettet!`, "success");
+      }
+      setShowCreateYearModal(false);
+    } catch (error) {
+      logger.error("Create year error:", error);
+      showAlert(`❌ Kunne ikke oprette år: ${error.message}`, "error");
+    }
+  };
+
+  // Select budget period (year)
+  const handleSelectPeriod = (period) => {
+    // Period selection is handled automatically by useBudgetPeriods
+    // This is just for UI feedback
+    const status = period.status === 'archived' ? '📦 Arkiveret' : '';
+    showAlert(`Skiftet til budget ${period.year} ${status}`, "info");
+  };
+
+  // Check if current period is archived (read-only mode)
+  const isReadOnly = activePeriod?.status === 'archived';
+
   // Tab content components
   const OverviewTab = () => (
     <div className="tab-content-wrapper">
@@ -463,12 +525,21 @@ function AppContent() {
 
   const ExpensesTab = () => (
     <div className="tab-content-wrapper">
+      {isReadOnly && (
+        <div className="read-only-banner">
+          <span className="read-only-icon">📦</span>
+          <span className="read-only-text">
+            Dette er et arkiveret budgetår. Du kan se data, men ikke redigere.
+          </span>
+        </div>
+      )}
       <div className="expenses-header">
         <h2>📋 Dine udgifter</h2>
         <button
           className="btn btn-primary"
           onClick={() => setShowAddModal(true)}
-          title="Tilføj ny udgift (Ctrl+N)"
+          title={isReadOnly ? "Kan ikke tilføje udgifter til arkiveret år" : "Tilføj ny udgift (Ctrl+N)"}
+          disabled={isReadOnly}
         >
           ➕ Tilføj udgift
         </button>
@@ -477,13 +548,18 @@ function AppContent() {
       <ExpensesTable
         expenses={expenses}
         selectedExpenses={selectedExpenses}
-        onToggleSelection={toggleExpenseSelection}
-        onToggleSelectAll={toggleSelectAll}
-        onUpdate={updateExpense}
-        onDelete={handleDeleteExpense}
+        onToggleSelection={isReadOnly ? () => {} : toggleExpenseSelection}
+        onToggleSelectAll={isReadOnly ? () => {} : toggleSelectAll}
+        onUpdate={isReadOnly ? () => {} : updateExpense}
+        onDelete={isReadOnly ? () => {} : handleDeleteExpense}
+        readOnly={isReadOnly}
       />
 
-      <button className="btn btn-danger" onClick={handleDeleteSelected}>
+      <button
+        className="btn btn-danger"
+        onClick={handleDeleteSelected}
+        disabled={isReadOnly || selectedExpenses.length === 0}
+      >
         🗑️ Slet valgte
       </button>
     </div>
@@ -495,11 +571,31 @@ function AppContent() {
     </div>
   );
 
+  const ComparisonTab = () => (
+    <div className="tab-content-wrapper">
+      <YearComparison
+        periods={periods}
+        getExpensesForPeriod={getExpensesForPeriod}
+      />
+    </div>
+  );
+
   return (
     <ErrorBoundary>
       <div className="app" onKeyDown={handleKeyPress}>
         <Alert message={alert?.message} type={alert?.type} />
-        <Header user={user} onOpenSettings={() => setShowSettingsModal(true)} />
+
+        {/* Header with Year Selector */}
+        <div className="header-with-year-selector">
+          <YearSelector
+            periods={periods}
+            activePeriod={activePeriod}
+            onSelectPeriod={handleSelectPeriod}
+            onCreateYear={() => setShowCreateYearModal(true)}
+            disabled={periodsLoading}
+          />
+          <Header user={user} onOpenSettings={() => setShowSettingsModal(true)} />
+        </div>
 
         <DeleteConfirmation
           isOpen={deleteConfirmation.isOpen}
@@ -528,6 +624,11 @@ function AppContent() {
                 icon: "📅",
                 label: "Månedlig oversigt",
                 content: <MonthlyTab />,
+              },
+              {
+                icon: "📈",
+                label: "Sammenligning",
+                content: <ComparisonTab />,
               },
             ]}
           />
@@ -565,6 +666,25 @@ function AppContent() {
           }
           onExport={handleExport}
           onImport={handleImport}
+          activePeriod={activePeriod}
+          onArchivePeriod={async (periodId) => {
+            try {
+              await archivePeriod(periodId);
+              showAlert(`✅ År ${activePeriod.year} er nu arkiveret`, "success");
+            } catch (error) {
+              logger.error("Archive period error:", error);
+              showAlert(`❌ Kunne ikke arkivere år: ${error.message}`, "error");
+            }
+          }}
+        />
+
+        {/* Create Year Modal */}
+        <CreateYearModal
+          isOpen={showCreateYearModal}
+          onClose={() => setShowCreateYearModal(false)}
+          onCreate={handleCreateYear}
+          periods={periods}
+          calculateEndingBalance={calculateEndingBalance}
         />
 
         {/* Floating Action Button (FAB) */}

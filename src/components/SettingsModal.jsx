@@ -28,7 +28,9 @@ export const SettingsModal = ({
   onMonthlyPaymentsChange,
   onTogglePaymentMode,
   onExport,
-  onImport
+  onImport,
+  activePeriod,
+  onArchivePeriod
 }) => {
   return (
     <Modal
@@ -63,6 +65,8 @@ export const SettingsModal = ({
           onTogglePaymentMode={onTogglePaymentMode}
           onExport={onExport}
           onImport={onImport}
+          activePeriod={activePeriod}
+          onArchivePeriod={onArchivePeriod}
         />
       </div>
     </Modal>

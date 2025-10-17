@@ -17,7 +17,10 @@ export const Settings = ({
   onMonthlyPaymentsChange, // NEW: Handler for array updates
   onTogglePaymentMode, // NEW: Toggle fixed/variable
   onExport,
-  onImport
+  onImport,
+  // Year management props (optional for backwards compatibility)
+  activePeriod,
+  onArchivePeriod
 }) => {
   // Get sync status from isolated context (won't trigger parent re-renders)
   const { syncStatus, lastSyncTime, syncError, isOnline } = useSyncContext()
@@ -177,6 +180,65 @@ export const Settings = ({
         <p className="sync-info">
           💡 Alle ændringer gemmes automatisk til skyen og synkroniseres på tværs af dine enheder.
         </p>
+      </div>
+
+      {/* Year Management Section */}
+      {activePeriod && (
+        <div className="year-management-container">
+          <h3>📅 Budgetår</h3>
+          <div className="year-info">
+            <div className="year-info-item">
+              <span className="year-info-label">Aktivt år:</span>
+              <span className="year-info-value">{activePeriod.year}</span>
+            </div>
+            <div className="year-info-item">
+              <span className="year-info-label">Status:</span>
+              <span className={`year-status-badge ${activePeriod.status}`}>
+                {activePeriod.status === 'active' ? '✅ Aktiv' : '📦 Arkiveret'}
+              </span>
+            </div>
+          </div>
+          {activePeriod.status === 'active' && onArchivePeriod && (
+            <div className="year-actions">
+              <button
+                className="btn btn-secondary"
+                onClick={() => onArchivePeriod(activePeriod.id)}
+                title="Arkiver dette budgetår"
+              >
+                <span className="btn-icon">📦</span>
+                <span>Arkiver år {activePeriod.year}</span>
+              </button>
+              <p className="year-note">
+                💡 Arkivering markerer året som historisk data. Du kan stadig se det, men ikke redigere.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Template Management Section */}
+      <div className="template-management-container">
+        <h3>📋 Skabeloner</h3>
+        <p className="template-description">
+          Gem dit nuværende budget som en genbrugelig skabelon for hurtigere oprettelse af fremtidige år.
+        </p>
+        <div className="template-actions">
+          <button
+            className="btn btn-info"
+            onClick={() => {
+              // This will be handled by opening a modal
+              // For now, we'll add a placeholder
+              alert('Skabelonstyring åbnes snart! Dette vil lade dig gemme og administrere budget-skabeloner.')
+            }}
+            title="Åbn skabelonstyring"
+          >
+            <span className="btn-icon">📋</span>
+            <span>Administrer skabeloner</span>
+          </button>
+          <p className="template-note">
+            💡 Skabeloner lader dig hurtigt oprette nye budgetår med forudkonfigurerede udgifter.
+          </p>
+        </div>
       </div>
 
       <div className="settings-grid">

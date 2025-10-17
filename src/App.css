@@ -129,6 +129,28 @@ body {
   opacity: 0.95;
 }
 
+/* Header with Year Selector Layout */
+.header-with-year-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-bottom: 20px;
+}
+
+.header-with-year-selector .header {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .header-with-year-selector {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--spacing-sm);
+  }
+}
+
 /* Container */
 .container {
   max-width: 1400px;
@@ -386,6 +408,31 @@ h2 {
   padding-bottom: var(--spacing-sm);
   border-bottom: 3px solid var(--gray-100);
   display: inline-block;
+}
+
+/* Read-Only Banner */
+.read-only-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 20px;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border: 2px solid #d1d5db;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.read-only-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.read-only-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #4b5563;
+  line-height: 1.4;
 }
 
 /* Expenses Header */
