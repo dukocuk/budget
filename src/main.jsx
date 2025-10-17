@@ -1,18 +1,10 @@
 import { createRoot } from "react-dom/client";
-import { initLocalDB, migrateExpensesToUUID, migrateSettingsTable } from "./lib/pglite";
+import { initLocalDB } from "./lib/pglite";
 // import './index.css'
 import App from "./App.jsx";
 
 // Initialize PGlite database before rendering app
 initLocalDB()
-  .then(() => {
-    console.log("✅ Database initialized, checking for migrations...");
-    return migrateExpensesToUUID();
-  })
-  .then(() => {
-    console.log("✅ Expenses table migrated, checking settings table...");
-    return migrateSettingsTable();
-  })
   .then(() => {
     console.log("✅ Database ready, rendering app...");
     createRoot(document.getElementById("root")).render(<App />);
