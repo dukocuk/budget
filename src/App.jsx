@@ -22,6 +22,7 @@ import { BalanceChart } from "./components/BalanceChart";
 import { ExpenseDistribution } from "./components/ExpenseDistribution";
 import { AddExpenseModal } from "./components/AddExpenseModal";
 import { SettingsModal } from "./components/SettingsModal";
+import { TemplateManagerModal } from "./components/TemplateManagerModal";
 import { DeleteConfirmation } from "./components/DeleteConfirmation";
 import YearSelector from "./components/YearSelector";
 import CreateYearModal from "./components/CreateYearModal";
@@ -97,6 +98,7 @@ function AppContent() {
     archivePeriod,
     calculateEndingBalance,
     getExpensesForPeriod,
+    fetchPeriodsFromDB,
   } = useBudgetPeriods(user?.id);
 
   // Use reducer to batch settings updates (prevents multiple re-renders)
@@ -113,6 +115,7 @@ function AppContent() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCreateYearModal, setShowCreateYearModal] = useState(false);
+  const [showTemplateManagerModal, setShowTemplateManagerModal] = useState(false);
 
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState({
@@ -159,6 +162,7 @@ function AppContent() {
     loadBudgetPeriods,
     loadSettings,
     immediateSyncExpenses,
+    immediateSyncBudgetPeriods,
     isOnline,
   } = useSyncContext();
 
@@ -205,6 +209,23 @@ function AppContent() {
             loadBudgetPeriods(),
           ]);
 
+          // CRITICAL: Sync local budget periods to cloud BEFORE syncing expenses
+          // This prevents foreign key constraint violations when expenses reference
+          // budget_period_id that doesn't exist in cloud yet
+          if (fetchPeriodsFromDB && immediateSyncBudgetPeriods) {
+            try {
+              const localPeriods = await fetchPeriodsFromDB();
+              if (localPeriods && localPeriods.length > 0) {
+                logger.info(`🔄 Syncing ${localPeriods.length} budget periods to cloud before expense sync...`);
+                await immediateSyncBudgetPeriods(localPeriods);
+                logger.info('✅ Budget periods synced successfully');
+              }
+            } catch (syncError) {
+              logger.error('❌ Error syncing budget periods during initialization:', syncError);
+              // Continue anyway - expense sync will handle validation
+            }
+          }
+
           // ATOMIC UPDATE: Use startTransition to batch ALL state updates into a single render
           // This prevents charts from re-rendering multiple times during initialization
           startTransition(() => {
@@ -233,7 +254,7 @@ function AppContent() {
 
       loadData();
     }
-  }, [user, activePeriod, isInitialized, loadExpenses, loadBudgetPeriods, setAllExpenses]);
+  }, [user, activePeriod, isInitialized, loadExpenses, loadBudgetPeriods, setAllExpenses, fetchPeriodsFromDB, immediateSyncBudgetPeriods]);
 
   // Sync expenses whenever they change (ONLY after initialization AND initial load complete)
   // OPTIMIZATION: Only sync if expenses actually changed to prevent cascading syncs
@@ -676,6 +697,14 @@ function AppContent() {
               showAlert(`❌ Kunne ikke arkivere år: ${error.message}`, "error");
             }
           }}
+          onOpenTemplateManager={() => setShowTemplateManagerModal(true)}
+        />
+
+        {/* Template Manager Modal */}
+        <TemplateManagerModal
+          isOpen={showTemplateManagerModal}
+          onClose={() => setShowTemplateManagerModal(false)}
+          activePeriod={activePeriod}
         />
 
         {/* Create Year Modal */}

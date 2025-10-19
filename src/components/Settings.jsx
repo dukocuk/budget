@@ -20,7 +20,9 @@ export const Settings = ({
   onImport,
   // Year management props (optional for backwards compatibility)
   activePeriod,
-  onArchivePeriod
+  onArchivePeriod,
+  // Template management
+  onOpenTemplateManager
 }) => {
   // Get sync status from isolated context (won't trigger parent re-renders)
   const { syncStatus, lastSyncTime, syncError, isOnline } = useSyncContext()
@@ -225,11 +227,7 @@ export const Settings = ({
         <div className="template-actions">
           <button
             className="btn btn-info"
-            onClick={() => {
-              // This will be handled by opening a modal
-              // For now, we'll add a placeholder
-              alert('Skabelonstyring åbnes snart! Dette vil lade dig gemme og administrere budget-skabeloner.')
-            }}
+            onClick={onOpenTemplateManager}
             title="Åbn skabelonstyring"
           >
             <span className="btn-icon">📋</span>

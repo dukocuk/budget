@@ -284,12 +284,13 @@ export const useExpenses = (userId, periodId) => {
       // Add WHERE conditions
       values.push(id)
       values.push(userId)
+      values.push(periodId)
 
       // Execute update
       await localDB.query(
         `UPDATE expenses
          SET ${updateFields.join(', ')}
-         WHERE id = $${paramIndex++} AND user_id = $${paramIndex}`,
+         WHERE id = $${paramIndex++} AND user_id = $${paramIndex++} AND budget_period_id = $${paramIndex}`,
         values
       )
 
@@ -314,7 +315,7 @@ export const useExpenses = (userId, periodId) => {
       setError(err.message)
       throw err
     }
-  }, [userId, debouncedCloudSync])
+  }, [userId, periodId, debouncedCloudSync])
 
   /**
    * Delete single expense (optimistic update)
@@ -327,8 +328,8 @@ export const useExpenses = (userId, periodId) => {
 
       // Delete from local database
       await localDB.query(
-        'DELETE FROM expenses WHERE id = $1 AND user_id = $2',
-        [id, userId]
+        'DELETE FROM expenses WHERE id = $1 AND user_id = $2 AND budget_period_id = $3',
+        [id, userId, periodId]
       )
 
       // Optimistic UI update - remove from local state immediately
@@ -343,7 +344,7 @@ export const useExpenses = (userId, periodId) => {
       setError(err.message)
       throw err
     }
-  }, [userId, debouncedCloudSync])
+  }, [userId, periodId, debouncedCloudSync])
 
   /**
    * Delete multiple expenses (optimistic update)
@@ -357,8 +358,8 @@ export const useExpenses = (userId, periodId) => {
       // Delete from local database
       const placeholders = ids.map((_, i) => `$${i + 1}`).join(',')
       await localDB.query(
-        `DELETE FROM expenses WHERE id IN (${placeholders}) AND user_id = $${ids.length + 1}`,
-        [...ids, userId]
+        `DELETE FROM expenses WHERE id IN (${placeholders}) AND user_id = $${ids.length + 1} AND budget_period_id = $${ids.length + 2}`,
+        [...ids, userId, periodId]
       )
 
       // Optimistic UI update - remove from local state immediately
@@ -373,7 +374,7 @@ export const useExpenses = (userId, periodId) => {
       setError(err.message)
       throw err
     }
-  }, [userId, debouncedCloudSync])
+  }, [userId, periodId, debouncedCloudSync])
 
   /**
    * Import expenses (replace all with UUID generation)

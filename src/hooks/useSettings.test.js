@@ -1,6 +1,7 @@
 /**
  * Tests for useSettings hook
- * Tests settings persistence with dual sync (PGlite + Supabase)
+ * Tests settings management with budget_periods table
+ * NOTE: Settings now stored in budget_periods, not separate settings table
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -17,12 +18,21 @@ vi.mock('../lib/pglite', () => ({
 }))
 
 // Mock Supabase
-const mockUpsert = vi.fn()
+const mockUpdate = vi.fn()
+const mockEq = vi.fn()
 
 vi.mock('../lib/supabase', () => ({
   supabase: {
     from: () => ({
-      upsert: (...args) => mockUpsert(...args)
+      update: (...args) => {
+        mockUpdate(...args)
+        return {
+          eq: (...eqArgs) => {
+            mockEq(...eqArgs)
+            return { eq: (...args2) => { mockEq(...args2); return { error: null } } }
+          }
+        }
+      }
     })
   }
 }))
@@ -31,18 +41,19 @@ vi.mock('../lib/supabase', () => ({
 vi.mock('../utils/logger', () => ({
   logger: {
     log: vi.fn(),
-    error: vi.fn()
+    error: vi.fn(),
+    info: vi.fn()
   }
 }))
 
 describe('useSettings', () => {
   const userId = 'user-123'
+  const periodId = 'period-2025'
 
   beforeEach(() => {
     vi.clearAllMocks()
-    // Default mock: no settings in DB
+    // Default mock: no period found
     mockQuery.mockResolvedValue({ rows: [] })
-    mockUpsert.mockResolvedValue({ error: null })
   })
 
   afterEach(() => {
@@ -51,7 +62,7 @@ describe('useSettings', () => {
 
   describe('Initialization', () => {
     it('should start with loading state', () => {
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       expect(result.current.loading).toBe(true)
       expect(result.current.settings).toEqual({
@@ -63,13 +74,13 @@ describe('useSettings', () => {
       expect(result.current.error).toBe(null)
     })
 
-    it('should load settings from local database on mount', async () => {
-      const { result } = renderHook(() => useSettings(userId))
+    it('should load settings from budget_periods table on mount', async () => {
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(mockQuery).toHaveBeenCalledWith(
-          'SELECT * FROM settings WHERE user_id = $1',
-          [userId]
+          'SELECT * FROM budget_periods WHERE id = $1 AND user_id = $2',
+          [periodId, userId]
         )
       })
 
@@ -81,7 +92,7 @@ describe('useSettings', () => {
     it('should set default values when no settings exist', async () => {
       mockQuery.mockResolvedValue({ rows: [] })
 
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -95,18 +106,22 @@ describe('useSettings', () => {
       })
     })
 
-    it('should load existing settings from database', async () => {
-      const mockSettings = {
+    it('should load existing settings from budget period', async () => {
+      const mockPeriod = {
+        id: periodId,
         user_id: userId,
+        year: 2025,
         monthly_payment: 5700,
         previous_balance: 4831,
         monthly_payments: null,
+        status: 'active',
+        created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z'
       }
 
-      mockQuery.mockResolvedValue({ rows: [mockSettings] })
+      mockQuery.mockResolvedValue({ rows: [mockPeriod] })
 
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -123,17 +138,21 @@ describe('useSettings', () => {
     it('should parse monthly_payments JSON when present', async () => {
       const monthlyPayments = [5000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700]
 
-      const mockSettings = {
+      const mockPeriod = {
+        id: periodId,
         user_id: userId,
+        year: 2025,
         monthly_payment: 5700,
         previous_balance: 4831,
         monthly_payments: JSON.stringify(monthlyPayments),
+        status: 'active',
+        created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z'
       }
 
-      mockQuery.mockResolvedValue({ rows: [mockSettings] })
+      mockQuery.mockResolvedValue({ rows: [mockPeriod] })
 
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -144,17 +163,21 @@ describe('useSettings', () => {
     })
 
     it('should handle invalid JSON in monthly_payments gracefully', async () => {
-      const mockSettings = {
+      const mockPeriod = {
+        id: periodId,
         user_id: userId,
+        year: 2025,
         monthly_payment: 5700,
         previous_balance: 4831,
         monthly_payments: 'invalid json',
+        status: 'active',
+        created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z'
       }
 
-      mockQuery.mockResolvedValue({ rows: [mockSettings] })
+      mockQuery.mockResolvedValue({ rows: [mockPeriod] })
 
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -167,7 +190,7 @@ describe('useSettings', () => {
     it('should handle database errors', async () => {
       mockQuery.mockRejectedValue(new Error('Database error'))
 
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -176,10 +199,20 @@ describe('useSettings', () => {
     })
 
     it('should not load if userId is null', async () => {
-      const { result } = renderHook(() => useSettings(null))
+      const { result } = renderHook(() => useSettings(null, periodId))
 
       await waitFor(() => {
-        expect(result.current.loading).toBe(true)
+        expect(result.current.loading).toBe(false)
+      })
+
+      expect(mockQuery).not.toHaveBeenCalled()
+    })
+
+    it('should not load if periodId is null', async () => {
+      const { result } = renderHook(() => useSettings(userId, null))
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
       })
 
       expect(mockQuery).not.toHaveBeenCalled()
@@ -187,10 +220,10 @@ describe('useSettings', () => {
   })
 
   describe('updateSettings', () => {
-    it('should update settings in local database', async () => {
+    it('should update budget period in local database', async () => {
       mockQuery.mockResolvedValue({ rows: [] })
 
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -204,15 +237,15 @@ describe('useSettings', () => {
       })
 
       expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO settings'),
-        expect.arrayContaining([userId, 6000, 5000])
+        expect.stringContaining('UPDATE budget_periods'),
+        expect.arrayContaining([6000, 5000, null, expect.any(String), periodId, userId])
       )
     })
 
-    it('should sync settings to Supabase cloud', async () => {
+    it('should sync budget period to Supabase cloud', async () => {
       mockQuery.mockResolvedValue({ rows: [] })
 
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -225,20 +258,22 @@ describe('useSettings', () => {
         })
       })
 
-      expect(mockUpsert).toHaveBeenCalledWith(
+      expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          user_id: userId,
           monthly_payment: 6000,
-          previous_balance: 5000
-        }),
-        { onConflict: 'user_id' }
+          previous_balance: 5000,
+          monthly_payments: null
+        })
       )
+
+      expect(mockEq).toHaveBeenCalledWith('id', periodId)
+      expect(mockEq).toHaveBeenCalledWith('user_id', userId)
     })
 
     it('should update local state immediately', async () => {
       mockQuery.mockResolvedValue({ rows: [] })
 
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -256,17 +291,21 @@ describe('useSettings', () => {
     })
 
     it('should handle partial updates', async () => {
-      const mockSettings = {
+      const mockPeriod = {
+        id: periodId,
         user_id: userId,
+        year: 2025,
         monthly_payment: 5700,
         previous_balance: 4831,
         monthly_payments: null,
+        status: 'active',
+        created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z'
       }
 
-      mockQuery.mockResolvedValue({ rows: [mockSettings] })
+      mockQuery.mockResolvedValue({ rows: [mockPeriod] })
 
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -287,7 +326,7 @@ describe('useSettings', () => {
     it('should update monthly_payments array', async () => {
       mockQuery.mockResolvedValue({ rows: [] })
 
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -308,7 +347,7 @@ describe('useSettings', () => {
     it('should set useVariablePayments to true when monthlyPayments is set', async () => {
       mockQuery.mockResolvedValue({ rows: [] })
 
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -328,17 +367,21 @@ describe('useSettings', () => {
     it('should set useVariablePayments to false when monthlyPayments is null', async () => {
       const monthlyPayments = [5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700]
 
-      const mockSettings = {
+      const mockPeriod = {
+        id: periodId,
         user_id: userId,
+        year: 2025,
         monthly_payment: 5700,
         previous_balance: 4831,
         monthly_payments: JSON.stringify(monthlyPayments),
+        status: 'active',
+        created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z'
       }
 
-      mockQuery.mockResolvedValue({ rows: [mockSettings] })
+      mockQuery.mockResolvedValue({ rows: [mockPeriod] })
 
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -360,7 +403,7 @@ describe('useSettings', () => {
     it('should stringify monthlyPayments for local database', async () => {
       mockQuery.mockResolvedValue({ rows: [] })
 
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -375,13 +418,14 @@ describe('useSettings', () => {
       })
 
       expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO settings'),
+        expect.stringContaining('UPDATE budget_periods'),
         expect.arrayContaining([
-          userId,
-          expect.any(Number),
-          expect.any(Number),
+          expect.any(Number), // monthly_payment
+          expect.any(Number), // previous_balance
           JSON.stringify(monthlyPayments),
-          expect.any(String)
+          expect.any(String), // updated_at
+          periodId,
+          userId
         ])
       )
     })
@@ -389,7 +433,7 @@ describe('useSettings', () => {
     it('should send monthlyPayments as array to Supabase', async () => {
       mockQuery.mockResolvedValue({ rows: [] })
 
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -403,11 +447,10 @@ describe('useSettings', () => {
         })
       })
 
-      expect(mockUpsert).toHaveBeenCalledWith(
+      expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          monthly_payments: monthlyPayments // Array, not string
-        }),
-        { onConflict: 'user_id' }
+          monthly_payments: monthlyPayments // Array, not string (Supabase handles JSONB)
+        })
       )
     })
 
@@ -415,7 +458,7 @@ describe('useSettings', () => {
 
   describe('Return Values', () => {
     it('should return all required properties', async () => {
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -428,7 +471,7 @@ describe('useSettings', () => {
     })
 
     it('should have correct settings structure', async () => {
-      const { result } = renderHook(() => useSettings(userId))
+      const { result } = renderHook(() => useSettings(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)

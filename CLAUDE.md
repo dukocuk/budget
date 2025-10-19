@@ -18,6 +18,7 @@ Personal budget tracker application for managing fixed expenses in DKK (Danish K
 - React Modal 3.16.3 (modal dialogs)
 - Supabase 2.74.0 (cloud sync & authentication)
 - PGlite 0.3.10 (local PostgreSQL with offline-first architecture) ✅
+- uuid 11.0.5 (UUID generation for offline-first) ✅
 
 ## Development Commands
 
@@ -72,10 +73,12 @@ budget/
 │   │   └── MonthlyView.jsx/css # Monthly expense breakdown ✅
 │   ├── hooks/               # Custom React hooks
 │   │   ├── useExpenses.js  # Expense CRUD + undo/redo + sync ✅
-│   │   ├── useAlert.js     # Alert notifications
+│   │   ├── useAlert.js     # Alert notifications ✅
 │   │   ├── useAuth.js      # Authentication ✅
-│   │   ├── useSupabaseSync.js # Automatic cloud sync ✅
+│   │   ├── useBudgetPeriods.js # Multi-year budget management ✅
+│   │   ├── useDebounce.js  # Debounce utility hook ✅
 │   │   ├── useExpenseFilters.js # Search & filtering ✅
+│   │   ├── useOnlineStatus.js # Online/offline detection ✅
 │   │   └── useSettings.js  # Settings management with PGlite ✅
 │   ├── lib/                # External integrations
 │   │   ├── supabase.js    # Supabase client ✅
@@ -89,6 +92,9 @@ budget/
 │   │   ├── validators.js   # Input validation
 │   │   ├── exportHelpers.js # CSV export logic
 │   │   ├── importHelpers.js # CSV import logic ✅
+│   │   ├── logger.js       # Logging utility ✅
+│   │   ├── uuid.js         # UUID helper functions ✅
+│   │   ├── yearComparison.js # Year comparison utilities ✅
 │   │   └── seed.js         # Test seed data (dev only) ✅
 │   ├── App.jsx            # Main app orchestration with auth wrapper ✅
 │   ├── App.css            # Comprehensive styling ✅
@@ -99,7 +105,9 @@ budget/
 ├── supabase/
 │   └── migrations/
 │       ├── 001_initial_schema.sql # Database schema ✅
-│       └── 002_monthly_payments.sql # Variable payments ✅
+│       ├── 002_monthly_payments.sql # Variable payments ✅
+│       ├── 003_budget_periods.sql # Multi-year budget periods ✅
+│       └── 004_budget_templates.sql # Budget templates feature ✅
 ├── public/              # Static assets
 ├── .env.example         # Example environment variables ✅
 ├── index.html           # HTML template
@@ -131,7 +139,7 @@ budget/
   - `signInWithGoogle()`: Google OAuth login
   - `signOut()`: User logout with cleanup
 
-- **`useSupabaseSync()`**: Automatic cloud synchronization ✅
+- **`useSyncContext()`**: Access to centralized sync state via SyncContext ✅
   - `syncStatus`: Current sync state (idle, syncing, synced, error, offline)
   - `lastSyncTime`: Timestamp of last successful sync
   - `syncError`: Error message if sync failed
@@ -139,7 +147,9 @@ budget/
   - `syncExpenses()`: Debounced expense sync (1 second delay)
   - `syncSettings()`: Debounced settings sync
   - `loadExpenses()`, `loadSettings()`: Load data from cloud
+  - `syncBudgetPeriods()`: Sync budget periods to cloud
   - Real-time subscriptions for multi-device sync
+  - See [contexts/SyncContext.jsx](src/contexts/SyncContext.jsx) for implementation
 
 - **`useExpenseFilters()`**: Search and filtering ✅
   - `filteredExpenses`: Filtered expense array
@@ -149,11 +159,31 @@ budget/
   - `clearFilters()`: Reset all filters
   - `hasActiveFilters`: Boolean indicator
 
-- **`useAlert()`**: Centralized notification system
+- **`useAlert()`**: Centralized notification system ✅
   - `alert`: Current notification `{message, type}`
   - `showAlert()`: Display notification with auto-dismiss
 
-- **`useSettings(userId)`**: Settings management with dual persistence ✅
+- **`useBudgetPeriods(userId)`**: Multi-year budget period management ✅
+  - `periods`: Array of all budget periods, sorted desc by year
+  - `activePeriod`: Currently selected budget period
+  - `loading`: Loading state
+  - `error`: Error messages
+  - `createPeriod()`: Create new budget year
+  - `updatePeriod()`: Update period settings
+  - `deletePeriod()`: Delete period (use with caution)
+  - `archivePeriod()`: Mark period as archived (read-only)
+  - `calculateEndingBalance()`: Calculate year-end balance for carryover
+
+- **`useDebounce(value, delay)`**: Debounce utility hook ✅
+  - Returns debounced value after specified delay
+  - Used for search inputs and sync operations
+
+- **`useOnlineStatus()`**: Online/offline detection ✅
+  - `isOnline`: Boolean online status
+  - Monitors network connectivity
+  - Used for sync status indicators
+
+- **`useSettings(userId, periodId)`**: Settings management with dual persistence ✅
   - `settings`: Settings object `{monthlyPayment, previousBalance}`
   - `loading`: Loading state during settings operations
   - `error`: Error messages from settings operations
@@ -326,22 +356,7 @@ ADD COLUMN budget_period_id UUID REFERENCES budget_periods(id) ON DELETE CASCADE
 
 ### Data Migration
 
-**Automatic Migration** ([lib/pglite.js](src/lib/pglite.js) - migrateToBudgetPeriods()):
-```javascript
-export async function migrateToBudgetPeriods(userId) {
-  // Check if migration needed (any expenses without budget_period_id)
-  // Create 2025 budget period with current settings
-  // Link all existing expenses to 2025 period
-  // Migration is idempotent (safe to run multiple times)
-}
-```
-
-**Migration Process**:
-1. Detects existing data without budget_period_id
-2. Creates 2025 budget period (year 2025, status 'active')
-3. Migrates settings from deprecated settings table
-4. Links all existing expenses to 2025 period
-5. Runs automatically on first load after upgrade
+Existing installations automatically migrate to budget periods on first load. The migration creates a 2025 budget period with current settings and links all existing expenses. See [lib/pglite.js](src/lib/pglite.js) - `migrateToBudgetPeriods()` for implementation details. Migration is idempotent and safe to run multiple times.
 
 ### Budget Period Management
 
@@ -573,74 +588,13 @@ await createPeriod({ id: periodId, ...periodData });
 - Export CSV backup before archiving
 - Never delete budget periods (archive instead)
 
-### Migration Guide for Developers
+### Developer Notes
 
-**Upgrading Existing Installations**:
-1. Apply Supabase migration: `003_budget_periods.sql`
-2. Update PGlite schema in `lib/pglite.js`
-3. Run migration function on first load
-4. Verify 2025 period created with existing data
-5. Test expense CRUD operations
-6. Test cloud sync with new table
-7. Verify CSV export includes year
+For schema changes, add columns to `budget_periods` table (not `expenses`) and maintain foreign key integrity. Automatic migration handles upgrades from pre-periods installations.
 
-**Future Schema Changes**:
-- Add columns to budget_periods table (not expenses)
-- Maintain foreign key integrity
-- Update migration to handle new columns
-- Preserve backward compatibility
+### Troubleshooting
 
-### Common Issues and Solutions
-
-**Issue**: "Expenses not showing after upgrade"
-- **Solution**: Migration not run, call `migrateToBudgetPeriods(userId)`
-
-**Issue**: "Cannot create year - already exists"
-- **Solution**: Unique constraint on (user_id, year), delete or select existing
-
-**Issue**: "Sync failing for budget periods"
-- **Solution**: Check Supabase RLS policies for budget_periods table
-
-**Issue**: "Read-only mode not working"
-- **Solution**: Verify `isReadOnly = activePeriod?.status === 'archived'` passed to components
-
-**Issue**: "Balance not carrying over"
-- **Solution**: Verify `calculateEndingBalance()` includes monthlyPayments JSONB
-
-### Database Helper Functions
-
-**get_active_budget_period(p_user_id)** (Supabase):
-```sql
--- Returns currently active budget period for user
--- Used for default period selection
-SELECT * FROM budget_periods
-WHERE user_id = p_user_id AND status = 'active'
-ORDER BY year DESC LIMIT 1;
-```
-
-**calculate_period_ending_balance(p_period_id)** (Supabase):
-```sql
--- Calculates ending balance for budget period
--- Formula: previous_balance + total_income - total_expenses
--- Handles variable monthly_payments (JSONB)
-```
-
-### Performance Considerations
-
-**Efficient Queries**:
-- All queries filter by budget_period_id (indexed)
-- Periods sorted DESC by year (most recent first)
-- Single active period per user (avoid multiple actives)
-
-**Caching Strategy**:
-- Active period cached in App.jsx state
-- Periods list cached in useBudgetPeriods
-- Minimize re-fetches with proper dependencies
-
-**Sync Optimization**:
-- Debounced sync (1 second delay)
-- Batch period updates when possible
-- Real-time subscriptions for multi-device only
+Common issues: Check RLS policies for sync failures, verify `isReadOnly` prop for archived periods, ensure `calculateEndingBalance()` includes monthlyPayments. All queries automatically filter by `budget_period_id` (indexed). Sync is debounced (1 second) with real-time multi-device updates.
 
 ## UI Components & Features
 
@@ -682,8 +636,19 @@ ORDER BY year DESC LIMIT 1;
 15. **[Settings.jsx](src/components/Settings.jsx)** - Settings with sync status ✅
 
 **Modal Components**:
-16. **[AddExpenseModal.jsx](src/components/AddExpenseModal.jsx)** - Add expense modal
-17. **[DeleteConfirmation.jsx](src/components/DeleteConfirmation.jsx)** - Delete confirmation
+16. **[AddExpenseModal.jsx](src/components/AddExpenseModal.jsx)** - Add expense modal ✅
+17. **[DeleteConfirmation.jsx](src/components/DeleteConfirmation.jsx)** - Delete confirmation ✅
+18. **[CreateYearModal.jsx](src/components/CreateYearModal.jsx)** - Create new budget year ✅
+19. **[PaymentModeConfirmation.jsx](src/components/PaymentModeConfirmation.jsx)** - Payment mode toggle confirmation ✅
+20. **[SettingsModal.jsx](src/components/SettingsModal.jsx)** - Settings dialog ✅
+
+**Year Management Components**:
+21. **[YearSelector.jsx](src/components/YearSelector.jsx)** - Budget year dropdown selector ✅
+22. **[YearComparison.jsx](src/components/YearComparison.jsx)** - Year-over-year comparison view ✅
+23. **[YearComparisonCharts.jsx](src/components/YearComparisonCharts.jsx)** - Multi-year visualization ✅
+
+**Template Management**:
+24. **[TemplateManager.jsx](src/components/TemplateManager.jsx)** - Budget template CRUD ✅
 
 ### New Features ✅
 
@@ -849,16 +814,16 @@ ORDER BY year DESC LIMIT 1;
 - ✅ Test commands: `npm test`, `npm run test:watch`, `npm run test:coverage`, `npm run test:ui`
 
 **Current Metrics**:
-- Total components: 20 (17 core + 3 main views + 2 modals)
-- Custom hooks: 7 (useExpenses, useAlert, useAuth, useSupabaseSync, useExpenseFilters, useSettings, useSyncContext)
-- Utility modules: 6 (calculations, validators, exportHelpers, importHelpers, seed, constants)
+- Total components: 24+ (17 core + 3 main views + 5 modals + 3 year management + templates)
+- Custom hooks: 9 (useExpenses, useAlert, useAuth, useBudgetPeriods, useDebounce, useExpenseFilters, useOnlineStatus, useSettings, useSyncContext)
+- Utility modules: 9 (calculations, validators, exportHelpers, importHelpers, seed, constants, logger, uuid, yearComparison)
 - Calculation functions: 8 (annual, monthly, summary, totals, projection, grouping, breakdown, validation)
-- Test files: 10 (comprehensive coverage for hooks, components, and utilities) ✅
-- Test cases: 240+ passing tests across all modules ✅
-- Total codebase: ~6000 lines (modular, optimized, test-covered, production-ready)
+- Test files: 28 (comprehensive coverage for hooks, components, and utilities) ✅
+- Test cases: 595+ passing tests across all modules ✅
+- Total codebase: ~8000+ lines (modular, optimized, test-covered, production-ready)
 - ESLint: Clean, no errors
 - Build size: ~280 KB (compressed: ~85 KB)
-- Test coverage: Comprehensive (hooks, components, utilities, CSV import/export)
+- Test coverage: Comprehensive (hooks, components, utilities, CSV import/export, multi-year features)
 
 ## Future Enhancements
 
@@ -980,4 +945,7 @@ ORDER BY year DESC LIMIT 1;
 - **Database Schema**: [supabase/migrations/](supabase/migrations/)
   - [001_initial_schema.sql](supabase/migrations/001_initial_schema.sql) - Initial tables and RLS
   - [002_monthly_payments.sql](supabase/migrations/002_monthly_payments.sql) - Variable payments feature
+  - [003_budget_periods.sql](supabase/migrations/003_budget_periods.sql) - Multi-year budget periods
+  - [004_budget_templates.sql](supabase/migrations/004_budget_templates.sql) - Budget templates
 - **Environment Setup**: [.env.example](.env.example)
+- **Serena Configuration**: [.serena/project.yml](.serena/project.yml) - Project settings for Serena MCP

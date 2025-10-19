@@ -30,7 +30,8 @@ export const SettingsModal = ({
   onExport,
   onImport,
   activePeriod,
-  onArchivePeriod
+  onArchivePeriod,
+  onOpenTemplateManager
 }) => {
   return (
     <Modal
@@ -67,6 +68,7 @@ export const SettingsModal = ({
           onImport={onImport}
           activePeriod={activePeriod}
           onArchivePeriod={onArchivePeriod}
+          onOpenTemplateManager={onOpenTemplateManager}
         />
       </div>
     </Modal>

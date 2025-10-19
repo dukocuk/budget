@@ -41,6 +41,7 @@ vi.mock('../utils/uuid', () => ({
 
 describe('useExpenses', () => {
   const userId = 'user-123'
+  const periodId = 'period-2025'
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -56,7 +57,7 @@ describe('useExpenses', () => {
 
   describe('Initialization', () => {
     it('should start with loading state', () => {
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       expect(result.current.loading).toBe(true)
       expect(result.current.expenses).toEqual([])
@@ -64,12 +65,12 @@ describe('useExpenses', () => {
     })
 
     it('should load expenses from local database on mount', async () => {
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(mockQuery).toHaveBeenCalledWith(
-          'SELECT * FROM expenses WHERE user_id = $1 ORDER BY id DESC',
-          [userId]
+          'SELECT * FROM expenses WHERE user_id = $1 AND budget_period_id = $2 ORDER BY id DESC',
+          [userId, periodId]
         )
       })
 
@@ -106,7 +107,7 @@ describe('useExpenses', () => {
 
       mockQuery.mockResolvedValue({ rows: mockExpenses })
 
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -120,7 +121,7 @@ describe('useExpenses', () => {
     it('should handle database errors', async () => {
       mockQuery.mockRejectedValue(new Error('Database error'))
 
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -129,7 +130,17 @@ describe('useExpenses', () => {
     })
 
     it('should not load if userId is null', async () => {
-      const { result } = renderHook(() => useExpenses(null))
+      const { result } = renderHook(() => useExpenses(null, periodId))
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
+      })
+
+      expect(mockQuery).not.toHaveBeenCalled()
+    })
+
+    it('should not load if periodId is null', async () => {
+      const { result } = renderHook(() => useExpenses(userId, null))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -141,7 +152,7 @@ describe('useExpenses', () => {
 
   describe('addExpense', () => {
     it('should add expense to local database', async () => {
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -160,13 +171,13 @@ describe('useExpenses', () => {
       await waitFor(() => {
         expect(mockQuery).toHaveBeenCalledWith(
           expect.stringContaining('INSERT INTO expenses'),
-          expect.arrayContaining(['uuid-1', userId, 'Netflix', 79, 'monthly', 1, 12])
+          expect.arrayContaining(['uuid-1', userId, periodId, 'Netflix', 79, 'monthly', 1, 12])
         )
       })
     })
 
     it('should update local state immediately (optimistic)', async () => {
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -188,7 +199,7 @@ describe('useExpenses', () => {
     })
 
     it('should sanitize expense data', async () => {
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -210,7 +221,7 @@ describe('useExpenses', () => {
     })
 
     it('should use default values for missing fields', async () => {
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -226,7 +237,7 @@ describe('useExpenses', () => {
     })
 
     it('should handle add errors', async () => {
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -262,7 +273,7 @@ describe('useExpenses', () => {
 
       mockQuery.mockResolvedValue({ rows: mockExpenses })
 
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -299,7 +310,7 @@ describe('useExpenses', () => {
 
       mockQuery.mockResolvedValue({ rows: mockExpenses })
 
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -331,7 +342,7 @@ describe('useExpenses', () => {
 
       mockQuery.mockResolvedValue({ rows: mockExpenses })
 
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -364,7 +375,7 @@ describe('useExpenses', () => {
 
       mockQuery.mockResolvedValue({ rows: mockExpenses })
 
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -399,7 +410,7 @@ describe('useExpenses', () => {
 
       mockQuery.mockResolvedValue({ rows: mockExpenses })
 
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -413,8 +424,8 @@ describe('useExpenses', () => {
 
       await waitFor(() => {
         expect(mockQuery).toHaveBeenCalledWith(
-          'DELETE FROM expenses WHERE id = $1 AND user_id = $2',
-          ['exp-1', userId]
+          'DELETE FROM expenses WHERE id = $1 AND user_id = $2 AND budget_period_id = $3',
+          ['exp-1', userId, periodId]
         )
       })
     })
@@ -436,7 +447,7 @@ describe('useExpenses', () => {
 
       mockQuery.mockResolvedValue({ rows: mockExpenses })
 
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -468,7 +479,7 @@ describe('useExpenses', () => {
 
       mockQuery.mockResolvedValue({ rows: mockExpenses })
 
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -514,7 +525,7 @@ describe('useExpenses', () => {
 
       mockQuery.mockResolvedValue({ rows: mockExpenses })
 
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -529,7 +540,7 @@ describe('useExpenses', () => {
       await waitFor(() => {
         expect(mockQuery).toHaveBeenCalledWith(
           expect.stringContaining('DELETE FROM expenses WHERE id IN'),
-          ['exp-1', 'exp-2', userId]
+          ['exp-1', 'exp-2', userId, periodId]
         )
       })
 
@@ -537,7 +548,7 @@ describe('useExpenses', () => {
     })
 
     it('should handle empty array', async () => {
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -570,7 +581,7 @@ describe('useExpenses', () => {
 
       mockQuery.mockResolvedValue({ rows: mockExpenses })
 
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -619,7 +630,7 @@ describe('useExpenses', () => {
 
       mockQuery.mockResolvedValue({ rows: mockExpenses })
 
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -666,7 +677,7 @@ describe('useExpenses', () => {
 
       mockQuery.mockResolvedValue({ rows: mockExpenses })
 
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -689,7 +700,7 @@ describe('useExpenses', () => {
     })
 
     it('should handle delete selected with no selection', async () => {
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -706,7 +717,7 @@ describe('useExpenses', () => {
 
   describe('importExpenses', () => {
     it('should replace all expenses with imported data', async () => {
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -726,13 +737,13 @@ describe('useExpenses', () => {
       await waitFor(() => {
         // Should delete all existing
         expect(mockQuery).toHaveBeenCalledWith(
-          'DELETE FROM expenses WHERE user_id = $1',
-          [userId]
+          'DELETE FROM expenses WHERE user_id = $1 AND budget_period_id = $2',
+          [userId, periodId]
         )
         // Should insert new ones
         expect(mockQuery).toHaveBeenCalledWith(
           expect.stringContaining('INSERT INTO expenses'),
-          expect.arrayContaining(['uuid-1', userId, 'Netflix', 79, 'monthly', 1, 12])
+          expect.arrayContaining(['uuid-1', userId, periodId, 'Netflix', 79, 'monthly', 1, 12])
         )
       })
     })
@@ -740,7 +751,7 @@ describe('useExpenses', () => {
 
   describe('Undo/Redo', () => {
     it('should have canUndo false and canRedo true after initial load', async () => {
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -753,7 +764,7 @@ describe('useExpenses', () => {
     })
 
     it('should return false when undoing with no history', async () => {
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -768,7 +779,7 @@ describe('useExpenses', () => {
     })
 
     it('should return true when redoing after initial load', async () => {
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
@@ -786,7 +797,7 @@ describe('useExpenses', () => {
 
   describe('Return Values', () => {
     it('should return all required properties', async () => {
-      const { result } = renderHook(() => useExpenses(userId))
+      const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)

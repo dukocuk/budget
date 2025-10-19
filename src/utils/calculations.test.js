@@ -409,3 +409,202 @@ describe('validateExpense', () => {
     expect(result.valid).toBe(true)
   })
 })
+
+describe('Variable Payments Edge Cases', () => {
+  const mockExpenses = [
+    { amount: 100, frequency: 'monthly', startMonth: 1, endMonth: 12 }
+  ]
+
+  describe('calculateSummary with variable payments', () => {
+    it('handles variable payments with null values', () => {
+      const payments = [5000, null, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000]
+      const result = calculateSummary(mockExpenses, payments, 0)
+
+      // null value should be treated as 0
+      const expectedAnnualIncome = 5000 + 0 + 6000 + 5700 * 8 + 6000 // 62600
+      expect(result.avgMonthlyIncome).toBe(Math.round(expectedAnnualIncome / 12))
+    })
+
+    it('handles variable payments with undefined values', () => {
+      const payments = [5000, undefined, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000]
+      const result = calculateSummary(mockExpenses, payments, 0)
+
+      // undefined value should be treated as 0
+      const expectedAnnualIncome = 5000 + 0 + 6000 + 5700 * 8 + 6000
+      expect(result.avgMonthlyIncome).toBe(Math.round(expectedAnnualIncome / 12))
+    })
+
+    it('handles variable payments with all zeros', () => {
+      const payments = Array(12).fill(0)
+      const result = calculateSummary(mockExpenses, payments, 1000)
+
+      expect(result.avgMonthlyIncome).toBe(0)
+      expect(result.monthlyBalance).toBe(-100) // No income, 100 expenses
+      expect(result.annualReserve).toBe(-200) // -100 * 12 + 1000 = -1200 + 1000 = -200
+    })
+
+    it('handles variable payments with very high values', () => {
+      const payments = Array(12).fill(50000)
+      const result = calculateSummary(mockExpenses, payments, 0)
+
+      expect(result.avgMonthlyIncome).toBe(50000)
+      expect(result.monthlyBalance).toBe(49900) // 50000 - 100
+      expect(result.annualReserve).toBe(598800) // 49900 * 12
+    })
+
+    it('handles variable payments with mixed positive and negative values', () => {
+      const payments = [5000, -1000, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000]
+      const result = calculateSummary(mockExpenses, payments, 0)
+
+      const expectedAnnualIncome = 5000 - 1000 + 6000 + 5700 * 8 + 6000 // 61600
+      expect(result.avgMonthlyIncome).toBe(Math.round(expectedAnnualIncome / 12))
+    })
+
+    it('handles empty variable payments array', () => {
+      const result = calculateSummary(mockExpenses, [], 0)
+
+      // Empty array should fall back to 0 total annual income
+      expect(result.avgMonthlyIncome).toBe(0)
+    })
+  })
+
+  describe('calculateBalanceProjection with variable payments', () => {
+    it('handles variable payments with null values', () => {
+      const payments = [600, null, 400, 500, 500, 500, 500, 500, 500, 500, 500, 700]
+      const projection = calculateBalanceProjection(mockExpenses, payments, 0)
+
+      expect(projection[0]).toEqual({ month: 1, balance: 500, income: 600, expenses: 100 })
+      expect(projection[1]).toEqual({ month: 2, balance: 400, income: 0, expenses: 100 }) // null treated as 0
+      expect(projection[2]).toEqual({ month: 3, balance: 700, income: 400, expenses: 100 })
+    })
+
+    it('handles variable payments with varying amounts', () => {
+      const payments = [10000, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 15000]
+      const projection = calculateBalanceProjection(mockExpenses, payments, 0)
+
+      expect(projection[0].balance).toBe(9900)  // 0 + 10000 - 100
+      expect(projection[1].balance).toBe(10800) // 9900 + 1000 - 100
+      expect(projection[11].balance).toBe(78800) // 63900 + 15000 - 100
+    })
+
+    it('handles empty variable payments array', () => {
+      const projection = calculateBalanceProjection(mockExpenses, [], 0)
+
+      // Empty array should fall back to fixed 0 payment
+      expect(projection[0]).toEqual({ month: 1, balance: -100, income: 0, expenses: 100 })
+      expect(projection[11].balance).toBe(-1200) // 0 + (0 - 100) * 12
+    })
+
+    it('handles variable payments shorter than 12 months', () => {
+      const payments = [5000, 6000, 7000] // Only 3 values
+      const projection = calculateBalanceProjection(mockExpenses, payments, 0)
+
+      // Should treat missing months as 0
+      // Month 1: 0 + 5000 - 100 = 4900
+      // Month 2: 4900 + 6000 - 100 = 10800
+      // Month 3: 10800 + 7000 - 100 = 17700
+      expect(projection[0]).toEqual({ month: 1, balance: 4900, income: 5000, expenses: 100 })
+      expect(projection[2]).toEqual({ month: 3, balance: 17700, income: 7000, expenses: 100 })
+      expect(projection[3]).toEqual({ month: 4, balance: 17600, income: 0, expenses: 100 }) // Missing value = 0
+    })
+  })
+
+  describe('getMonthlyPayment edge cases', () => {
+    it('handles array with more than 12 elements', () => {
+      const payments = [5000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000, 7000, 8000]
+      expect(getMonthlyPayment(5700, payments, 5)).toBe(5700) // Should work with extra values
+    })
+
+    it('handles array with exactly 12 null values', () => {
+      const payments = Array(12).fill(null)
+      expect(getMonthlyPayment(5700, payments, 5)).toBe(0) // null values should return 0
+    })
+
+    it('handles array with mixed null and undefined', () => {
+      const payments = [5000, null, undefined, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000]
+      expect(getMonthlyPayment(5700, payments, 1)).toBe(5000)
+      expect(getMonthlyPayment(5700, payments, 2)).toBe(0) // null → 0
+      expect(getMonthlyPayment(5700, payments, 3)).toBe(0) // undefined → 0
+      expect(getMonthlyPayment(5700, payments, 4)).toBe(5700)
+    })
+
+    it('handles negative values in array', () => {
+      const payments = [5000, -1000, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000]
+      expect(getMonthlyPayment(5700, payments, 2)).toBe(-1000) // Should return negative value as-is
+    })
+
+    it('handles zero values in array', () => {
+      const payments = [5000, 0, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000]
+      expect(getMonthlyPayment(5700, payments, 2)).toBe(0)
+    })
+
+    it('handles very large values in array', () => {
+      const payments = [1000000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000]
+      expect(getMonthlyPayment(5700, payments, 1)).toBe(1000000)
+    })
+
+    it('handles NaN values in array', () => {
+      const payments = [5000, NaN, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000]
+      // NaN should be treated as falsy and return 0
+      expect(getMonthlyPayment(5700, payments, 2)).toBe(0)
+    })
+  })
+
+  describe('Integration: Full variable payment workflow', () => {
+    it('calculates correct annual totals with complex variable payments', () => {
+      const expenses = [
+        { amount: 100, frequency: 'monthly', startMonth: 1, endMonth: 12 },
+        { amount: 400, frequency: 'quarterly', startMonth: 1, endMonth: 12 },
+        { amount: 1200, frequency: 'yearly', startMonth: 6, endMonth: 12 }
+      ]
+
+      const variablePayments = [
+        6000, // Jan
+        5500, // Feb
+        5800, // Mar
+        6200, // Apr
+        5700, // May
+        7000, // Jun
+        5700, // Jul
+        5700, // Aug
+        5700, // Sep
+        5700, // Oct
+        5700, // Nov
+        8000  // Dec
+      ]
+
+      const summary = calculateSummary(expenses, variablePayments, 2000)
+      const projection = calculateBalanceProjection(expenses, variablePayments, 2000)
+
+      // Verify annual income calculation
+      const totalIncome = variablePayments.reduce((sum, val) => sum + (val || 0), 0) // 73300
+      expect(summary.avgMonthlyIncome).toBe(Math.round(totalIncome / 12)) // 6108
+
+      // Verify year-end balance matches projection
+      expect(summary.annualReserve).toBe(projection[11].balance)
+
+      // Verify projection consistency
+      let runningBalance = 2000
+      projection.forEach((month, idx) => {
+        runningBalance += month.income - month.expenses
+        expect(month.balance).toBe(runningBalance)
+      })
+    })
+
+    it('handles zero income with variable payments', () => {
+      const expenses = [
+        { amount: 500, frequency: 'monthly', startMonth: 1, endMonth: 12 }
+      ]
+
+      const variablePayments = Array(12).fill(0)
+
+      const summary = calculateSummary(expenses, variablePayments, 10000)
+      const projection = calculateBalanceProjection(expenses, variablePayments, 10000)
+
+      expect(summary.avgMonthlyIncome).toBe(0)
+      expect(summary.monthlyBalance).toBe(-500) // No income, 500 expenses
+      expect(summary.annualReserve).toBe(4000) // 10000 + (-500 * 12) = 4000
+      expect(projection[11].balance).toBe(4000)
+    })
+  })
+})

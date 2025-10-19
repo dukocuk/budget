@@ -65,6 +65,34 @@ export const useBudgetPeriods = (userId) => {
   const { syncBudgetPeriods } = useSyncContext()
 
   /**
+   * Helper: Load periods from database and return them
+   * Used internally for sync operations
+   */
+  const fetchPeriodsFromDB = useCallback(async () => {
+    if (!userId) return []
+
+    const result = await localDB.query(
+      'SELECT * FROM budget_periods WHERE user_id = $1 AND is_template = 0 ORDER BY year DESC',
+      [userId]
+    )
+
+    return result.rows.map(row => ({
+      id: row.id,
+      userId: row.user_id,
+      year: row.year,
+      monthlyPayment: row.monthly_payment,
+      previousBalance: row.previous_balance,
+      monthlyPayments: row.monthly_payments ? JSON.parse(row.monthly_payments) : null,
+      status: row.status,
+      isTemplate: row.is_template === 1,
+      templateName: row.template_name,
+      templateDescription: row.template_description,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    }))
+  }, [userId])
+
+  /**
    * Load budget periods from local PGlite database
    */
   const loadPeriods = useCallback(async () => {
@@ -81,25 +109,7 @@ export const useBudgetPeriods = (userId) => {
       await migrateToBudgetPeriods(userId)
 
       // Load all periods for user (excluding templates)
-      const result = await localDB.query(
-        'SELECT * FROM budget_periods WHERE user_id = $1 AND is_template = 0 ORDER BY year DESC',
-        [userId]
-      );
-
-      const loadedPeriods = result.rows.map(row => ({
-        id: row.id,
-        userId: row.user_id,
-        year: row.year,
-        monthlyPayment: row.monthly_payment,
-        previousBalance: row.previous_balance,
-        monthlyPayments: row.monthly_payments ? JSON.parse(row.monthly_payments) : null,
-        status: row.status,
-        isTemplate: row.is_template === 1,
-        templateName: row.template_name,
-        templateDescription: row.template_description,
-        createdAt: row.created_at,
-        updatedAt: row.updated_at
-      }))
+      const loadedPeriods = await fetchPeriodsFromDB()
 
       setPeriods(loadedPeriods)
 
@@ -113,7 +123,7 @@ export const useBudgetPeriods = (userId) => {
       setError(err.message)
       setLoading(false)
     }
-  }, [userId])
+  }, [userId, fetchPeriodsFromDB])
 
   /**
    * Initial load on mount
@@ -192,9 +202,10 @@ export const useBudgetPeriods = (userId) => {
       // Reload periods
       await loadPeriods()
 
-      // Sync to cloud
-      if (syncBudgetPeriods) {
-        syncBudgetPeriods()
+      // Get updated periods and sync to cloud
+      const updatedPeriods = await fetchPeriodsFromDB()
+      if (syncBudgetPeriods && updatedPeriods.length > 0) {
+        syncBudgetPeriods(updatedPeriods)
       }
 
       logger.info(`✅ Created budget period for year ${year}`)
@@ -205,7 +216,7 @@ export const useBudgetPeriods = (userId) => {
       setError(err.message)
       throw err
     }
-  }, [userId, loadPeriods, syncBudgetPeriods])
+  }, [userId, loadPeriods, fetchPeriodsFromDB, syncBudgetPeriods])
 
   /**
    * Update existing budget period
@@ -256,9 +267,10 @@ export const useBudgetPeriods = (userId) => {
       // Reload periods
       await loadPeriods()
 
-      // Sync to cloud
-      if (syncBudgetPeriods) {
-        syncBudgetPeriods()
+      // Get updated periods and sync to cloud
+      const updatedPeriods = await fetchPeriodsFromDB()
+      if (syncBudgetPeriods && updatedPeriods.length > 0) {
+        syncBudgetPeriods(updatedPeriods)
       }
 
     } catch (err) {
@@ -266,7 +278,7 @@ export const useBudgetPeriods = (userId) => {
       setError(err.message)
       throw err
     }
-  }, [userId, loadPeriods, syncBudgetPeriods])
+  }, [userId, loadPeriods, fetchPeriodsFromDB, syncBudgetPeriods])
 
   /**
    * Archive budget period (make read-only)
@@ -293,9 +305,10 @@ export const useBudgetPeriods = (userId) => {
       // Reload periods
       await loadPeriods()
 
-      // Sync to cloud
-      if (syncBudgetPeriods) {
-        syncBudgetPeriods()
+      // Get updated periods and sync to cloud
+      const updatedPeriods = await fetchPeriodsFromDB()
+      if (syncBudgetPeriods && updatedPeriods.length > 0) {
+        syncBudgetPeriods(updatedPeriods)
       }
 
     } catch (err) {
@@ -303,7 +316,7 @@ export const useBudgetPeriods = (userId) => {
       setError(err.message)
       throw err
     }
-  }, [userId, loadPeriods, syncBudgetPeriods])
+  }, [userId, loadPeriods, fetchPeriodsFromDB, syncBudgetPeriods])
 
   /**
    * Calculate ending balance for a budget period
@@ -462,9 +475,10 @@ export const useBudgetPeriods = (userId) => {
       // Copy expenses from period to template
       await copyExpensesBetweenPeriods(userId, periodId, templateId)
 
-      // Sync to cloud
-      if (syncBudgetPeriods) {
-        syncBudgetPeriods()
+      // Get updated periods and sync to cloud
+      const updatedPeriods = await fetchPeriodsFromDB()
+      if (syncBudgetPeriods && updatedPeriods.length > 0) {
+        syncBudgetPeriods(updatedPeriods)
       }
 
       logger.info(`✅ Saved template: ${templateName}`)
@@ -475,7 +489,7 @@ export const useBudgetPeriods = (userId) => {
       setError(err.message)
       throw err
     }
-  }, [userId, syncBudgetPeriods])
+  }, [userId, fetchPeriodsFromDB, syncBudgetPeriods])
 
   /**
    * Delete a template
@@ -493,9 +507,10 @@ export const useBudgetPeriods = (userId) => {
         [templateId, userId]
       )
 
-      // Sync to cloud
-      if (syncBudgetPeriods) {
-        syncBudgetPeriods()
+      // Get updated periods and sync to cloud
+      const updatedPeriods = await fetchPeriodsFromDB()
+      if (syncBudgetPeriods && updatedPeriods.length > 0) {
+        syncBudgetPeriods(updatedPeriods)
       }
 
       logger.info('✅ Template deleted')
@@ -504,7 +519,7 @@ export const useBudgetPeriods = (userId) => {
       setError(err.message)
       throw err
     }
-  }, [userId, syncBudgetPeriods])
+  }, [userId, fetchPeriodsFromDB, syncBudgetPeriods])
 
   /**
    * Create a new budget period from a template
@@ -582,9 +597,10 @@ export const useBudgetPeriods = (userId) => {
       // Reload periods
       await loadPeriods()
 
-      // Sync to cloud
-      if (syncBudgetPeriods) {
-        syncBudgetPeriods()
+      // Get updated periods and sync to cloud
+      const updatedPeriods = await fetchPeriodsFromDB()
+      if (syncBudgetPeriods && updatedPeriods.length > 0) {
+        syncBudgetPeriods(updatedPeriods)
       }
 
       logger.info(`✅ Created budget period for year ${year} from template`)
@@ -595,7 +611,7 @@ export const useBudgetPeriods = (userId) => {
       setError(err.message)
       throw err
     }
-  }, [userId, loadPeriods, syncBudgetPeriods])
+  }, [userId, loadPeriods, fetchPeriodsFromDB, syncBudgetPeriods])
 
   /**
    * Get expenses for a specific period (for comparison view)
@@ -663,6 +679,7 @@ export const useBudgetPeriods = (userId) => {
     saveAsTemplate,
     deleteTemplate,
     createFromTemplate,
+    fetchPeriodsFromDB, // NEW: Export helper for sync order fix
     reload: loadPeriods
   }
 }

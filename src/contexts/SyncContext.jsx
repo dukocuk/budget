@@ -92,6 +92,7 @@ export const SyncProvider = ({ user, children }) => {
    * Smart sync expenses to Supabase using merge-based strategy
    * Implements last-write-wins conflict resolution with timestamp comparison
    * Preserves UUIDs and handles concurrent edits from multiple devices
+   * Translates local budget period IDs to cloud IDs to prevent foreign key violations
    */
   const syncExpenses = useCallback(async (expenses) => {
     if (!user || !isOnline || isSyncingRef.current) return
@@ -101,7 +102,33 @@ export const SyncProvider = ({ user, children }) => {
       updateSyncStatus('syncing')
       updateSyncError(null)
 
-      // Step 1: Fetch current cloud state
+      // Step 1: Fetch budget periods from local and cloud to build ID mapping
+      // This is necessary because local and cloud may have different UUIDs for the same period (year)
+      const localDB = await import('../lib/pglite').then(m => m.localDB)
+      const localPeriods = await localDB.query(
+        'SELECT id, year FROM budget_periods WHERE user_id = $1',
+        [user.id]
+      )
+
+      const { data: cloudPeriods, error: periodFetchError } = await supabase
+        .from('budget_periods')
+        .select('id, year')
+        .eq('user_id', user.id)
+
+      if (periodFetchError) throw periodFetchError
+
+      // Build mapping: local period ID → cloud period ID (matched by year)
+      const periodIdMap = new Map()
+      for (const localPeriod of localPeriods.rows || []) {
+        const cloudPeriod = (cloudPeriods || []).find(cp => cp.year === localPeriod.year)
+        if (cloudPeriod) {
+          periodIdMap.set(localPeriod.id, cloudPeriod.id)
+        } else {
+          logger.warn(`⚠️ No cloud budget period found for year ${localPeriod.year}, local ID: ${localPeriod.id}`)
+        }
+      }
+
+      // Step 2: Fetch current cloud expenses
       const { data: cloudExpenses, error: fetchError } = await supabase
         .from('expenses')
         .select('*')
@@ -109,20 +136,33 @@ export const SyncProvider = ({ user, children }) => {
 
       if (fetchError) throw fetchError
 
-      // Step 2: Build maps for efficient comparison
+      // Step 3: Build maps for efficient comparison
       const cloudMap = new Map((cloudExpenses || []).map(e => [e.id, e]))
       const localMap = new Map(expenses.map(e => [e.id, e]))
 
-      // Step 3: Determine operations (upsert, delete)
+      // Step 4: Determine operations (upsert, delete)
       const toUpsert = []
       const toDelete = []
 
       // Check local expenses for upserts (add or update)
       for (const localExpense of expenses) {
+        // Validate budget_period_id exists (prevent foreign key violation)
+        if (!localExpense.budgetPeriodId) {
+          logger.warn(`⚠️ Skipping expense "${localExpense.name}" - missing budget_period_id`)
+          continue
+        }
+
+        // Translate local budget period ID to cloud ID
+        const cloudBudgetPeriodId = periodIdMap.get(localExpense.budgetPeriodId)
+        if (!cloudBudgetPeriodId) {
+          logger.warn(`⚠️ Skipping expense "${localExpense.name}" - budget period not found in cloud (local ID: ${localExpense.budgetPeriodId})`)
+          continue
+        }
+
         const cloudExpense = cloudMap.get(localExpense.id)
 
         if (!cloudExpense) {
-          // New expense - insert with client-provided UUID
+          // New expense - insert with client-provided UUID and cloud budget period ID
           toUpsert.push({
             id: localExpense.id,
             user_id: user.id,
@@ -131,6 +171,7 @@ export const SyncProvider = ({ user, children }) => {
             frequency: localExpense.frequency,
             start_month: localExpense.startMonth,
             end_month: localExpense.endMonth,
+            budget_period_id: cloudBudgetPeriodId, // Use cloud ID to prevent foreign key violation
             updated_at: new Date().toISOString()
           })
         } else {
@@ -139,7 +180,7 @@ export const SyncProvider = ({ user, children }) => {
           const cloudUpdated = new Date(cloudExpense.updated_at || 0)
 
           if (localUpdated >= cloudUpdated) {
-            // Local version is newer or equal - update cloud
+            // Local version is newer or equal - update cloud with cloud budget period ID
             toUpsert.push({
               id: localExpense.id,
               user_id: user.id,
@@ -148,6 +189,7 @@ export const SyncProvider = ({ user, children }) => {
               frequency: localExpense.frequency,
               start_month: localExpense.startMonth,
               end_month: localExpense.endMonth,
+              budget_period_id: cloudBudgetPeriodId, // Use cloud ID to prevent foreign key violation
               updated_at: localUpdated.toISOString()
             })
           }
@@ -163,7 +205,7 @@ export const SyncProvider = ({ user, children }) => {
         }
       }
 
-      // Step 4: Execute operations
+      // Step 5: Execute operations
       if (toUpsert.length > 0) {
         const { error: upsertError } = await supabase
           .from('expenses')
@@ -199,8 +241,14 @@ export const SyncProvider = ({ user, children }) => {
       }, 2000)
 
     } catch (error) {
-      logger.error('❌ Error syncing expenses:', error)
-      updateSyncError(error.message)
+      // Check if it's a foreign key constraint error for budget_period_id
+      if (error.code === '23503' && error.message?.includes('budget_period')) {
+        logger.error('❌ Budget period not found in cloud database. Budget periods must be synced before expenses.')
+        updateSyncError('Budget periode mangler i skyen. Genindlæs venligst appen.')
+      } else {
+        logger.error('❌ Error syncing expenses:', error)
+        updateSyncError(error.message)
+      }
       updateSyncStatus('error')
 
       // Reset error state after 5 seconds (with cleanup tracking)
@@ -219,7 +267,8 @@ export const SyncProvider = ({ user, children }) => {
 
   /**
    * Sync budget periods to Supabase
-   * Syncs all budget periods for the user
+   * Smart matching by (user_id, year) to prevent duplicate key violations
+   * Fetches existing cloud periods first to match by year and preserve cloud IDs
    */
   const syncBudgetPeriods = useCallback(async (periods) => {
     if (!user || !isOnline || isSyncingRef.current) return
@@ -228,23 +277,43 @@ export const SyncProvider = ({ user, children }) => {
       updateSyncStatus('syncing')
       updateSyncError(null)
 
-      // Transform periods to database format
-      const periodsToSync = (periods || []).map(period => ({
-        id: period.id,
-        user_id: user.id,
-        year: period.year,
-        monthly_payment: period.monthlyPayment,
-        previous_balance: period.previousBalance,
-        monthly_payments: period.monthlyPayments, // Supabase handles JSONB automatically
-        status: period.status || 'active',
-        updated_at: new Date().toISOString()
-      }))
+      // Fetch existing cloud periods first to match by (user_id, year)
+      const { data: cloudPeriods, error: fetchError } = await supabase
+        .from('budget_periods')
+        .select('*')
+        .eq('user_id', user.id)
+
+      if (fetchError) throw fetchError
+
+      // Build map of cloud periods by year for fast lookup
+      const cloudMap = new Map()
+      if (cloudPeriods) {
+        cloudPeriods.forEach(period => {
+          cloudMap.set(period.year, period)
+        })
+      }
+
+      // Transform periods to database format, using cloud ID if period exists
+      const periodsToSync = (periods || []).map(period => {
+        const cloudPeriod = cloudMap.get(period.year)
+
+        return {
+          id: cloudPeriod ? cloudPeriod.id : period.id, // Use cloud ID if exists, else local ID
+          user_id: user.id,
+          year: period.year,
+          monthly_payment: period.monthlyPayment,
+          previous_balance: period.previousBalance,
+          monthly_payments: period.monthlyPayments, // Supabase handles JSONB automatically
+          status: period.status || 'active',
+          updated_at: new Date().toISOString()
+        }
+      })
 
       if (periodsToSync.length > 0) {
         const { error } = await supabase
           .from('budget_periods')
           .upsert(periodsToSync, {
-            onConflict: 'id',
+            onConflict: 'id', // Now safe because we use cloud ID when it exists
             ignoreDuplicates: false
           })
 
@@ -400,6 +469,7 @@ export const SyncProvider = ({ user, children }) => {
         frequency: expense.frequency,
         startMonth: expense.start_month,
         endMonth: expense.end_month,
+        budgetPeriodId: expense.budget_period_id, // Required for multi-year support
         createdAt: expense.created_at,
         updatedAt: expense.updated_at
       }))
