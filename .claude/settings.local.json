@@ -59,5 +59,17 @@
     ],
     "deny": [],
     "ask": []
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/install_pkgs.sh"
+          }
+        ]
+      }
+    ]
   }
 }
