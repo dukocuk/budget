@@ -6,6 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { useExpenses } from './useExpenses'
+import { localDB } from '../lib/pglite'
 
 // Mock PGlite
 const mockQuery = vi.fn()
@@ -750,17 +751,22 @@ describe('useExpenses', () => {
   })
 
   describe('Undo/Redo', () => {
-    it('should have canUndo false and canRedo true after initial load', async () => {
+    it('should have canUndo false and canRedo false after initial load', async () => {
       const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
       })
 
-      // After initial load, history will have one entry (the loaded expenses)
-      // So canUndo should be false (no previous state), canRedo should be true
-      expect(result.current.canUndo).toBe(false)
-      expect(result.current.canRedo).toBe(true)
+      // Wait for all state updates and effects to complete
+      await waitFor(() => {
+        // After initial load stabilizes, history has one entry at index 0
+        // canUndo requires historyIndex > 0, so it should be false
+        // canRedo requires historyIndex < history.length - 1, so it should be false
+        expect(result.current.canUndo).toBe(false)
+      })
+
+      expect(result.current.canRedo).toBe(false)
     })
 
     it('should return false when undoing with no history', async () => {
@@ -778,20 +784,25 @@ describe('useExpenses', () => {
       expect(undoResult).toBe(false)
     })
 
-    it('should return true when redoing after initial load', async () => {
+    it('should return false when redoing with no future state', async () => {
       const { result } = renderHook(() => useExpenses(userId, periodId))
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false)
       })
 
-      // After initial load, history has entries, so redo should work
+      // Wait for state to stabilize
+      await waitFor(() => {
+        expect(result.current.canRedo).toBe(false)
+      })
+
+      // After initial load with empty state, no future state exists
       let redoResult
       act(() => {
         redoResult = result.current.redo()
       })
 
-      expect(redoResult).toBe(true)
+      expect(redoResult).toBe(false)
     })
   })
 
@@ -821,6 +832,283 @@ describe('useExpenses', () => {
       expect(result.current).toHaveProperty('canUndo')
       expect(result.current).toHaveProperty('canRedo')
       expect(result.current).toHaveProperty('reload')
+    })
+  })
+
+  describe('Undo/Redo Workflow Integration', () => {
+    it('should support add → undo → redo workflow', async () => {
+      const { result } = renderHook(() => useExpenses(userId, periodId))
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
+      })
+
+      const initialCount = result.current.expenses.length
+
+      // Add an expense
+      await act(async () => {
+        await result.current.addExpense({
+          name: 'New Expense',
+          amount: 500,
+          frequency: 'monthly',
+          startMonth: 1,
+          endMonth: 12
+        })
+      })
+
+      await waitFor(() => {
+        expect(result.current.expenses).toHaveLength(initialCount + 1)
+      })
+
+      // Undo the add
+      await act(async () => {
+        await result.current.undo()
+      })
+
+      await waitFor(() => {
+        expect(result.current.expenses).toHaveLength(initialCount)
+      })
+
+      // Redo the add
+      await act(async () => {
+        await result.current.redo()
+      })
+
+      await waitFor(() => {
+        expect(result.current.expenses).toHaveLength(initialCount + 1)
+        expect(result.current.expenses[0].name).toBe('New Expense')
+      })
+    })
+
+    it('should support update → undo → redo workflow', async () => {
+      const mockExpense = {
+        id: 'test-expense-1',
+        name: 'Original Name',
+        amount: 100,
+        frequency: 'monthly',
+        startMonth: 1,
+        endMonth: 12,
+        budgetPeriodId: periodId
+      }
+
+      mockQuery.mockResolvedValue({
+        rows: [mockExpense]
+      })
+
+      const { result } = renderHook(() => useExpenses(userId, periodId))
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
+      })
+
+      // Update the expense
+      await act(async () => {
+        await result.current.updateExpense('test-expense-1', { name: 'Updated Name' })
+      })
+
+      await waitFor(() => {
+        const expense = result.current.expenses.find(e => e.id === 'test-expense-1')
+        expect(expense.name).toBe('Updated Name')
+      })
+
+      // Undo the update
+      await act(async () => {
+        await result.current.undo()
+      })
+
+      await waitFor(() => {
+        const expense = result.current.expenses.find(e => e.id === 'test-expense-1')
+        expect(expense.name).toBe('Original Name')
+      })
+
+      // Redo the update
+      await act(async () => {
+        await result.current.redo()
+      })
+
+      await waitFor(() => {
+        const expense = result.current.expenses.find(e => e.id === 'test-expense-1')
+        expect(expense.name).toBe('Updated Name')
+      })
+    })
+
+    it('should support delete → undo → redo workflow', async () => {
+      const mockExpense = {
+        id: 'test-expense-1',
+        name: 'To Delete',
+        amount: 100,
+        frequency: 'monthly',
+        startMonth: 1,
+        endMonth: 12,
+        budgetPeriodId: periodId
+      }
+
+      mockQuery.mockResolvedValue({
+        rows: [mockExpense]
+      })
+
+      const { result } = renderHook(() => useExpenses(userId, periodId))
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
+      })
+
+      const initialCount = result.current.expenses.length
+
+      // Delete the expense
+      await act(async () => {
+        await result.current.deleteExpense('test-expense-1')
+      })
+
+      await waitFor(() => {
+        expect(result.current.expenses).toHaveLength(initialCount - 1)
+      })
+
+      // Undo the delete (restore)
+      await act(async () => {
+        await result.current.undo()
+      })
+
+      await waitFor(() => {
+        expect(result.current.expenses).toHaveLength(initialCount)
+        const restored = result.current.expenses.find(e => e.id === 'test-expense-1')
+        expect(restored).toBeDefined()
+        expect(restored.name).toBe('To Delete')
+      })
+
+      // Redo the delete
+      await act(async () => {
+        await result.current.redo()
+      })
+
+      await waitFor(() => {
+        expect(result.current.expenses).toHaveLength(initialCount - 1)
+      })
+    })
+
+    it('should support multiple operations with undo/redo', async () => {
+      const { result } = renderHook(() => useExpenses(userId, periodId))
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
+      })
+
+      const initialCount = result.current.expenses.length
+
+      // Operation 1: Add expense
+      await act(async () => {
+        await result.current.addExpense({
+          name: 'Expense 1',
+          amount: 100,
+          frequency: 'monthly',
+          startMonth: 1,
+          endMonth: 12
+        })
+      })
+
+      await waitFor(() => {
+        expect(result.current.expenses).toHaveLength(initialCount + 1)
+      })
+
+      // Operation 2: Add another expense
+      await act(async () => {
+        await result.current.addExpense({
+          name: 'Expense 2',
+          amount: 200,
+          frequency: 'yearly',
+          startMonth: 1,
+          endMonth: 12
+        })
+      })
+
+      await waitFor(() => {
+        expect(result.current.expenses).toHaveLength(initialCount + 2)
+      })
+
+      // Undo operation 2
+      await act(async () => {
+        await result.current.undo()
+      })
+
+      await waitFor(() => {
+        expect(result.current.expenses).toHaveLength(initialCount + 1)
+        expect(result.current.expenses[0].name).toBe('Expense 1')
+      })
+
+      // Undo operation 1
+      await act(async () => {
+        await result.current.undo()
+      })
+
+      await waitFor(() => {
+        expect(result.current.expenses).toHaveLength(initialCount)
+      })
+
+      // Redo operation 1
+      await act(async () => {
+        await result.current.redo()
+      })
+
+      await waitFor(() => {
+        expect(result.current.expenses).toHaveLength(initialCount + 1)
+      })
+
+      // Redo operation 2
+      await act(async () => {
+        await result.current.redo()
+      })
+
+      await waitFor(() => {
+        expect(result.current.expenses).toHaveLength(initialCount + 2)
+      })
+    })
+
+    it('should clear redo history when new operation is performed', async () => {
+      const { result } = renderHook(() => useExpenses(userId, periodId))
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
+      })
+
+      const initialCount = result.current.expenses.length
+
+      // Add expense
+      await act(async () => {
+        await result.current.addExpense({
+          name: 'Expense 1',
+          amount: 100,
+          frequency: 'monthly',
+          startMonth: 1,
+          endMonth: 12
+        })
+      })
+
+      // Undo
+      await act(async () => {
+        await result.current.undo()
+      })
+
+      await waitFor(() => {
+        expect(result.current.expenses).toHaveLength(initialCount)
+        expect(result.current.canRedo).toBe(true)
+      })
+
+      // Perform new operation (should clear redo history)
+      await act(async () => {
+        await result.current.addExpense({
+          name: 'Expense 2',
+          amount: 200,
+          frequency: 'yearly',
+          startMonth: 1,
+          endMonth: 12
+        })
+      })
+
+      await waitFor(() => {
+        expect(result.current.expenses).toHaveLength(initialCount + 1)
+        // Redo should no longer be available
+        expect(result.current.canRedo).toBe(false)
+      })
     })
   })
 })

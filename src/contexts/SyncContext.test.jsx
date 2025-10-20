@@ -237,7 +237,7 @@ describe('SyncContext', () => {
       const mockUpsert = vi.fn().mockResolvedValue({ error: null })
 
       // Mock Supabase delete
-      const mockDelete = vi.fn().mockReturnThis()
+      const mockDelete = vi.fn()
       const mockIn = vi.fn().mockResolvedValue({ error: null })
 
       supabase.from.mockImplementation((table) => {
@@ -256,7 +256,7 @@ describe('SyncContext', () => {
           return {
             select: mockSelect,
             upsert: mockUpsert,
-            delete: () => mockDelete
+            delete: mockDelete
           }
         }
       })
@@ -286,18 +286,23 @@ describe('SyncContext', () => {
       expect(upsertCalls[0]).toHaveLength(2) // Updated expense + new expense
 
       // Verify delete was called (cloud-2 not in local)
-      // Note: Delete logic may need additional setup for budget period filtering
-      // expect(mockIn).toHaveBeenCalledWith('id', ['cloud-2'])
+      expect(mockDelete).toHaveBeenCalled()
+      expect(mockIn).toHaveBeenCalledWith('id', ['cloud-2'])
 
       // Verify sync status updated
-      // Note: Status check requires complete mock setup including all Supabase operations
-      // await waitFor(() => {
-      //   expect(result.current.syncStatus).toBe('synced')
-      // })
+      await waitFor(() => {
+        expect(result.current.syncStatus).toBe('synced')
+      })
     })
 
     it.skip('should handle sync errors gracefully', async () => {
+      vi.useFakeTimers()
       const mockError = new Error('Network error')
+
+      // Mock PGlite for budget periods query
+      localDB.query.mockResolvedValue({
+        rows: [{ id: 'period-2025', year: 2025 }]
+      })
 
       // Mock Supabase to throw error on budget_periods query
       supabase.from.mockImplementation((table) => {
@@ -336,10 +341,17 @@ describe('SyncContext', () => {
       })
 
       // Verify error auto-resets to idle after 5 seconds
+      await act(async () => {
+        vi.advanceTimersByTime(5000)
+        await vi.runAllTimersAsync()
+      })
+
       await waitFor(() => {
         expect(result.current.syncStatus).toBe('idle')
         expect(result.current.syncError).toBeNull()
-      }, { timeout: 6000 })
+      })
+
+      vi.useRealTimers()
     })
 
     it('should skip upsert if local version is older than cloud', async () => {
@@ -582,6 +594,11 @@ describe('SyncContext', () => {
       const mockDelete = vi.fn().mockReturnThis()
       const mockIn = vi.fn().mockResolvedValue({ error: null })
 
+      // Mock PGlite for budget periods query
+      localDB.query.mockResolvedValue({
+        rows: [{ id: 'period-2025', year: 2025 }]
+      })
+
       supabase.from.mockImplementation((table) => {
         if (table === 'budget_periods') {
           return {
@@ -645,6 +662,11 @@ describe('SyncContext', () => {
       const mockDelete = vi.fn().mockReturnThis()
       const mockIn = vi.fn().mockResolvedValue({ error: null })
 
+      // Mock PGlite for budget periods query
+      localDB.query.mockResolvedValue({
+        rows: [{ id: 'period-2025', year: 2025 }]
+      })
+
       supabase.from.mockImplementation((table) => {
         if (table === 'budget_periods') {
           return {
@@ -674,17 +696,18 @@ describe('SyncContext', () => {
       const { result } = renderHook(() => useContext(SyncContext), { wrapper })
 
       // First call
-      act(() => {
+      await act(async () => {
         result.current.syncExpenses([{ id: '1', name: 'First', amount: 100 }])
       })
 
       // Advance 500ms
-      act(() => {
+      await act(async () => {
         vi.advanceTimersByTime(500)
+        await vi.runAllTimersAsync()
       })
 
       // Second call (should cancel first)
-      act(() => {
+      await act(async () => {
         result.current.syncExpenses([{ id: '2', name: 'Second', amount: 200 }])
       })
 
@@ -714,6 +737,11 @@ describe('SyncContext', () => {
       const mockUpsert = vi.fn().mockResolvedValue({ error: null })
       const mockDelete = vi.fn().mockReturnThis()
       const mockIn = vi.fn().mockResolvedValue({ error: null })
+
+      // Mock PGlite for budget periods query
+      localDB.query.mockResolvedValue({
+        rows: [{ id: 'period-2025', year: 2025 }]
+      })
 
       supabase.from.mockImplementation((table) => {
         if (table === 'budget_periods') {

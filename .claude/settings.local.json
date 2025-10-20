@@ -54,7 +54,8 @@
       "Bash(uv tool upgrade serena-agent)",
       "Bash(where.exe serena-mcp-server)",
       "Bash(Select-String \"serena\")",
-      "Read(//c/Users/duran/.local/bin/**)"
+      "Read(//c/Users/duran/.local/bin/**)",
+      "mcp__serena__list_dir"
     ],
     "deny": [],
     "ask": []

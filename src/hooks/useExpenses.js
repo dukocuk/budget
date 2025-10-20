@@ -4,7 +4,7 @@
  * OPTIMIZATION: Uses useLayoutEffect for history tracking to batch with render cycle
  */
 
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useReducer, useCallback, useRef } from 'react'
 import { localDB } from '../lib/pglite'
 import { useSyncContext } from './useSyncContext'
 import { sanitizeExpense } from '../utils/validators'
@@ -73,10 +73,102 @@ import { generateUUID } from '../utils/uuid'
  *   undo()
  * }
  */
+
+/**
+ * Reducer for managing expenses with undo/redo history
+ * Handles all state updates atomically to prevent race conditions
+ */
+const expensesReducer = (state, action) => {
+  switch (action.type) {
+    case 'LOAD_START':
+      return {
+        ...state,
+        loading: true,
+        error: null
+      }
+
+    case 'LOAD_SUCCESS':
+      return {
+        ...state,
+        expenses: action.payload,
+        history: [action.payload],
+        historyIndex: 0,
+        loading: false,
+        error: null,
+        isInitialLoad: false
+      }
+
+    case 'LOAD_ERROR':
+      return {
+        ...state,
+        loading: false,
+        error: action.payload
+      }
+
+    case 'UPDATE_EXPENSES': {
+      const newExpenses = action.payload
+
+      // Don't add to history if expenses haven't changed
+      if (JSON.stringify(state.expenses) === JSON.stringify(newExpenses)) {
+        return state
+      }
+
+      // Clear future history and add new snapshot
+      const newHistory = [...state.history.slice(0, state.historyIndex + 1), newExpenses]
+
+      return {
+        ...state,
+        expenses: newExpenses,
+        history: newHistory,
+        historyIndex: newHistory.length - 1
+      }
+    }
+
+    case 'UNDO':
+      if (state.historyIndex > 0) {
+        const newIndex = state.historyIndex - 1
+        return {
+          ...state,
+          expenses: state.history[newIndex],
+          historyIndex: newIndex
+        }
+      }
+      return state
+
+    case 'REDO':
+      if (state.historyIndex < state.history.length - 1) {
+        const newIndex = state.historyIndex + 1
+        return {
+          ...state,
+          expenses: state.history[newIndex],
+          historyIndex: newIndex
+        }
+      }
+      return state
+
+    case 'SET_ERROR':
+      return {
+        ...state,
+        error: action.payload
+      }
+
+    default:
+      return state
+  }
+}
+
+const initialState = {
+  expenses: [],
+  history: [],
+  historyIndex: -1,
+  loading: true,
+  error: null,
+  isInitialLoad: true
+}
+
 export const useExpenses = (userId, periodId) => {
-  const [expenses, setExpenses] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [state, dispatch] = useReducer(expensesReducer, initialState)
+  const { expenses, history, historyIndex, loading, error, isInitialLoad } = state
 
   // Get sync functions from context
   const { syncExpenses } = useSyncContext()
@@ -90,13 +182,12 @@ export const useExpenses = (userId, periodId) => {
    */
   const loadExpenses = useCallback(async () => {
     if (!userId || !periodId) {
-      setLoading(false)
+      dispatch({ type: 'LOAD_ERROR', payload: null })
       return
     }
 
     try {
-      setLoading(true)
-      setError(null)
+      dispatch({ type: 'LOAD_START' })
 
       const result = await localDB.query(
         'SELECT * FROM expenses WHERE user_id = $1 AND budget_period_id = $2 ORDER BY id DESC',
@@ -115,12 +206,10 @@ export const useExpenses = (userId, periodId) => {
         updatedAt: row.updated_at
       }))
 
-      setExpenses(loadedExpenses)
-      setLoading(false)
+      dispatch({ type: 'LOAD_SUCCESS', payload: loadedExpenses })
     } catch (err) {
       logger.error('❌ Error loading expenses from local DB:', err)
-      setError(err.message)
-      setLoading(false)
+      dispatch({ type: 'LOAD_ERROR', payload: err.message })
     }
   }, [userId, periodId])
 
@@ -182,7 +271,7 @@ export const useExpenses = (userId, periodId) => {
     if (!userId || !periodId) return
 
     try {
-      setError(null)
+      dispatch({ type: 'SET_ERROR', payload: null })
 
       // Generate UUID for new expense
       const newId = generateUUID()
@@ -228,8 +317,8 @@ export const useExpenses = (userId, periodId) => {
         updatedAt: now
       }
 
-      // Optimistic UI update - add to local state immediately
-      setExpenses(prev => [newExpense, ...prev])
+      // Optimistic UI update - add to local state immediately with history tracking
+      dispatch({ type: 'UPDATE_EXPENSES', payload: [newExpense, ...expenses] })
 
       // Queue cloud sync
       needsSyncRef.current = true
@@ -238,10 +327,10 @@ export const useExpenses = (userId, periodId) => {
       return newExpense
     } catch (err) {
       logger.error('❌ Error adding expense:', err)
-      setError(err.message)
+      dispatch({ type: 'SET_ERROR', payload: err.message })
       throw err
     }
-  }, [userId, periodId, debouncedCloudSync])
+  }, [userId, periodId, expenses, debouncedCloudSync])
 
   /**
    * Update expense (optimistic update)
@@ -250,7 +339,7 @@ export const useExpenses = (userId, periodId) => {
     if (!userId) return
 
     try {
-      setError(null)
+      dispatch({ type: 'SET_ERROR', payload: null })
 
       // Build update query dynamically based on provided fields
       const updateFields = []
@@ -294,8 +383,8 @@ export const useExpenses = (userId, periodId) => {
         values
       )
 
-      // Optimistic UI update - update local state immediately
-      setExpenses(prev => prev.map(expense => {
+      // Optimistic UI update - update local state immediately with history tracking
+      const updatedExpenses = expenses.map(expense => {
         if (expense.id === id) {
           const updated = { ...expense, ...updates }
           // Handle month field name conversion
@@ -304,7 +393,9 @@ export const useExpenses = (userId, periodId) => {
           return sanitizeExpense(updated)
         }
         return expense
-      }))
+      })
+
+      dispatch({ type: 'UPDATE_EXPENSES', payload: updatedExpenses })
 
       // Queue cloud sync
       needsSyncRef.current = true
@@ -312,10 +403,10 @@ export const useExpenses = (userId, periodId) => {
 
     } catch (err) {
       logger.error('❌ Error updating expense:', err)
-      setError(err.message)
+      dispatch({ type: 'SET_ERROR', payload: err.message })
       throw err
     }
-  }, [userId, periodId, debouncedCloudSync])
+  }, [userId, periodId, expenses, debouncedCloudSync])
 
   /**
    * Delete single expense (optimistic update)
@@ -324,7 +415,7 @@ export const useExpenses = (userId, periodId) => {
     if (!userId) return
 
     try {
-      setError(null)
+      dispatch({ type: 'SET_ERROR', payload: null })
 
       // Delete from local database
       await localDB.query(
@@ -332,8 +423,8 @@ export const useExpenses = (userId, periodId) => {
         [id, userId, periodId]
       )
 
-      // Optimistic UI update - remove from local state immediately
-      setExpenses(prev => prev.filter(expense => expense.id !== id))
+      // Optimistic UI update - remove from local state immediately with history tracking
+      dispatch({ type: 'UPDATE_EXPENSES', payload: expenses.filter(expense => expense.id !== id) })
 
       // Queue cloud sync
       needsSyncRef.current = true
@@ -341,10 +432,10 @@ export const useExpenses = (userId, periodId) => {
 
     } catch (err) {
       logger.error('❌ Error deleting expense:', err)
-      setError(err.message)
+      dispatch({ type: 'SET_ERROR', payload: err.message })
       throw err
     }
-  }, [userId, periodId, debouncedCloudSync])
+  }, [userId, periodId, expenses, debouncedCloudSync])
 
   /**
    * Delete multiple expenses (optimistic update)
@@ -353,7 +444,7 @@ export const useExpenses = (userId, periodId) => {
     if (!userId || !ids || ids.length === 0) return
 
     try {
-      setError(null)
+      dispatch({ type: 'SET_ERROR', payload: null })
 
       // Delete from local database
       const placeholders = ids.map((_, i) => `$${i + 1}`).join(',')
@@ -362,8 +453,8 @@ export const useExpenses = (userId, periodId) => {
         [...ids, userId, periodId]
       )
 
-      // Optimistic UI update - remove from local state immediately
-      setExpenses(prev => prev.filter(expense => !ids.includes(expense.id)))
+      // Optimistic UI update - remove from local state immediately with history tracking
+      dispatch({ type: 'UPDATE_EXPENSES', payload: expenses.filter(expense => !ids.includes(expense.id)) })
 
       // Queue cloud sync
       needsSyncRef.current = true
@@ -371,10 +462,10 @@ export const useExpenses = (userId, periodId) => {
 
     } catch (err) {
       logger.error('❌ Error deleting expenses:', err)
-      setError(err.message)
+      dispatch({ type: 'SET_ERROR', payload: err.message })
       throw err
     }
-  }, [userId, periodId, debouncedCloudSync])
+  }, [userId, periodId, expenses, debouncedCloudSync])
 
   /**
    * Import expenses (replace all with UUID generation)
@@ -383,7 +474,7 @@ export const useExpenses = (userId, periodId) => {
     if (!userId || !periodId) return
 
     try {
-      setError(null)
+      dispatch({ type: 'SET_ERROR', payload: null })
 
       // Delete all existing expenses for this period
       await localDB.query(
@@ -392,6 +483,7 @@ export const useExpenses = (userId, periodId) => {
       )
 
       const now = new Date().toISOString()
+      const importedExpenses = []
 
       // Insert new expenses with generated UUIDs
       for (const expense of newExpenses) {
@@ -414,10 +506,22 @@ export const useExpenses = (userId, periodId) => {
             now
           ]
         )
+
+        importedExpenses.push({
+          id: newId,
+          name: sanitized.name,
+          amount: sanitized.amount,
+          frequency: sanitized.frequency,
+          startMonth: sanitized.startMonth,
+          endMonth: sanitized.endMonth,
+          budgetPeriodId: periodId,
+          createdAt: now,
+          updatedAt: now
+        })
       }
 
-      // Reload from database
-      await loadExpenses()
+      // Update state with imported expenses (adds to history)
+      dispatch({ type: 'UPDATE_EXPENSES', payload: importedExpenses })
 
       // Queue cloud sync
       needsSyncRef.current = true
@@ -425,10 +529,10 @@ export const useExpenses = (userId, periodId) => {
 
     } catch (err) {
       logger.error('❌ Error importing expenses:', err)
-      setError(err.message)
+      dispatch({ type: 'SET_ERROR', payload: err.message })
       throw err
     }
-  }, [userId, periodId, loadExpenses, debouncedCloudSync])
+  }, [userId, periodId, debouncedCloudSync])
 
   // Selection state for bulk operations
   const [selectedExpenses, setSelectedExpenses] = useState([])
@@ -478,85 +582,32 @@ export const useExpenses = (userId, periodId) => {
    * Set all expenses (for cloud sync)
    */
   const setAllExpenses = useCallback((newExpenses) => {
-    setExpenses(newExpenses)
+    dispatch({ type: 'UPDATE_EXPENSES', payload: newExpenses })
   }, [])
 
-  // Undo/Redo functionality (simplified - no local DB for history)
-  const [history, setHistory] = useState([])
-  const [historyIndex, setHistoryIndex] = useState(-1)
-  const [isInitialLoad, setIsInitialLoad] = useState(true)
-
+  // Undo/Redo functionality (managed by reducer)
   const canUndo = historyIndex > 0
   const canRedo = historyIndex < history.length - 1
 
   const undo = useCallback(() => {
     if (canUndo) {
-      setHistoryIndex(prev => prev - 1)
-      setExpenses(history[historyIndex - 1])
+      dispatch({ type: 'UNDO' })
       needsSyncRef.current = true
       debouncedCloudSync()
       return true
     }
     return false
-  }, [canUndo, history, historyIndex, debouncedCloudSync])
+  }, [canUndo, debouncedCloudSync])
 
   const redo = useCallback(() => {
     if (canRedo) {
-      setHistoryIndex(prev => prev + 1)
-      setExpenses(history[historyIndex + 1])
+      dispatch({ type: 'REDO' })
       needsSyncRef.current = true
       debouncedCloudSync()
       return true
     }
     return false
-  }, [canRedo, history, historyIndex, debouncedCloudSync])
-
-  // Mark initial load as complete after first expenses load
-  useEffect(() => {
-    if (isInitialLoad && !loading && expenses.length >= 0) {
-      setIsInitialLoad(false)
-    }
-  }, [isInitialLoad, loading, expenses.length])
-
-  // Track changes for undo/redo (ONLY after initial load)
-  // OPTIMIZATION: Use useLayoutEffect to batch history updates with render cycle
-  // This prevents additional re-renders and improves performance
-  const historyUpdatedRef = useRef(false)
-
-  useLayoutEffect(() => {
-    // Skip history tracking during initial load to prevent unnecessary re-renders
-    if (isInitialLoad || loading) {
-      return
-    }
-
-    // Reset the update flag
-    historyUpdatedRef.current = false
-
-    // Update history only if expenses changed (shallow equality check first)
-    setHistory(prev => {
-      const lastSnapshot = prev[prev.length - 1]
-
-      // Fast path: check length first (most common change)
-      if (!lastSnapshot || lastSnapshot.length !== expenses.length) {
-        historyUpdatedRef.current = true
-        return [...prev, expenses]
-      }
-
-      // Slower path: deep equality check only if lengths match
-      const expensesChanged = JSON.stringify(lastSnapshot) !== JSON.stringify(expenses)
-
-      if (expensesChanged) {
-        historyUpdatedRef.current = true
-        return [...prev, expenses]
-      }
-      return prev
-    })
-
-    // Update index only if history was actually updated
-    if (historyUpdatedRef.current) {
-      setHistoryIndex(prev => prev + 1)
-    }
-  }, [expenses, isInitialLoad, loading])
+  }, [canRedo, debouncedCloudSync])
 
   return {
     expenses,
