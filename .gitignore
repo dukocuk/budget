@@ -32,3 +32,6 @@ dist-ssr
 
 # Test coverage
 coverage
+
+# Claude Code local settings (use .claude/settings.json for version control)
+.claude/settings.local.json

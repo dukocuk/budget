@@ -5,7 +5,7 @@
 # It automatically formats code with Prettier and runs ESLint
 
 # Get the project root (where package.json is located)
-PROJECT_ROOT="/home/user/budget"
+PROJECT_ROOT="$(pwd)"
 
 # Navigate to project root
 cd "$PROJECT_ROOT"
