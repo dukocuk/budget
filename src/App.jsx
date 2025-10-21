@@ -203,54 +203,95 @@ function AppContent() {
   useEffect(() => {
     if (user && activePeriod && !isInitialized) {
       const loadData = async () => {
+        logger.info('🔄 Starting data initialization...');
         setIsLoadingData(true);
 
+        // Create timeout promise (10 seconds)
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Initialization timeout after 10 seconds')),
+            10000
+          )
+        );
+
         try {
-          // Load expenses and budget periods in PARALLEL to reduce load time
-          const [expensesResult, periodsResult] = await Promise.all([
-            loadExpenses(),
-            loadBudgetPeriods(),
-          ]);
+          // Race between data loading and timeout
+          await Promise.race([
+            (async () => {
+              logger.info('📊 Loading expenses and budget periods...');
 
-          // CRITICAL: Sync local budget periods to cloud BEFORE syncing expenses
-          // This prevents foreign key constraint violations when expenses reference
-          // budget_period_id that doesn't exist in cloud yet
-          if (fetchPeriodsFromDB && immediateSyncBudgetPeriods) {
-            try {
-              const localPeriods = await fetchPeriodsFromDB();
-              if (localPeriods && localPeriods.length > 0) {
-                logger.info(
-                  `🔄 Syncing ${localPeriods.length} budget periods to cloud before expense sync...`
-                );
-                await immediateSyncBudgetPeriods(localPeriods);
-                logger.info('✅ Budget periods synced successfully');
-              }
-            } catch (syncError) {
-              logger.error(
-                '❌ Error syncing budget periods during initialization:',
-                syncError
+              // Load expenses and budget periods in PARALLEL to reduce load time
+              const [expensesResult, periodsResult] = await Promise.all([
+                loadExpenses().catch(err => {
+                  logger.error('Error loading expenses:', err);
+                  return { success: false, data: [] };
+                }),
+                loadBudgetPeriods().catch(err => {
+                  logger.error('Error loading budget periods:', err);
+                  return { success: false, data: [] };
+                }),
+              ]);
+
+              logger.info(
+                `📦 Loaded ${expensesResult?.data?.length || 0} expenses, ${periodsResult?.data?.length || 0} periods`
               );
-              // Continue anyway - expense sync will handle validation
-            }
-          }
 
-          // ATOMIC UPDATE: Use startTransition to batch ALL state updates into a single render
-          // This prevents charts from re-rendering multiple times during initialization
-          startTransition(() => {
-            // Update expenses first (if available)
-            if (expensesResult.success && expensesResult.data.length > 0) {
-              setAllExpenses(expensesResult.data);
-            }
+              // CRITICAL: Sync local budget periods to cloud BEFORE syncing expenses
+              // This prevents foreign key constraint violations when expenses reference
+              // budget_period_id that doesn't exist in cloud yet
+              if (fetchPeriodsFromDB && immediateSyncBudgetPeriods) {
+                try {
+                  const localPeriods = await fetchPeriodsFromDB();
+                  if (localPeriods && localPeriods.length > 0) {
+                    logger.info(
+                      `🔄 Syncing ${localPeriods.length} budget periods to cloud before expense sync...`
+                    );
+                    await immediateSyncBudgetPeriods(localPeriods);
+                    logger.info('✅ Budget periods synced successfully');
+                  }
+                } catch (syncError) {
+                  logger.error(
+                    '❌ Error syncing budget periods during initialization:',
+                    syncError
+                  );
+                  // Continue anyway - expense sync will handle validation
+                }
+              }
 
-            // Settings are loaded from activePeriod (handled by separate useEffect)
+              // ATOMIC UPDATE: Use startTransition to batch ALL state updates into a single render
+              // This prevents charts from re-rendering multiple times during initialization
+              startTransition(() => {
+                // Update expenses first (if available)
+                if (
+                  expensesResult &&
+                  expensesResult.success &&
+                  expensesResult.data &&
+                  expensesResult.data.length > 0
+                ) {
+                  logger.info(
+                    `✅ Setting ${expensesResult.data.length} expenses in state`
+                  );
+                  setAllExpenses(expensesResult.data);
+                }
 
-            // Mark initial load as complete BEFORE enabling sync
-            isInitialLoadRef.current = false;
-            setIsLoadingData(false);
-            setIsInitialized(true);
-          });
+                // Settings are loaded from activePeriod (handled by separate useEffect)
+
+                // Mark initial load as complete BEFORE enabling sync
+                isInitialLoadRef.current = false;
+                setIsLoadingData(false);
+                setIsInitialized(true);
+                logger.info('✅ Initialization complete!');
+              });
+            })(),
+            timeoutPromise,
+          ]);
         } catch (error) {
           logger.error('❌ Error loading initial data:', error);
+          showAlert(
+            `Fejl ved indlæsning: ${error.message}. Genindlæs venligst siden.`,
+            'error'
+          );
+
           // Even on error, ensure loading state is cleared
           startTransition(() => {
             isInitialLoadRef.current = false;
@@ -271,6 +312,7 @@ function AppContent() {
     setAllExpenses,
     fetchPeriodsFromDB,
     immediateSyncBudgetPeriods,
+    showAlert,
   ]);
 
   // Sync expenses whenever they change (ONLY after initialization AND initial load complete)
@@ -330,6 +372,11 @@ function AppContent() {
       <div className="auth-loading-container">
         <div className="spinner"></div>
         <p>Henter dine data...</p>
+        <p
+          style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '1rem' }}
+        >
+          Hvis indlæsning tager lang tid, prøv at genindlæse siden.
+        </p>
       </div>
     );
   }

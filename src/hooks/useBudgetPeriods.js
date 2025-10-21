@@ -116,10 +116,43 @@ export const useBudgetPeriods = userId => {
       setPeriods(loadedPeriods);
 
       // Set active period (most recent 'active' status)
-      const active =
+      let active =
         loadedPeriods.find(p => p.status === 'active') ||
         loadedPeriods[0] ||
         null;
+
+      // FALLBACK: If no periods exist, create default 2025 period
+      if (!active && loadedPeriods.length === 0) {
+        logger.info(
+          '⚠️ No budget periods found, creating default 2025 period...'
+        );
+        try {
+          const currentYear = new Date().getFullYear();
+          const defaultYear = currentYear >= 2025 ? currentYear : 2025;
+
+          const newId = generateUUID();
+          const now = new Date().toISOString();
+
+          await localDB.query(
+            `INSERT INTO budget_periods (id, user_id, year, monthly_payment, previous_balance, status, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [newId, userId, defaultYear, 5700, 0, 'active', now, now]
+          );
+
+          logger.info(
+            `✅ Created default budget period for year ${defaultYear}`
+          );
+
+          // Reload periods to include the new one
+          const reloadedPeriods = await fetchPeriodsFromDB();
+          setPeriods(reloadedPeriods);
+          active = reloadedPeriods[0] || null;
+        } catch (err) {
+          logger.error('❌ Error creating default budget period:', err);
+          // Continue without active period - app will handle this gracefully
+        }
+      }
+
       setActivePeriod(active);
 
       setLoading(false);
