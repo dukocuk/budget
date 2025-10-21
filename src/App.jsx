@@ -10,64 +10,64 @@ import {
   useReducer,
   useRef,
   startTransition,
-} from "react";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { Header } from "./components/Header";
-import { Alert } from "./components/Alert";
-import { SummaryCards } from "./components/SummaryCards";
-import { ExpensesTable } from "./components/ExpensesTable";
-import { MonthlyOverview } from "./components/MonthlyOverview";
-import { TabView } from "./components/TabView";
-import { BalanceChart } from "./components/BalanceChart";
-import { ExpenseDistribution } from "./components/ExpenseDistribution";
-import { AddExpenseModal } from "./components/AddExpenseModal";
-import { SettingsModal } from "./components/SettingsModal";
-import { TemplateManagerModal } from "./components/TemplateManagerModal";
-import { DeleteConfirmation } from "./components/DeleteConfirmation";
-import YearSelector from "./components/YearSelector";
-import CreateYearModal from "./components/CreateYearModal";
-import YearComparison from "./components/YearComparison";
-import Auth from "./components/Auth";
-import { useExpenses } from "./hooks/useExpenses";
-import { useBudgetPeriods } from "./hooks/useBudgetPeriods";
-import { useAlert } from "./hooks/useAlert";
-import { useAuth } from "./hooks/useAuth";
-import { SyncProvider } from "./contexts/SyncContext";
-import { useSyncContext } from "./hooks/useSyncContext";
-import { calculateSummary } from "./utils/calculations";
-import { generateCSV, downloadCSV } from "./utils/exportHelpers";
-import { parseCSV } from "./utils/importHelpers";
-import { DEFAULT_SETTINGS } from "./utils/constants";
-import { logger } from "./utils/logger";
-import "./App.css";
+} from 'react';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { Header } from './components/Header';
+import { Alert } from './components/Alert';
+import { SummaryCards } from './components/SummaryCards';
+import { ExpensesTable } from './components/ExpensesTable';
+import { MonthlyOverview } from './components/MonthlyOverview';
+import { TabView } from './components/TabView';
+import { BalanceChart } from './components/BalanceChart';
+import { ExpenseDistribution } from './components/ExpenseDistribution';
+import { AddExpenseModal } from './components/AddExpenseModal';
+import { SettingsModal } from './components/SettingsModal';
+import { TemplateManagerModal } from './components/TemplateManagerModal';
+import { DeleteConfirmation } from './components/DeleteConfirmation';
+import YearSelector from './components/YearSelector';
+import CreateYearModal from './components/CreateYearModal';
+import YearComparison from './components/YearComparison';
+import Auth from './components/Auth';
+import { useExpenses } from './hooks/useExpenses';
+import { useBudgetPeriods } from './hooks/useBudgetPeriods';
+import { useAlert } from './hooks/useAlert';
+import { useAuth } from './hooks/useAuth';
+import { SyncProvider } from './contexts/SyncContext';
+import { useSyncContext } from './hooks/useSyncContext';
+import { calculateSummary } from './utils/calculations';
+import { generateCSV, downloadCSV } from './utils/exportHelpers';
+import { parseCSV } from './utils/importHelpers';
+import { DEFAULT_SETTINGS } from './utils/constants';
+import { logger } from './utils/logger';
+import './App.css';
 
 /**
  * Settings reducer - Batches monthlyPayment, previousBalance, and monthlyPayments array updates
  */
 const settingsReducer = (state, action) => {
   switch (action.type) {
-    case "SET_MONTHLY_PAYMENT":
+    case 'SET_MONTHLY_PAYMENT':
       return { ...state, monthlyPayment: action.payload };
-    case "SET_PREVIOUS_BALANCE":
+    case 'SET_PREVIOUS_BALANCE':
       return { ...state, previousBalance: action.payload };
-    case "SET_MONTHLY_PAYMENTS":
+    case 'SET_MONTHLY_PAYMENTS':
       return {
         ...state,
         monthlyPayments: action.payload,
         useVariablePayments: action.payload !== null,
       };
-    case "SET_PAYMENT_MODE":
+    case 'SET_PAYMENT_MODE':
       return {
         ...state,
         useVariablePayments: action.payload,
         monthlyPayments: action.payload ? state.monthlyPayments : null,
       };
-    case "SET_BOTH":
+    case 'SET_BOTH':
       return {
         monthlyPayment: action.payload.monthlyPayment,
         previousBalance: action.payload.previousBalance,
       };
-    case "SET_ALL":
+    case 'SET_ALL':
       return {
         monthlyPayment: action.payload.monthlyPayment,
         previousBalance: action.payload.previousBalance,
@@ -115,7 +115,8 @@ function AppContent() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCreateYearModal, setShowCreateYearModal] = useState(false);
-  const [showTemplateManagerModal, setShowTemplateManagerModal] = useState(false);
+  const [showTemplateManagerModal, setShowTemplateManagerModal] =
+    useState(false);
 
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState({
@@ -185,10 +186,12 @@ function AppContent() {
     if (activePeriod && !periodsLoading) {
       startTransition(() => {
         dispatchSettings({
-          type: "SET_ALL",
+          type: 'SET_ALL',
           payload: {
-            monthlyPayment: activePeriod.monthlyPayment || DEFAULT_SETTINGS.monthlyPayment,
-            previousBalance: activePeriod.previousBalance || DEFAULT_SETTINGS.previousBalance,
+            monthlyPayment:
+              activePeriod.monthlyPayment || DEFAULT_SETTINGS.monthlyPayment,
+            previousBalance:
+              activePeriod.previousBalance || DEFAULT_SETTINGS.previousBalance,
             monthlyPayments: activePeriod.monthlyPayments || null,
           },
         });
@@ -216,12 +219,17 @@ function AppContent() {
             try {
               const localPeriods = await fetchPeriodsFromDB();
               if (localPeriods && localPeriods.length > 0) {
-                logger.info(`🔄 Syncing ${localPeriods.length} budget periods to cloud before expense sync...`);
+                logger.info(
+                  `🔄 Syncing ${localPeriods.length} budget periods to cloud before expense sync...`
+                );
                 await immediateSyncBudgetPeriods(localPeriods);
                 logger.info('✅ Budget periods synced successfully');
               }
             } catch (syncError) {
-              logger.error('❌ Error syncing budget periods during initialization:', syncError);
+              logger.error(
+                '❌ Error syncing budget periods during initialization:',
+                syncError
+              );
               // Continue anyway - expense sync will handle validation
             }
           }
@@ -242,7 +250,7 @@ function AppContent() {
             setIsInitialized(true);
           });
         } catch (error) {
-          logger.error("❌ Error loading initial data:", error);
+          logger.error('❌ Error loading initial data:', error);
           // Even on error, ensure loading state is cleared
           startTransition(() => {
             isInitialLoadRef.current = false;
@@ -254,7 +262,16 @@ function AppContent() {
 
       loadData();
     }
-  }, [user, activePeriod, isInitialized, loadExpenses, loadBudgetPeriods, setAllExpenses, fetchPeriodsFromDB, immediateSyncBudgetPeriods]);
+  }, [
+    user,
+    activePeriod,
+    isInitialized,
+    loadExpenses,
+    loadBudgetPeriods,
+    setAllExpenses,
+    fetchPeriodsFromDB,
+    immediateSyncBudgetPeriods,
+  ]);
 
   // Sync expenses whenever they change (ONLY after initialization AND initial load complete)
   // OPTIMIZATION: Only sync if expenses actually changed to prevent cascading syncs
@@ -318,38 +335,38 @@ function AppContent() {
   }
 
   // Keyboard shortcuts
-  const handleKeyPress = (e) => {
+  const handleKeyPress = e => {
     // Ctrl/Cmd + N for new expense
-    if ((e.ctrlKey || e.metaKey) && e.key === "n") {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
       e.preventDefault();
       setShowAddModal(true);
       return;
     }
     // Ctrl/Cmd + Z for undo
-    if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
       e.preventDefault();
       if (canUndo && undo()) {
-        showAlert("Handling fortrudt", "info");
+        showAlert('Handling fortrudt', 'info');
       }
     }
     // Ctrl/Cmd + Shift + Z for redo
-    if ((e.ctrlKey || e.metaKey) && e.key === "z" && e.shiftKey) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
       e.preventDefault();
       if (canRedo && redo()) {
-        showAlert("Handling gentaget", "info");
+        showAlert('Handling gentaget', 'info');
       }
     }
   };
 
   // Add expense handler - receives form data from modal
-  const handleAddExpense = (formData) => {
+  const handleAddExpense = formData => {
     addExpense(formData);
-    showAlert("Ny udgift tilføjet!", "success");
+    showAlert('Ny udgift tilføjet!', 'success');
   };
 
   // Open delete confirmation modal for single expense
-  const handleDeleteExpense = (id) => {
-    const expense = expenses.find((e) => e.id === id);
+  const handleDeleteExpense = id => {
+    const expense = expenses.find(e => e.id === id);
     if (!expense) return;
 
     setDeleteConfirmation({
@@ -363,7 +380,7 @@ function AppContent() {
   // Open delete confirmation modal for multiple expenses
   const handleDeleteSelected = () => {
     if (selectedExpenses.length === 0) {
-      showAlert("⚠️ Vælg venligst udgifter at slette først", "warning");
+      showAlert('⚠️ Vælg venligst udgifter at slette først', 'warning');
       return;
     }
 
@@ -386,21 +403,21 @@ function AppContent() {
         // Immediately sync to cloud (bypass debounce for critical operations)
         if (user && isOnline && result.success) {
           const updatedExpenses = expenses.filter(
-            (e) => !selectedExpenses.includes(e.id)
+            e => !selectedExpenses.includes(e.id)
           );
           await immediateSyncExpenses(updatedExpenses);
         }
 
-        showAlert(`✅ ${count} udgift(er) slettet`, "success");
+        showAlert(`✅ ${count} udgift(er) slettet`, 'success');
       } else {
         // Single delete
         const expense = expenses.find(
-          (e) => e.id === deleteConfirmation.expenseId
+          e => e.id === deleteConfirmation.expenseId
         );
 
         // Calculate updated expenses BEFORE deleting
         const updatedExpenses = expenses.filter(
-          (e) => e.id !== deleteConfirmation.expenseId
+          e => e.id !== deleteConfirmation.expenseId
         );
 
         // Delete from local state
@@ -414,7 +431,7 @@ function AppContent() {
           await immediateSyncExpenses(updatedExpenses);
         }
 
-        showAlert(`✅ "${expense?.name}" blev slettet`, "success");
+        showAlert(`✅ "${expense?.name}" blev slettet`, 'success');
       }
 
       setDeleteConfirmation({
@@ -424,7 +441,7 @@ function AppContent() {
         count: 0,
       });
     } catch (error) {
-      showAlert("❌ Fejl ved sletning: " + error.message, "error");
+      showAlert('❌ Fejl ved sletning: ' + error.message, 'error');
       setDeleteConfirmation({
         isOpen: false,
         expenseId: null,
@@ -457,43 +474,43 @@ function AppContent() {
       const year = activePeriod?.year || new Date().getFullYear();
       const filename = `budget_${year}_${new Date().toISOString().split('T')[0]}.csv`;
       downloadCSV(csvContent, filename);
-      showAlert("CSV fil downloadet!", "success");
+      showAlert('CSV fil downloadet!', 'success');
     } catch (error) {
-      logger.error("Export error:", error);
-      showAlert("Kunne ikke eksportere CSV", "error");
+      logger.error('Export error:', error);
+      showAlert('Kunne ikke eksportere CSV', 'error');
     }
   };
 
   // Import from CSV
-  const handleImport = async (file) => {
+  const handleImport = async file => {
     try {
       const text = await file.text();
       const result = parseCSV(text);
 
       if (!result.success) {
-        showAlert(`Import fejl: ${result.errors.join(", ")}`, "error");
+        showAlert(`Import fejl: ${result.errors.join(', ')}`, 'error');
         return;
       }
 
       if (result.expenses.length === 0) {
-        showAlert("Ingen gyldige udgifter fundet i CSV filen", "info");
+        showAlert('Ingen gyldige udgifter fundet i CSV filen', 'info');
         return;
       }
 
       // Add imported expenses
-      result.expenses.forEach((expense) => {
+      result.expenses.forEach(expense => {
         addExpense(expense);
       });
 
-      showAlert(`${result.expenses.length} udgift(er) importeret!`, "success");
+      showAlert(`${result.expenses.length} udgift(er) importeret!`, 'success');
     } catch (error) {
-      logger.error("Import error:", error);
-      showAlert("Kunne ikke importere CSV fil", "error");
+      logger.error('Import error:', error);
+      showAlert('Kunne ikke importere CSV fil', 'error');
     }
   };
 
   // Create new budget year
-  const handleCreateYear = async (yearData) => {
+  const handleCreateYear = async yearData => {
     try {
       // Check if creating from template
       if (yearData.templateId) {
@@ -503,25 +520,28 @@ function AppContent() {
           year: yearData.year,
           previousBalance: yearData.previousBalance,
         });
-        showAlert(`✅ Budget for år ${yearData.year} oprettet fra skabelon!`, "success");
+        showAlert(
+          `✅ Budget for år ${yearData.year} oprettet fra skabelon!`,
+          'success'
+        );
       } else {
         // Create regular period (with optional expense copying)
         await createPeriod(yearData);
-        showAlert(`✅ Budget for år ${yearData.year} oprettet!`, "success");
+        showAlert(`✅ Budget for år ${yearData.year} oprettet!`, 'success');
       }
       setShowCreateYearModal(false);
     } catch (error) {
-      logger.error("Create year error:", error);
-      showAlert(`❌ Kunne ikke oprette år: ${error.message}`, "error");
+      logger.error('Create year error:', error);
+      showAlert(`❌ Kunne ikke oprette år: ${error.message}`, 'error');
     }
   };
 
   // Select budget period (year)
-  const handleSelectPeriod = (period) => {
+  const handleSelectPeriod = period => {
     // Period selection is handled automatically by useBudgetPeriods
     // This is just for UI feedback
     const status = period.status === 'archived' ? '📦 Arkiveret' : '';
-    showAlert(`Skiftet til budget ${period.year} ${status}`, "info");
+    showAlert(`Skiftet til budget ${period.year} ${status}`, 'info');
   };
 
   // Check if current period is archived (read-only mode)
@@ -559,7 +579,11 @@ function AppContent() {
         <button
           className="btn btn-primary"
           onClick={() => setShowAddModal(true)}
-          title={isReadOnly ? "Kan ikke tilføje udgifter til arkiveret år" : "Tilføj ny udgift (Ctrl+N)"}
+          title={
+            isReadOnly
+              ? 'Kan ikke tilføje udgifter til arkiveret år'
+              : 'Tilføj ny udgift (Ctrl+N)'
+          }
           disabled={isReadOnly}
         >
           ➕ Tilføj udgift
@@ -615,7 +639,10 @@ function AppContent() {
             onCreateYear={() => setShowCreateYearModal(true)}
             disabled={periodsLoading}
           />
-          <Header user={user} onOpenSettings={() => setShowSettingsModal(true)} />
+          <Header
+            user={user}
+            onOpenSettings={() => setShowSettingsModal(true)}
+          />
         </div>
 
         <DeleteConfirmation
@@ -632,23 +659,23 @@ function AppContent() {
             onTabChange={setActiveTab}
             tabs={[
               {
-                icon: "📊",
-                label: "Oversigt",
+                icon: '📊',
+                label: 'Oversigt',
                 content: <OverviewTab />,
               },
               {
-                icon: "📝",
-                label: "Udgifter",
+                icon: '📝',
+                label: 'Udgifter',
                 content: <ExpensesTab />,
               },
               {
-                icon: "📅",
-                label: "Månedlig oversigt",
+                icon: '📅',
+                label: 'Månedlig oversigt',
                 content: <MonthlyTab />,
               },
               {
-                icon: "📈",
-                label: "Sammenligning",
+                icon: '📈',
+                label: 'Sammenligning',
                 content: <ComparisonTab />,
               },
             ]}
@@ -670,31 +697,34 @@ function AppContent() {
           previousBalance={settings.previousBalance}
           monthlyPayments={settings.monthlyPayments}
           useVariablePayments={settings.useVariablePayments}
-          onMonthlyPaymentChange={(value) =>
-            dispatchSettings({ type: "SET_MONTHLY_PAYMENT", payload: value })
+          onMonthlyPaymentChange={value =>
+            dispatchSettings({ type: 'SET_MONTHLY_PAYMENT', payload: value })
           }
-          onPreviousBalanceChange={(value) =>
-            dispatchSettings({ type: "SET_PREVIOUS_BALANCE", payload: value })
+          onPreviousBalanceChange={value =>
+            dispatchSettings({ type: 'SET_PREVIOUS_BALANCE', payload: value })
           }
-          onMonthlyPaymentsChange={(paymentsArray) =>
+          onMonthlyPaymentsChange={paymentsArray =>
             dispatchSettings({
-              type: "SET_MONTHLY_PAYMENTS",
+              type: 'SET_MONTHLY_PAYMENTS',
               payload: paymentsArray,
             })
           }
-          onTogglePaymentMode={(useVariable) =>
-            dispatchSettings({ type: "SET_PAYMENT_MODE", payload: useVariable })
+          onTogglePaymentMode={useVariable =>
+            dispatchSettings({ type: 'SET_PAYMENT_MODE', payload: useVariable })
           }
           onExport={handleExport}
           onImport={handleImport}
           activePeriod={activePeriod}
-          onArchivePeriod={async (periodId) => {
+          onArchivePeriod={async periodId => {
             try {
               await archivePeriod(periodId);
-              showAlert(`✅ År ${activePeriod.year} er nu arkiveret`, "success");
+              showAlert(
+                `✅ År ${activePeriod.year} er nu arkiveret`,
+                'success'
+              );
             } catch (error) {
-              logger.error("Archive period error:", error);
-              showAlert(`❌ Kunne ikke arkivere år: ${error.message}`, "error");
+              logger.error('Archive period error:', error);
+              showAlert(`❌ Kunne ikke arkivere år: ${error.message}`, 'error');
             }
           }}
           onOpenTemplateManager={() => setShowTemplateManagerModal(true)}

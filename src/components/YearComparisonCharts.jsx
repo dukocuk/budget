@@ -3,7 +3,7 @@
  * Visual charts for comparing budget data between years
  */
 
-import React from 'react'
+import React from 'react';
 import {
   BarChart,
   Bar,
@@ -14,15 +14,15 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
-} from 'recharts'
-import { compareMonthlyTotals } from '../utils/yearComparison'
+  ResponsiveContainer,
+} from 'recharts';
+import { compareMonthlyTotals } from '../utils/yearComparison';
 
 export function YearComparisonCharts({ period1, period2, comparison }) {
   // Monthly comparison data
   const monthlyComparison = React.useMemo(() => {
-    return compareMonthlyTotals(period1.expenses, period2.expenses)
-  }, [period1.expenses, period2.expenses])
+    return compareMonthlyTotals(period1.expenses, period2.expenses);
+  }, [period1.expenses, period2.expenses]);
 
   // Custom tooltip for charts
   const CustomTooltip = ({ active, payload, label }) => {
@@ -36,10 +36,10 @@ export function YearComparisonCharts({ period1, period2, comparison }) {
             </p>
           ))}
         </div>
-      )
+      );
     }
-    return null
-  }
+    return null;
+  };
 
   return (
     <div className="comparison-charts-section">
@@ -53,9 +53,7 @@ export function YearComparisonCharts({ period1, period2, comparison }) {
             <BarChart data={monthlyComparison}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
-              <YAxis
-                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-              />
+              <YAxis tickFormatter={value => `${(value / 1000).toFixed(0)}k`} />
               <Tooltip content={<CustomTooltip />} />
               <Legend />
               <Bar
@@ -73,7 +71,8 @@ export function YearComparisonCharts({ period1, period2, comparison }) {
             </BarChart>
           </ResponsiveContainer>
           <p className="chart-note">
-            💡 Sammenlign månedlige udgifter mellem {period1.year} og {period2.year}
+            💡 Sammenlign månedlige udgifter mellem {period1.year} og{' '}
+            {period2.year}
           </p>
         </div>
 
@@ -84,9 +83,7 @@ export function YearComparisonCharts({ period1, period2, comparison }) {
             <LineChart data={monthlyComparison}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
-              <YAxis
-                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-              />
+              <YAxis tickFormatter={value => `${(value / 1000).toFixed(0)}k`} />
               <Tooltip content={<CustomTooltip />} />
               <Legend />
               <Line
@@ -109,7 +106,8 @@ export function YearComparisonCharts({ period1, period2, comparison }) {
             </LineChart>
           </ResponsiveContainer>
           <p className="chart-note">
-            💡 Positiv værdi = højere udgifter i {period2.year}, negativ = lavere
+            💡 Positiv værdi = højere udgifter i {period2.year}, negativ =
+            lavere
           </p>
         </div>
 
@@ -123,24 +121,24 @@ export function YearComparisonCharts({ period1, period2, comparison }) {
                 {
                   metric: 'Årlige udgifter',
                   [period1.year]: comparison.period1.summary.totalAnnual,
-                  [period2.year]: comparison.period2.summary.totalAnnual
+                  [period2.year]: comparison.period2.summary.totalAnnual,
                 },
                 {
                   metric: 'Gns. månedlig',
                   [period1.year]: comparison.period1.summary.avgMonthly,
-                  [period2.year]: comparison.period2.summary.avgMonthly
+                  [period2.year]: comparison.period2.summary.avgMonthly,
                 },
                 {
                   metric: 'Månedlig balance',
                   [period1.year]: comparison.period1.summary.monthlyBalance,
-                  [period2.year]: comparison.period2.summary.monthlyBalance
-                }
+                  [period2.year]: comparison.period2.summary.monthlyBalance,
+                },
               ]}
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 type="number"
-                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                tickFormatter={value => `${(value / 1000).toFixed(0)}k`}
               />
               <YAxis type="category" dataKey="metric" width={150} />
               <Tooltip content={<CustomTooltip />} />
@@ -163,5 +161,5 @@ export function YearComparisonCharts({ period1, period2, comparison }) {
         </div>
       </div>
     </div>
-  )
+  );
 }

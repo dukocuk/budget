@@ -14,7 +14,7 @@ export const SEED_EXPENSES = [
     amount: 100,
     frequency: 'monthly',
     startMonth: 1,
-    endMonth: 12
+    endMonth: 12,
   },
   {
     id: 'seed-2',
@@ -22,7 +22,7 @@ export const SEED_EXPENSES = [
     amount: 400,
     frequency: 'quarterly',
     startMonth: 1,
-    endMonth: 12
+    endMonth: 12,
   },
   {
     id: 'seed-3',
@@ -30,7 +30,7 @@ export const SEED_EXPENSES = [
     amount: 1200,
     frequency: 'yearly',
     startMonth: 1,
-    endMonth: 1
+    endMonth: 1,
   },
   {
     id: 'seed-4',
@@ -38,7 +38,7 @@ export const SEED_EXPENSES = [
     amount: 200,
     frequency: 'monthly',
     startMonth: 3,
-    endMonth: 9
+    endMonth: 9,
   },
   {
     id: 'seed-5',
@@ -46,9 +46,9 @@ export const SEED_EXPENSES = [
     amount: 300,
     frequency: 'quarterly',
     startMonth: 4,
-    endMonth: 10
-  }
-]
+    endMonth: 10,
+  },
+];
 
 /**
  * Load seed data for development/testing
@@ -68,12 +68,16 @@ export const SEED_EXPENSES = [
 export function loadSeedData() {
   // Environment check - only allow in development
   if (import.meta.env.PROD) {
-    console.warn('Seed data is disabled in production')
-    return []
+    console.warn('Seed data is disabled in production');
+    return [];
   }
 
-  console.log('📦 Loading seed data (dev only):', SEED_EXPENSES.length, 'expenses')
-  return [...SEED_EXPENSES]
+  console.log(
+    '📦 Loading seed data (dev only):',
+    SEED_EXPENSES.length,
+    'expenses'
+  );
+  return [...SEED_EXPENSES];
 }
 
 /**
@@ -82,7 +86,7 @@ export function loadSeedData() {
  * @returns {Object|undefined} Expense object or undefined if not found
  */
 export function getSeedExpense(id) {
-  return SEED_EXPENSES.find(expense => expense.id === id)
+  return SEED_EXPENSES.find(expense => expense.id === id);
 }
 
 /**
@@ -91,5 +95,5 @@ export function getSeedExpense(id) {
  * @returns {boolean} True if expense is from seed data
  */
 export function isSeedExpense(id) {
-  return id?.startsWith('seed-')
+  return id?.startsWith('seed-');
 }

@@ -4,8 +4,8 @@
  * Shows active year first, then archived years
  */
 
-import { useState, useRef, useEffect } from 'react'
-import './YearSelector.css'
+import { useState, useRef, useEffect } from 'react';
+import './YearSelector.css';
 
 /**
  * @param {Object} props
@@ -20,52 +20,53 @@ export default function YearSelector({
   activePeriod,
   onSelectPeriod,
   onCreateYear,
-  disabled = false
+  disabled = false,
 }) {
-  const [isOpen, setIsOpen] = useState(false)
-  const dropdownRef = useRef(null)
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false)
+        setIsOpen(false);
       }
     }
 
     if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
+      document.addEventListener('mousedown', handleClickOutside);
+      return () =>
+        document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [isOpen])
+  }, [isOpen]);
 
   // Close dropdown on Escape key
   useEffect(() => {
     function handleEscape(event) {
       if (event.key === 'Escape') {
-        setIsOpen(false)
+        setIsOpen(false);
       }
     }
 
     if (isOpen) {
-      document.addEventListener('keydown', handleEscape)
-      return () => document.removeEventListener('keydown', handleEscape)
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
     }
-  }, [isOpen])
+  }, [isOpen]);
 
-  const handleSelectPeriod = (period) => {
-    onSelectPeriod(period)
-    setIsOpen(false)
-  }
+  const handleSelectPeriod = period => {
+    onSelectPeriod(period);
+    setIsOpen(false);
+  };
 
   const handleCreateYear = () => {
-    onCreateYear()
-    setIsOpen(false)
-  }
+    onCreateYear();
+    setIsOpen(false);
+  };
 
   // Group periods by status
-  const activePeriods = periods.filter(p => p.status === 'active')
-  const archivedPeriods = periods.filter(p => p.status === 'archived')
+  const activePeriods = periods.filter(p => p.status === 'active');
+  const archivedPeriods = periods.filter(p => p.status === 'archived');
 
   return (
     <div className="year-selector" ref={dropdownRef}>
@@ -210,5 +211,5 @@ export default function YearSelector({
         </div>
       )}
     </div>
-  )
+  );
 }

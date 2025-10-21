@@ -3,45 +3,45 @@
  * Tests budget period management, especially getExpensesForPeriod for year comparison
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
-import { useBudgetPeriods } from './useBudgetPeriods'
-import { localDB } from '../lib/pglite'
-import { useSyncContext } from './useSyncContext'
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+import { useBudgetPeriods } from './useBudgetPeriods';
+import { localDB } from '../lib/pglite';
+import { useSyncContext } from './useSyncContext';
 
 // Mock PGlite database
 vi.mock('../lib/pglite', () => ({
   localDB: {
     query: vi.fn(),
-    exec: vi.fn()
+    exec: vi.fn(),
   },
-  migrateToBudgetPeriods: vi.fn().mockResolvedValue(undefined)
-}))
+  migrateToBudgetPeriods: vi.fn().mockResolvedValue(undefined),
+}));
 
 // Mock SyncContext with persistent spy
-const mockSyncBudgetPeriods = vi.fn()
+const mockSyncBudgetPeriods = vi.fn();
 vi.mock('./useSyncContext', () => ({
   useSyncContext: () => ({
-    syncBudgetPeriods: mockSyncBudgetPeriods
-  })
-}))
+    syncBudgetPeriods: mockSyncBudgetPeriods,
+  }),
+}));
 
 // Mock logger
 vi.mock('../utils/logger', () => ({
   logger: {
     info: vi.fn(),
     error: vi.fn(),
-    warn: vi.fn()
-  }
-}))
+    warn: vi.fn(),
+  },
+}));
 
 // Mock UUID generator
 vi.mock('../utils/uuid', () => ({
-  generateUUID: vi.fn(() => 'test-uuid-123')
-}))
+  generateUUID: vi.fn(() => 'test-uuid-123'),
+}));
 
 describe('useBudgetPeriods', () => {
-  const mockUserId = 'test-user-id'
+  const mockUserId = 'test-user-id';
 
   const mockPeriodsRows = [
     {
@@ -56,7 +56,7 @@ describe('useBudgetPeriods', () => {
       template_name: null,
       template_description: null,
       created_at: '2025-01-01T00:00:00Z',
-      updated_at: '2025-01-01T00:00:00Z'
+      updated_at: '2025-01-01T00:00:00Z',
     },
     {
       id: 'period-2024',
@@ -70,9 +70,9 @@ describe('useBudgetPeriods', () => {
       template_name: null,
       template_description: null,
       created_at: '2024-01-01T00:00:00Z',
-      updated_at: '2024-01-01T00:00:00Z'
-    }
-  ]
+      updated_at: '2024-01-01T00:00:00Z',
+    },
+  ];
 
   const mockExpensesRows = [
     {
@@ -81,7 +81,7 @@ describe('useBudgetPeriods', () => {
       amount: 120,
       frequency: 'monthly',
       start_month: 1,
-      end_month: 12
+      end_month: 12,
     },
     {
       id: 'expense-2',
@@ -89,49 +89,62 @@ describe('useBudgetPeriods', () => {
       amount: 300,
       frequency: 'monthly',
       start_month: 1,
-      end_month: 12
-    }
-  ]
+      end_month: 12,
+    },
+  ];
 
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.clearAllMocks();
 
     // Default mock for periods query
     localDB.query.mockImplementation((query, params) => {
-      if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-        return Promise.resolve({ rows: mockPeriodsRows })
+      if (
+        query.includes('SELECT * FROM budget_periods') &&
+        query.includes('is_template = 0')
+      ) {
+        return Promise.resolve({ rows: mockPeriodsRows });
       }
-      return Promise.resolve({ rows: [] })
-    })
-  })
+      return Promise.resolve({ rows: [] });
+    });
+  });
 
   describe('getExpensesForPeriod', () => {
     it('should load period with expenses successfully', async () => {
       localDB.query.mockImplementation((query, params) => {
         // Initial periods load
-        if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-          return Promise.resolve({ rows: mockPeriodsRows })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          query.includes('is_template = 0')
+        ) {
+          return Promise.resolve({ rows: mockPeriodsRows });
         }
         // getExpensesForPeriod period query
-        if (query.includes('SELECT * FROM budget_periods') && params.includes('period-2025')) {
-          return Promise.resolve({ rows: [mockPeriodsRows[0]] })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          params.includes('period-2025')
+        ) {
+          return Promise.resolve({ rows: [mockPeriodsRows[0]] });
         }
         // getExpensesForPeriod expenses query
-        if (query.includes('SELECT * FROM expenses') && query.includes('budget_period_id')) {
-          return Promise.resolve({ rows: mockExpensesRows })
+        if (
+          query.includes('SELECT * FROM expenses') &&
+          query.includes('budget_period_id')
+        ) {
+          return Promise.resolve({ rows: mockExpensesRows });
         }
-        return Promise.resolve({ rows: [] })
-      })
+        return Promise.resolve({ rows: [] });
+      });
 
-      const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+      const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
       // Wait for initial load
       await waitFor(() => {
-        expect(result.current.loading).toBe(false)
-      })
+        expect(result.current.loading).toBe(false);
+      });
 
       // Call getExpensesForPeriod
-      const periodData = await result.current.getExpensesForPeriod('period-2025')
+      const periodData =
+        await result.current.getExpensesForPeriod('period-2025');
 
       // Verify structure
       expect(periodData).toEqual({
@@ -148,7 +161,7 @@ describe('useBudgetPeriods', () => {
             amount: 120,
             frequency: 'monthly',
             startMonth: 1,
-            endMonth: 12
+            endMonth: 12,
           },
           {
             id: 'expense-2',
@@ -156,294 +169,383 @@ describe('useBudgetPeriods', () => {
             amount: 300,
             frequency: 'monthly',
             startMonth: 1,
-            endMonth: 12
-          }
-        ]
-      })
+            endMonth: 12,
+          },
+        ],
+      });
 
       // Verify queries were called
       expect(localDB.query).toHaveBeenCalledWith(
         expect.stringContaining('SELECT * FROM budget_periods'),
         ['period-2025', mockUserId]
-      )
+      );
       expect(localDB.query).toHaveBeenCalledWith(
         expect.stringContaining('SELECT * FROM expenses'),
         expect.arrayContaining(['period-2025'])
-      )
-    })
+      );
+    });
 
     it('should throw error for non-existent period', async () => {
       localDB.query.mockImplementation((query, params) => {
-        if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-          return Promise.resolve({ rows: mockPeriodsRows })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          query.includes('is_template = 0')
+        ) {
+          return Promise.resolve({ rows: mockPeriodsRows });
         }
-        if (query.includes('SELECT * FROM budget_periods') && params.includes('non-existent')) {
-          return Promise.resolve({ rows: [] })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          params.includes('non-existent')
+        ) {
+          return Promise.resolve({ rows: [] });
         }
-        return Promise.resolve({ rows: [] })
-      })
+        return Promise.resolve({ rows: [] });
+      });
 
-      const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+      const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
       await waitFor(() => {
-        expect(result.current.loading).toBe(false)
-      })
+        expect(result.current.loading).toBe(false);
+      });
 
       // Should throw error
-      await expect(result.current.getExpensesForPeriod('non-existent')).rejects.toThrow('Period not found')
-    })
+      await expect(
+        result.current.getExpensesForPeriod('non-existent')
+      ).rejects.toThrow('Period not found');
+    });
 
     it('should return null for null userId', async () => {
-      const { result } = renderHook(() => useBudgetPeriods(null))
+      const { result } = renderHook(() => useBudgetPeriods(null));
 
       await waitFor(() => {
-        expect(result.current.loading).toBe(false)
-      })
+        expect(result.current.loading).toBe(false);
+      });
 
-      const periodData = await result.current.getExpensesForPeriod('period-2025')
-      expect(periodData).toBeNull()
-    })
+      const periodData =
+        await result.current.getExpensesForPeriod('period-2025');
+      expect(periodData).toBeNull();
+    });
 
     it('should parse monthlyPayments JSON correctly', async () => {
       const periodWithVariablePayments = {
         ...mockPeriodsRows[0],
-        monthly_payments: JSON.stringify([5000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000])
-      }
+        monthly_payments: JSON.stringify([
+          5000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700,
+          6000,
+        ]),
+      };
 
       localDB.query.mockImplementation((query, params) => {
-        if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-          return Promise.resolve({ rows: mockPeriodsRows })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          query.includes('is_template = 0')
+        ) {
+          return Promise.resolve({ rows: mockPeriodsRows });
         }
-        if (query.includes('SELECT * FROM budget_periods') && params.includes('period-2025')) {
-          return Promise.resolve({ rows: [periodWithVariablePayments] })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          params.includes('period-2025')
+        ) {
+          return Promise.resolve({ rows: [periodWithVariablePayments] });
         }
         if (query.includes('SELECT * FROM expenses')) {
-          return Promise.resolve({ rows: [] })
+          return Promise.resolve({ rows: [] });
         }
-        return Promise.resolve({ rows: [] })
-      })
+        return Promise.resolve({ rows: [] });
+      });
 
-      const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+      const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
       await waitFor(() => {
-        expect(result.current.loading).toBe(false)
-      })
+        expect(result.current.loading).toBe(false);
+      });
 
-      const periodData = await result.current.getExpensesForPeriod('period-2025')
+      const periodData =
+        await result.current.getExpensesForPeriod('period-2025');
 
-      expect(periodData.monthlyPayments).toEqual([5000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000])
-    })
+      expect(periodData.monthlyPayments).toEqual([
+        5000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000,
+      ]);
+    });
 
     it('should handle null monthlyPayments', async () => {
       localDB.query.mockImplementation((query, params) => {
-        if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-          return Promise.resolve({ rows: mockPeriodsRows })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          query.includes('is_template = 0')
+        ) {
+          return Promise.resolve({ rows: mockPeriodsRows });
         }
-        if (query.includes('SELECT * FROM budget_periods') && params.includes('period-2025')) {
-          return Promise.resolve({ rows: [mockPeriodsRows[0]] })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          params.includes('period-2025')
+        ) {
+          return Promise.resolve({ rows: [mockPeriodsRows[0]] });
         }
         if (query.includes('SELECT * FROM expenses')) {
-          return Promise.resolve({ rows: [] })
+          return Promise.resolve({ rows: [] });
         }
-        return Promise.resolve({ rows: [] })
-      })
+        return Promise.resolve({ rows: [] });
+      });
 
-      const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+      const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
       await waitFor(() => {
-        expect(result.current.loading).toBe(false)
-      })
+        expect(result.current.loading).toBe(false);
+      });
 
-      const periodData = await result.current.getExpensesForPeriod('period-2025')
+      const periodData =
+        await result.current.getExpensesForPeriod('period-2025');
 
-      expect(periodData.monthlyPayments).toBeNull()
-    })
+      expect(periodData.monthlyPayments).toBeNull();
+    });
 
     it('should map expense data structure correctly (snake_case to camelCase)', async () => {
       localDB.query.mockImplementation((query, params) => {
-        if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-          return Promise.resolve({ rows: mockPeriodsRows })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          query.includes('is_template = 0')
+        ) {
+          return Promise.resolve({ rows: mockPeriodsRows });
         }
-        if (query.includes('SELECT * FROM budget_periods') && params.includes('period-2025')) {
-          return Promise.resolve({ rows: [mockPeriodsRows[0]] })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          params.includes('period-2025')
+        ) {
+          return Promise.resolve({ rows: [mockPeriodsRows[0]] });
         }
-        if (query.includes('SELECT * FROM expenses') && query.includes('budget_period_id')) {
-          return Promise.resolve({ rows: mockExpensesRows })
+        if (
+          query.includes('SELECT * FROM expenses') &&
+          query.includes('budget_period_id')
+        ) {
+          return Promise.resolve({ rows: mockExpensesRows });
         }
-        return Promise.resolve({ rows: [] })
-      })
+        return Promise.resolve({ rows: [] });
+      });
 
-      const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+      const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
       await waitFor(() => {
-        expect(result.current.loading).toBe(false)
-      })
+        expect(result.current.loading).toBe(false);
+      });
 
-      const periodData = await result.current.getExpensesForPeriod('period-2025')
+      const periodData =
+        await result.current.getExpensesForPeriod('period-2025');
 
       // Check that snake_case fields are mapped to camelCase
       periodData.expenses.forEach(expense => {
-        expect(expense).toHaveProperty('startMonth')
-        expect(expense).toHaveProperty('endMonth')
-        expect(expense).not.toHaveProperty('start_month')
-        expect(expense).not.toHaveProperty('end_month')
-      })
-    })
+        expect(expense).toHaveProperty('startMonth');
+        expect(expense).toHaveProperty('endMonth');
+        expect(expense).not.toHaveProperty('start_month');
+        expect(expense).not.toHaveProperty('end_month');
+      });
+    });
 
     it('should return empty expenses array when period has no expenses', async () => {
       localDB.query.mockImplementation((query, params) => {
-        if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-          return Promise.resolve({ rows: mockPeriodsRows })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          query.includes('is_template = 0')
+        ) {
+          return Promise.resolve({ rows: mockPeriodsRows });
         }
-        if (query.includes('SELECT * FROM budget_periods') && params.includes('period-2025')) {
-          return Promise.resolve({ rows: [mockPeriodsRows[0]] })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          params.includes('period-2025')
+        ) {
+          return Promise.resolve({ rows: [mockPeriodsRows[0]] });
         }
         if (query.includes('SELECT * FROM expenses')) {
-          return Promise.resolve({ rows: [] })
+          return Promise.resolve({ rows: [] });
         }
-        return Promise.resolve({ rows: [] })
-      })
+        return Promise.resolve({ rows: [] });
+      });
 
-      const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+      const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
       await waitFor(() => {
-        expect(result.current.loading).toBe(false)
-      })
+        expect(result.current.loading).toBe(false);
+      });
 
-      const periodData = await result.current.getExpensesForPeriod('period-2025')
+      const periodData =
+        await result.current.getExpensesForPeriod('period-2025');
 
-      expect(periodData.expenses).toEqual([])
-      expect(periodData.expenses).toHaveLength(0)
-    })
+      expect(periodData.expenses).toEqual([]);
+      expect(periodData.expenses).toHaveLength(0);
+    });
 
     it('should order expenses by name', async () => {
       const unorderedExpenses = [
-        { id: '1', name: 'Zzz Last', amount: 100, frequency: 'monthly', start_month: 1, end_month: 12 },
-        { id: '2', name: 'Aaa First', amount: 200, frequency: 'monthly', start_month: 1, end_month: 12 },
-        { id: '3', name: 'Mmm Middle', amount: 150, frequency: 'monthly', start_month: 1, end_month: 12 }
-      ]
+        {
+          id: '1',
+          name: 'Zzz Last',
+          amount: 100,
+          frequency: 'monthly',
+          start_month: 1,
+          end_month: 12,
+        },
+        {
+          id: '2',
+          name: 'Aaa First',
+          amount: 200,
+          frequency: 'monthly',
+          start_month: 1,
+          end_month: 12,
+        },
+        {
+          id: '3',
+          name: 'Mmm Middle',
+          amount: 150,
+          frequency: 'monthly',
+          start_month: 1,
+          end_month: 12,
+        },
+      ];
 
       localDB.query.mockImplementation((query, params) => {
-        if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-          return Promise.resolve({ rows: mockPeriodsRows })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          query.includes('is_template = 0')
+        ) {
+          return Promise.resolve({ rows: mockPeriodsRows });
         }
-        if (query.includes('SELECT * FROM budget_periods') && params.includes('period-2025')) {
-          return Promise.resolve({ rows: [mockPeriodsRows[0]] })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          params.includes('period-2025')
+        ) {
+          return Promise.resolve({ rows: [mockPeriodsRows[0]] });
         }
-        if (query.includes('SELECT * FROM expenses') && query.includes('ORDER BY name')) {
+        if (
+          query.includes('SELECT * FROM expenses') &&
+          query.includes('ORDER BY name')
+        ) {
           // Simulate database ordering
-          const sorted = [...unorderedExpenses].sort((a, b) => a.name.localeCompare(b.name))
-          return Promise.resolve({ rows: sorted })
+          const sorted = [...unorderedExpenses].sort((a, b) =>
+            a.name.localeCompare(b.name)
+          );
+          return Promise.resolve({ rows: sorted });
         }
-        return Promise.resolve({ rows: [] })
-      })
+        return Promise.resolve({ rows: [] });
+      });
 
-      const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+      const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
       await waitFor(() => {
-        expect(result.current.loading).toBe(false)
-      })
+        expect(result.current.loading).toBe(false);
+      });
 
-      const periodData = await result.current.getExpensesForPeriod('period-2025')
+      const periodData =
+        await result.current.getExpensesForPeriod('period-2025');
 
-      expect(periodData.expenses[0].name).toBe('Aaa First')
-      expect(periodData.expenses[1].name).toBe('Mmm Middle')
-      expect(periodData.expenses[2].name).toBe('Zzz Last')
-    })
-  })
+      expect(periodData.expenses[0].name).toBe('Aaa First');
+      expect(periodData.expenses[1].name).toBe('Mmm Middle');
+      expect(periodData.expenses[2].name).toBe('Zzz Last');
+    });
+  });
 
   describe('Initial Load', () => {
     it('should load all non-template periods', async () => {
-      const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+      const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
       await waitFor(() => {
-        expect(result.current.loading).toBe(false)
-      })
+        expect(result.current.loading).toBe(false);
+      });
 
-      expect(result.current.periods).toHaveLength(2)
-      expect(result.current.periods[0].year).toBe(2025)
-      expect(result.current.periods[1].year).toBe(2024)
-    })
+      expect(result.current.periods).toHaveLength(2);
+      expect(result.current.periods[0].year).toBe(2025);
+      expect(result.current.periods[1].year).toBe(2024);
+    });
 
     it('should set active period to first active status', async () => {
-      const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+      const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
       await waitFor(() => {
-        expect(result.current.loading).toBe(false)
-      })
+        expect(result.current.loading).toBe(false);
+      });
 
-      expect(result.current.activePeriod).not.toBeNull()
-      expect(result.current.activePeriod.status).toBe('active')
-      expect(result.current.activePeriod.year).toBe(2025)
-    })
+      expect(result.current.activePeriod).not.toBeNull();
+      expect(result.current.activePeriod.status).toBe('active');
+      expect(result.current.activePeriod.year).toBe(2025);
+    });
 
     it('should handle no periods gracefully', async () => {
-      localDB.query.mockResolvedValue({ rows: [] })
+      localDB.query.mockResolvedValue({ rows: [] });
 
-      const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+      const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
       await waitFor(() => {
-        expect(result.current.loading).toBe(false)
-      })
+        expect(result.current.loading).toBe(false);
+      });
 
-      expect(result.current.periods).toEqual([])
-      expect(result.current.activePeriod).toBeNull()
-    })
+      expect(result.current.periods).toEqual([]);
+      expect(result.current.activePeriod).toBeNull();
+    });
 
     it('should handle null userId', async () => {
-      const { result } = renderHook(() => useBudgetPeriods(null))
+      const { result } = renderHook(() => useBudgetPeriods(null));
 
       await waitFor(() => {
-        expect(result.current.loading).toBe(false)
-      })
+        expect(result.current.loading).toBe(false);
+      });
 
-      expect(result.current.periods).toEqual([])
-      expect(localDB.query).not.toHaveBeenCalled()
-    })
-  })
+      expect(result.current.periods).toEqual([]);
+      expect(localDB.query).not.toHaveBeenCalled();
+    });
+  });
 
   describe('Error Handling', () => {
     it('should handle database query errors in getExpensesForPeriod', async () => {
       localDB.query.mockImplementation((query, params) => {
-        if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-          return Promise.resolve({ rows: mockPeriodsRows })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          query.includes('is_template = 0')
+        ) {
+          return Promise.resolve({ rows: mockPeriodsRows });
         }
-        if (query.includes('SELECT * FROM budget_periods') && params.includes('period-2025')) {
-          return Promise.reject(new Error('Database error'))
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          params.includes('period-2025')
+        ) {
+          return Promise.reject(new Error('Database error'));
         }
-        return Promise.resolve({ rows: [] })
-      })
+        return Promise.resolve({ rows: [] });
+      });
 
-      const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+      const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
       await waitFor(() => {
-        expect(result.current.loading).toBe(false)
-      })
+        expect(result.current.loading).toBe(false);
+      });
 
-      await expect(result.current.getExpensesForPeriod('period-2025')).rejects.toThrow('Database error')
-    })
+      await expect(
+        result.current.getExpensesForPeriod('period-2025')
+      ).rejects.toThrow('Database error');
+    });
 
     it('should log errors to logger', async () => {
-      const { logger } = await import('../utils/logger')
+      const { logger } = await import('../utils/logger');
 
       localDB.query.mockImplementation((query, params) => {
-        if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-          return Promise.resolve({ rows: mockPeriodsRows })
+        if (
+          query.includes('SELECT * FROM budget_periods') &&
+          query.includes('is_template = 0')
+        ) {
+          return Promise.resolve({ rows: mockPeriodsRows });
         }
         if (params && params.includes('period-2025')) {
-          return Promise.reject(new Error('Database error'))
+          return Promise.reject(new Error('Database error'));
         }
-        return Promise.resolve({ rows: [] })
-      })
+        return Promise.resolve({ rows: [] });
+      });
 
-      const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+      const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
       await waitFor(() => {
-        expect(result.current.loading).toBe(false)
-      })
+        expect(result.current.loading).toBe(false);
+      });
 
       try {
-        await result.current.getExpensesForPeriod('period-2025')
+        await result.current.getExpensesForPeriod('period-2025');
       } catch (error) {
         // Expected error
       }
@@ -451,9 +553,9 @@ describe('useBudgetPeriods', () => {
       expect(logger.error).toHaveBeenCalledWith(
         expect.stringContaining('Error loading expenses for period'),
         expect.any(Error)
-      )
-    })
-  })
+      );
+    });
+  });
 
   describe('Template Management', () => {
     describe('getTemplates', () => {
@@ -471,57 +573,69 @@ describe('useBudgetPeriods', () => {
             template_name: 'Basic Budget',
             template_description: 'Standard monthly expenses',
             created_at: '2025-01-01T00:00:00Z',
-            updated_at: '2025-01-01T00:00:00Z'
-          }
-        ]
+            updated_at: '2025-01-01T00:00:00Z',
+          },
+        ];
 
         localDB.query.mockImplementation((query, params) => {
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-            return Promise.resolve({ rows: mockPeriodsRows })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 0')
+          ) {
+            return Promise.resolve({ rows: mockPeriodsRows });
           }
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 1')) {
-            return Promise.resolve({ rows: mockTemplates })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 1')
+          ) {
+            return Promise.resolve({ rows: mockTemplates });
           }
-          return Promise.resolve({ rows: [] })
-        })
+          return Promise.resolve({ rows: [] });
+        });
 
-        const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+        const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
         await waitFor(() => {
-          expect(result.current.loading).toBe(false)
-        })
+          expect(result.current.loading).toBe(false);
+        });
 
-        const templates = await result.current.getTemplates()
+        const templates = await result.current.getTemplates();
 
-        expect(templates).toHaveLength(1)
+        expect(templates).toHaveLength(1);
         expect(templates[0]).toMatchObject({
           id: 'template-1',
           templateName: 'Basic Budget',
           templateDescription: 'Standard monthly expenses',
-          monthlyPayment: 5700
-        })
-      })
+          monthlyPayment: 5700,
+        });
+      });
 
       it('should return empty array when no templates exist', async () => {
         localDB.query.mockImplementation((query, params) => {
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-            return Promise.resolve({ rows: mockPeriodsRows })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 0')
+          ) {
+            return Promise.resolve({ rows: mockPeriodsRows });
           }
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 1')) {
-            return Promise.resolve({ rows: [] })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 1')
+          ) {
+            return Promise.resolve({ rows: [] });
           }
-          return Promise.resolve({ rows: [] })
-        })
+          return Promise.resolve({ rows: [] });
+        });
 
-        const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+        const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
         await waitFor(() => {
-          expect(result.current.loading).toBe(false)
-        })
+          expect(result.current.loading).toBe(false);
+        });
 
-        const templates = await result.current.getTemplates()
-        expect(templates).toEqual([])
-      })
+        const templates = await result.current.getTemplates();
+        expect(templates).toEqual([]);
+      });
 
       it('should parse monthlyPayments JSONB in templates', async () => {
         const mockTemplates = [
@@ -531,177 +645,236 @@ describe('useBudgetPeriods', () => {
             year: 0,
             monthly_payment: 0,
             previous_balance: 0,
-            monthly_payments: JSON.stringify([5000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000]),
+            monthly_payments: JSON.stringify([
+              5000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700,
+              6000,
+            ]),
             status: 'active',
             is_template: 1,
             template_name: 'Variable Budget',
             template_description: null,
             created_at: '2025-01-01T00:00:00Z',
-            updated_at: '2025-01-01T00:00:00Z'
-          }
-        ]
+            updated_at: '2025-01-01T00:00:00Z',
+          },
+        ];
 
         localDB.query.mockImplementation((query, params) => {
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-            return Promise.resolve({ rows: mockPeriodsRows })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 0')
+          ) {
+            return Promise.resolve({ rows: mockPeriodsRows });
           }
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 1')) {
-            return Promise.resolve({ rows: mockTemplates })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 1')
+          ) {
+            return Promise.resolve({ rows: mockTemplates });
           }
-          return Promise.resolve({ rows: [] })
-        })
+          return Promise.resolve({ rows: [] });
+        });
 
-        const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+        const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
         await waitFor(() => {
-          expect(result.current.loading).toBe(false)
-        })
+          expect(result.current.loading).toBe(false);
+        });
 
-        const templates = await result.current.getTemplates()
-        expect(templates[0].monthlyPayments).toEqual([5000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000])
-      })
-    })
+        const templates = await result.current.getTemplates();
+        expect(templates[0].monthlyPayments).toEqual([
+          5000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700,
+          6000,
+        ]);
+      });
+    });
 
     describe('saveAsTemplate', () => {
       it('should create template from budget period successfully', async () => {
-        let templateCreated = false
+        let templateCreated = false;
 
         localDB.query.mockImplementation((query, params) => {
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-            return Promise.resolve({ rows: mockPeriodsRows })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 0')
+          ) {
+            return Promise.resolve({ rows: mockPeriodsRows });
           }
           // Get source period
-          if (query.includes('SELECT * FROM budget_periods') && params.includes('period-2025')) {
-            return Promise.resolve({ rows: [mockPeriodsRows[0]] })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            params.includes('period-2025')
+          ) {
+            return Promise.resolve({ rows: [mockPeriodsRows[0]] });
           }
           // Insert template
-          if (query.includes('INSERT INTO budget_periods') && query.includes('is_template')) {
-            templateCreated = true
-            return Promise.resolve({ rows: [] })
+          if (
+            query.includes('INSERT INTO budget_periods') &&
+            query.includes('is_template')
+          ) {
+            templateCreated = true;
+            return Promise.resolve({ rows: [] });
           }
           // Copy expenses
-          if (query.includes('SELECT * FROM expenses') && query.includes('budget_period_id')) {
-            return Promise.resolve({ rows: mockExpensesRows })
+          if (
+            query.includes('SELECT * FROM expenses') &&
+            query.includes('budget_period_id')
+          ) {
+            return Promise.resolve({ rows: mockExpensesRows });
           }
           if (query.includes('INSERT INTO expenses')) {
-            return Promise.resolve({ rows: [] })
+            return Promise.resolve({ rows: [] });
           }
-          return Promise.resolve({ rows: [] })
-        })
+          return Promise.resolve({ rows: [] });
+        });
 
-        const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+        const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
         await waitFor(() => {
-          expect(result.current.loading).toBe(false)
-        })
+          expect(result.current.loading).toBe(false);
+        });
 
-        const templateResult = await result.current.saveAsTemplate('period-2025', 'My Template', 'Test description')
+        const templateResult = await result.current.saveAsTemplate(
+          'period-2025',
+          'My Template',
+          'Test description'
+        );
 
-        expect(templateCreated).toBe(true)
+        expect(templateCreated).toBe(true);
         expect(templateResult).toMatchObject({
           id: 'test-uuid-123',
-          templateName: 'My Template'
-        })
+          templateName: 'My Template',
+        });
 
         // Verify sync was called
-        expect(mockSyncBudgetPeriods).toHaveBeenCalled()
-      })
+        expect(mockSyncBudgetPeriods).toHaveBeenCalled();
+      });
 
       it('should throw error when template name is missing', async () => {
-        const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+        const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
         await waitFor(() => {
-          expect(result.current.loading).toBe(false)
-        })
+          expect(result.current.loading).toBe(false);
+        });
 
-        await expect(result.current.saveAsTemplate('period-2025', '', 'Description'))
-          .rejects.toThrow('Skabelon navn er påkrævet')
-      })
+        await expect(
+          result.current.saveAsTemplate('period-2025', '', 'Description')
+        ).rejects.toThrow('Skabelon navn er påkrævet');
+      });
 
       it('should throw error when source period not found', async () => {
         localDB.query.mockImplementation((query, params) => {
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-            return Promise.resolve({ rows: mockPeriodsRows })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 0')
+          ) {
+            return Promise.resolve({ rows: mockPeriodsRows });
           }
-          if (query.includes('SELECT * FROM budget_periods') && params.includes('non-existent')) {
-            return Promise.resolve({ rows: [] })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            params.includes('non-existent')
+          ) {
+            return Promise.resolve({ rows: [] });
           }
-          return Promise.resolve({ rows: [] })
-        })
+          return Promise.resolve({ rows: [] });
+        });
 
-        const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+        const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
         await waitFor(() => {
-          expect(result.current.loading).toBe(false)
-        })
+          expect(result.current.loading).toBe(false);
+        });
 
-        await expect(result.current.saveAsTemplate('non-existent', 'Template Name', 'Description'))
-          .rejects.toThrow('Budget periode ikke fundet')
-      })
+        await expect(
+          result.current.saveAsTemplate(
+            'non-existent',
+            'Template Name',
+            'Description'
+          )
+        ).rejects.toThrow('Budget periode ikke fundet');
+      });
 
       it('should create template with year=0 and previous_balance=0', async () => {
-        let insertedData = null
+        let insertedData = null;
 
         localDB.query.mockImplementation((query, params) => {
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-            return Promise.resolve({ rows: mockPeriodsRows })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 0')
+          ) {
+            return Promise.resolve({ rows: mockPeriodsRows });
           }
-          if (query.includes('SELECT * FROM budget_periods') && params.includes('period-2025')) {
-            return Promise.resolve({ rows: [mockPeriodsRows[0]] })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            params.includes('period-2025')
+          ) {
+            return Promise.resolve({ rows: [mockPeriodsRows[0]] });
           }
           if (query.includes('INSERT INTO budget_periods')) {
-            insertedData = params
-            return Promise.resolve({ rows: [] })
+            insertedData = params;
+            return Promise.resolve({ rows: [] });
           }
-          if (query.includes('SELECT * FROM expenses') && query.includes('budget_period_id')) {
-            return Promise.resolve({ rows: [] })
+          if (
+            query.includes('SELECT * FROM expenses') &&
+            query.includes('budget_period_id')
+          ) {
+            return Promise.resolve({ rows: [] });
           }
-          return Promise.resolve({ rows: [] })
-        })
+          return Promise.resolve({ rows: [] });
+        });
 
-        const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+        const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
         await waitFor(() => {
-          expect(result.current.loading).toBe(false)
-        })
+          expect(result.current.loading).toBe(false);
+        });
 
-        await result.current.saveAsTemplate('period-2025', 'Template Name', 'Description')
+        await result.current.saveAsTemplate(
+          'period-2025',
+          'Template Name',
+          'Description'
+        );
 
-        expect(insertedData).toContain(0) // year = 0
-        expect(insertedData[4]).toBe(0) // previous_balance = 0
-        expect(insertedData[8]).toBe('Template Name')
-      })
-    })
+        expect(insertedData).toContain(0); // year = 0
+        expect(insertedData[4]).toBe(0); // previous_balance = 0
+        expect(insertedData[8]).toBe('Template Name');
+      });
+    });
 
     describe('deleteTemplate', () => {
       it('should delete template successfully', async () => {
-        let templateDeleted = false
+        let templateDeleted = false;
 
         localDB.query.mockImplementation((query, params) => {
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-            return Promise.resolve({ rows: mockPeriodsRows })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 0')
+          ) {
+            return Promise.resolve({ rows: mockPeriodsRows });
           }
-          if (query.includes('DELETE FROM budget_periods') && query.includes('is_template = 1')) {
-            templateDeleted = true
-            return Promise.resolve({ rows: [] })
+          if (
+            query.includes('DELETE FROM budget_periods') &&
+            query.includes('is_template = 1')
+          ) {
+            templateDeleted = true;
+            return Promise.resolve({ rows: [] });
           }
-          return Promise.resolve({ rows: [] })
-        })
+          return Promise.resolve({ rows: [] });
+        });
 
-        const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+        const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
         await waitFor(() => {
-          expect(result.current.loading).toBe(false)
-        })
+          expect(result.current.loading).toBe(false);
+        });
 
-        await result.current.deleteTemplate('template-123')
+        await result.current.deleteTemplate('template-123');
 
-        expect(templateDeleted).toBe(true)
+        expect(templateDeleted).toBe(true);
 
         // Verify sync was called
-        expect(mockSyncBudgetPeriods).toHaveBeenCalled()
-      })
-    })
+        expect(mockSyncBudgetPeriods).toHaveBeenCalled();
+      });
+    });
 
     describe('createFromTemplate', () => {
       it('should create new period from template with all expenses', async () => {
@@ -713,57 +886,73 @@ describe('useBudgetPeriods', () => {
           previous_balance: 0,
           monthly_payments: null,
           status: 'active',
-          is_template: 1
-        }
+          is_template: 1,
+        };
 
-        let periodCreated = false
+        let periodCreated = false;
 
         localDB.query.mockImplementation((query, params) => {
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-            return Promise.resolve({ rows: mockPeriodsRows })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 0')
+          ) {
+            return Promise.resolve({ rows: mockPeriodsRows });
           }
           // Get template
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 1') && params.includes('template-1')) {
-            return Promise.resolve({ rows: [mockTemplate] })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 1') &&
+            params.includes('template-1')
+          ) {
+            return Promise.resolve({ rows: [mockTemplate] });
           }
           // Check year exists
-          if (query.includes('SELECT id FROM budget_periods') && params.includes(2026)) {
-            return Promise.resolve({ rows: [] })
+          if (
+            query.includes('SELECT id FROM budget_periods') &&
+            params.includes(2026)
+          ) {
+            return Promise.resolve({ rows: [] });
           }
           // Create period
-          if (query.includes('INSERT INTO budget_periods') && params.includes(2026)) {
-            periodCreated = true
-            return Promise.resolve({ rows: [] })
+          if (
+            query.includes('INSERT INTO budget_periods') &&
+            params.includes(2026)
+          ) {
+            periodCreated = true;
+            return Promise.resolve({ rows: [] });
           }
           // Copy expenses
-          if (query.includes('SELECT * FROM expenses') && query.includes('budget_period_id')) {
-            return Promise.resolve({ rows: mockExpensesRows })
+          if (
+            query.includes('SELECT * FROM expenses') &&
+            query.includes('budget_period_id')
+          ) {
+            return Promise.resolve({ rows: mockExpensesRows });
           }
           if (query.includes('INSERT INTO expenses')) {
-            return Promise.resolve({ rows: [] })
+            return Promise.resolve({ rows: [] });
           }
-          return Promise.resolve({ rows: [] })
-        })
+          return Promise.resolve({ rows: [] });
+        });
 
-        const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+        const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
         await waitFor(() => {
-          expect(result.current.loading).toBe(false)
-        })
+          expect(result.current.loading).toBe(false);
+        });
 
         const newPeriod = await result.current.createFromTemplate({
           templateId: 'template-1',
           year: 2026,
-          previousBalance: 1000
-        })
+          previousBalance: 1000,
+        });
 
-        expect(periodCreated).toBe(true)
+        expect(periodCreated).toBe(true);
         expect(newPeriod).toMatchObject({
           id: 'test-uuid-123',
           year: 2026,
-          status: 'active'
-        })
-      })
+          status: 'active',
+        });
+      });
 
       it('should create period with selected expenses only', async () => {
         const mockTemplate = {
@@ -774,78 +963,100 @@ describe('useBudgetPeriods', () => {
           previous_balance: 0,
           monthly_payments: null,
           status: 'active',
-          is_template: 1
-        }
+          is_template: 1,
+        };
 
-        const selectedExpenseIds = ['expense-1'] // Only copy first expense
+        const selectedExpenseIds = ['expense-1']; // Only copy first expense
 
-        let copiedExpenseIds = []
+        let copiedExpenseIds = [];
 
         localDB.query.mockImplementation((query, params) => {
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-            return Promise.resolve({ rows: mockPeriodsRows })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 0')
+          ) {
+            return Promise.resolve({ rows: mockPeriodsRows });
           }
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 1') && params.includes('template-1')) {
-            return Promise.resolve({ rows: [mockTemplate] })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 1') &&
+            params.includes('template-1')
+          ) {
+            return Promise.resolve({ rows: [mockTemplate] });
           }
-          if (query.includes('SELECT id FROM budget_periods') && params.includes(2026)) {
-            return Promise.resolve({ rows: [] })
+          if (
+            query.includes('SELECT id FROM budget_periods') &&
+            params.includes(2026)
+          ) {
+            return Promise.resolve({ rows: [] });
           }
           if (query.includes('INSERT INTO budget_periods')) {
-            return Promise.resolve({ rows: [] })
+            return Promise.resolve({ rows: [] });
           }
           // Selective copy
-          if (query.includes('SELECT * FROM expenses') && query.includes('budget_period_id') && query.includes('id IN')) {
-            return Promise.resolve({ rows: [mockExpensesRows[0]] }) // Only first expense
+          if (
+            query.includes('SELECT * FROM expenses') &&
+            query.includes('budget_period_id') &&
+            query.includes('id IN')
+          ) {
+            return Promise.resolve({ rows: [mockExpensesRows[0]] }); // Only first expense
           }
           if (query.includes('INSERT INTO expenses')) {
-            copiedExpenseIds.push(params[2]) // Track copied expense names
-            return Promise.resolve({ rows: [] })
+            copiedExpenseIds.push(params[2]); // Track copied expense names
+            return Promise.resolve({ rows: [] });
           }
-          return Promise.resolve({ rows: [] })
-        })
+          return Promise.resolve({ rows: [] });
+        });
 
-        const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+        const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
         await waitFor(() => {
-          expect(result.current.loading).toBe(false)
-        })
+          expect(result.current.loading).toBe(false);
+        });
 
         await result.current.createFromTemplate({
           templateId: 'template-1',
           year: 2026,
           previousBalance: 1000,
-          selectedExpenseIds
-        })
+          selectedExpenseIds,
+        });
 
         // Verify only selected expense was copied
-        expect(copiedExpenseIds).toHaveLength(1)
-        expect(copiedExpenseIds[0]).toBe('Netflix')
-      })
+        expect(copiedExpenseIds).toHaveLength(1);
+        expect(copiedExpenseIds[0]).toBe('Netflix');
+      });
 
       it('should throw error when template not found', async () => {
         localDB.query.mockImplementation((query, params) => {
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-            return Promise.resolve({ rows: mockPeriodsRows })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 0')
+          ) {
+            return Promise.resolve({ rows: mockPeriodsRows });
           }
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 1')) {
-            return Promise.resolve({ rows: [] })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 1')
+          ) {
+            return Promise.resolve({ rows: [] });
           }
-          return Promise.resolve({ rows: [] })
-        })
+          return Promise.resolve({ rows: [] });
+        });
 
-        const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+        const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
         await waitFor(() => {
-          expect(result.current.loading).toBe(false)
-        })
+          expect(result.current.loading).toBe(false);
+        });
 
-        await expect(result.current.createFromTemplate({
-          templateId: 'non-existent',
-          year: 2026,
-          previousBalance: 0
-        })).rejects.toThrow('Skabelon ikke fundet')
-      })
+        await expect(
+          result.current.createFromTemplate({
+            templateId: 'non-existent',
+            year: 2026,
+            previousBalance: 0,
+          })
+        ).rejects.toThrow('Skabelon ikke fundet');
+      });
 
       it('should throw error when year already exists', async () => {
         const mockTemplate = {
@@ -856,34 +1067,45 @@ describe('useBudgetPeriods', () => {
           previous_balance: 0,
           monthly_payments: null,
           status: 'active',
-          is_template: 1
-        }
+          is_template: 1,
+        };
 
         localDB.query.mockImplementation((query, params) => {
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-            return Promise.resolve({ rows: mockPeriodsRows })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 0')
+          ) {
+            return Promise.resolve({ rows: mockPeriodsRows });
           }
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 1')) {
-            return Promise.resolve({ rows: [mockTemplate] })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 1')
+          ) {
+            return Promise.resolve({ rows: [mockTemplate] });
           }
-          if (query.includes('SELECT id FROM budget_periods') && params.includes(2025)) {
-            return Promise.resolve({ rows: [{ id: 'period-2025' }] }) // Year already exists
+          if (
+            query.includes('SELECT id FROM budget_periods') &&
+            params.includes(2025)
+          ) {
+            return Promise.resolve({ rows: [{ id: 'period-2025' }] }); // Year already exists
           }
-          return Promise.resolve({ rows: [] })
-        })
+          return Promise.resolve({ rows: [] });
+        });
 
-        const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+        const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
         await waitFor(() => {
-          expect(result.current.loading).toBe(false)
-        })
+          expect(result.current.loading).toBe(false);
+        });
 
-        await expect(result.current.createFromTemplate({
-          templateId: 'template-1',
-          year: 2025, // Already exists
-          previousBalance: 0
-        })).rejects.toThrow('Budget for år 2025 findes allerede')
-      })
+        await expect(
+          result.current.createFromTemplate({
+            templateId: 'template-1',
+            year: 2025, // Already exists
+            previousBalance: 0,
+          })
+        ).rejects.toThrow('Budget for år 2025 findes allerede');
+      });
 
       it('should copy template settings to new period', async () => {
         const mockTemplate = {
@@ -892,51 +1114,69 @@ describe('useBudgetPeriods', () => {
           year: 0,
           monthly_payment: 6200,
           previous_balance: 0,
-          monthly_payments: JSON.stringify([5000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 6000]),
+          monthly_payments: JSON.stringify([
+            5000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700,
+            6000,
+          ]),
           status: 'active',
-          is_template: 1
-        }
+          is_template: 1,
+        };
 
-        let insertedPeriodData = null
+        let insertedPeriodData = null;
 
         localDB.query.mockImplementation((query, params) => {
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 0')) {
-            return Promise.resolve({ rows: mockPeriodsRows })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 0')
+          ) {
+            return Promise.resolve({ rows: mockPeriodsRows });
           }
-          if (query.includes('SELECT * FROM budget_periods') && query.includes('is_template = 1')) {
-            return Promise.resolve({ rows: [mockTemplate] })
+          if (
+            query.includes('SELECT * FROM budget_periods') &&
+            query.includes('is_template = 1')
+          ) {
+            return Promise.resolve({ rows: [mockTemplate] });
           }
-          if (query.includes('SELECT id FROM budget_periods') && params.includes(2026)) {
-            return Promise.resolve({ rows: [] })
+          if (
+            query.includes('SELECT id FROM budget_periods') &&
+            params.includes(2026)
+          ) {
+            return Promise.resolve({ rows: [] });
           }
-          if (query.includes('INSERT INTO budget_periods') && params.includes(2026)) {
-            insertedPeriodData = params
-            return Promise.resolve({ rows: [] })
+          if (
+            query.includes('INSERT INTO budget_periods') &&
+            params.includes(2026)
+          ) {
+            insertedPeriodData = params;
+            return Promise.resolve({ rows: [] });
           }
-          if (query.includes('SELECT * FROM expenses') && query.includes('budget_period_id')) {
-            return Promise.resolve({ rows: [] })
+          if (
+            query.includes('SELECT * FROM expenses') &&
+            query.includes('budget_period_id')
+          ) {
+            return Promise.resolve({ rows: [] });
           }
-          return Promise.resolve({ rows: [] })
-        })
+          return Promise.resolve({ rows: [] });
+        });
 
-        const { result } = renderHook(() => useBudgetPeriods(mockUserId))
+        const { result } = renderHook(() => useBudgetPeriods(mockUserId));
 
         await waitFor(() => {
-          expect(result.current.loading).toBe(false)
-        })
+          expect(result.current.loading).toBe(false);
+        });
 
         await result.current.createFromTemplate({
           templateId: 'template-1',
           year: 2026,
-          previousBalance: 2000
-        })
+          previousBalance: 2000,
+        });
 
         // Verify settings were copied from template
-        expect(insertedPeriodData[2]).toBe(2026) // year
-        expect(insertedPeriodData[3]).toBe(6200) // monthly_payment from template
-        expect(insertedPeriodData[4]).toBe(2000) // previous_balance from param
-        expect(insertedPeriodData[5]).toContain('[5000,5500,6000') // monthly_payments from template
-      })
-    })
-  })
-})
+        expect(insertedPeriodData[2]).toBe(2026); // year
+        expect(insertedPeriodData[3]).toBe(6200); // monthly_payment from template
+        expect(insertedPeriodData[4]).toBe(2000); // previous_balance from param
+        expect(insertedPeriodData[5]).toContain('[5000,5500,6000'); // monthly_payments from template
+      });
+    });
+  });
+});

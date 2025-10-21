@@ -76,7 +76,8 @@
 }
 
 @keyframes syncPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -280,7 +281,7 @@
   background-color: #f3f4f6;
 }
 
-.radio-option input[type="radio"] {
+.radio-option input[type='radio'] {
   margin-top: 3px;
   margin-right: 8px;
   cursor: pointer;
@@ -459,96 +460,96 @@
 }
 
 /* Dark mode overrides */
-:root[data-theme="dark"] .settings-section {
+:root[data-theme='dark'] .settings-section {
   background: var(--color-surface);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-:root[data-theme="dark"] .settings-section h2,
-:root[data-theme="dark"] .settings-actions h3 {
+:root[data-theme='dark'] .settings-section h2,
+:root[data-theme='dark'] .settings-actions h3 {
   color: var(--color-text);
 }
 
-:root[data-theme="dark"] .settings-item label {
+:root[data-theme='dark'] .settings-item label {
   color: var(--color-text-secondary);
 }
 
-:root[data-theme="dark"] .settings-item input {
+:root[data-theme='dark'] .settings-item input {
   background: var(--color-background);
   color: var(--color-text);
   border-color: var(--color-border);
 }
 
-:root[data-theme="dark"] .settings-item input:focus {
+:root[data-theme='dark'] .settings-item input:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2);
 }
 
 /* Dark mode: Sync status container */
-:root[data-theme="dark"] .sync-status-container {
+:root[data-theme='dark'] .sync-status-container {
   background: var(--color-background);
   border-color: var(--color-border);
 }
 
-:root[data-theme="dark"] .sync-status-container h3 {
+:root[data-theme='dark'] .sync-status-container h3 {
   color: var(--color-text);
 }
 
 /* Dark mode: Sync status text elements */
-:root[data-theme="dark"] .sync-time,
-:root[data-theme="dark"] .sync-info,
-:root[data-theme="dark"] .settings-note {
+:root[data-theme='dark'] .sync-time,
+:root[data-theme='dark'] .sync-info,
+:root[data-theme='dark'] .settings-note {
   color: var(--color-text-secondary);
 }
 
 /* Dark mode: Settings actions border */
-:root[data-theme="dark"] .settings-actions {
+:root[data-theme='dark'] .settings-actions {
   border-top-color: var(--color-border);
 }
 
 /* Dark mode: Sync error message */
-:root[data-theme="dark"] .sync-error-message {
+:root[data-theme='dark'] .sync-error-message {
   background: rgba(248, 113, 113, 0.1);
   border-color: var(--color-error);
 }
 
-:root[data-theme="dark"] .sync-error-message p {
+:root[data-theme='dark'] .sync-error-message p {
   color: var(--color-error);
 }
 
 /* Dark mode: Monthly payments section */
-:root[data-theme="dark"] .settings-payment-mode h3 {
+:root[data-theme='dark'] .settings-payment-mode h3 {
   color: var(--color-text);
 }
 
-:root[data-theme="dark"] .radio-option:hover {
+:root[data-theme='dark'] .radio-option:hover {
   background-color: var(--color-surface);
 }
 
-:root[data-theme="dark"] .radio-label {
+:root[data-theme='dark'] .radio-label {
   color: var(--color-text);
 }
 
-:root[data-theme="dark"] .input-suffix {
+:root[data-theme='dark'] .input-suffix {
   color: var(--color-text-secondary);
 }
 
-:root[data-theme="dark"] .monthly-payments-grid {
+:root[data-theme='dark'] .monthly-payments-grid {
   background: var(--color-background);
   border-color: var(--color-border);
 }
 
-:root[data-theme="dark"] .month-payment-item label {
+:root[data-theme='dark'] .month-payment-item label {
   color: var(--color-text-secondary);
 }
 
-:root[data-theme="dark"] .month-payment-item input {
+:root[data-theme='dark'] .month-payment-item input {
   background: var(--color-surface);
   color: var(--color-text);
   border-color: var(--color-border);
 }
 
-:root[data-theme="dark"] .month-payment-item input:focus {
+:root[data-theme='dark'] .month-payment-item input:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.2);
 }

@@ -2,31 +2,31 @@
  * Error boundary component for graceful error handling
  */
 
-import React from 'react'
-import './ErrorBoundary.css'
+import React from 'react';
+import './ErrorBoundary.css';
 
 export class ErrorBoundary extends React.Component {
   constructor(props) {
-    super(props)
-    this.state = { hasError: false, error: null, errorInfo: null }
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
   }
 
   static getDerivedStateFromError() {
-    return { hasError: true }
+    return { hasError: true };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo)
+    console.error('Error caught by boundary:', error, errorInfo);
     this.setState({
       error,
-      errorInfo
-    })
+      errorInfo,
+    });
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null })
-    window.location.reload()
-  }
+    this.setState({ hasError: false, error: null, errorInfo: null });
+    window.location.reload();
+  };
 
   render() {
     if (this.state.hasError) {
@@ -51,13 +51,14 @@ export class ErrorBoundary extends React.Component {
             </button>
 
             <p className="error-help">
-              Hvis problemet fortsætter, prøv at rydde browserens cache og genindlæs siden.
+              Hvis problemet fortsætter, prøv at rydde browserens cache og
+              genindlæs siden.
             </p>
           </div>
         </div>
-      )
+      );
     }
 
-    return this.props.children
+    return this.props.children;
   }
 }

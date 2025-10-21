@@ -1,63 +1,85 @@
-import React from 'react'
-import { useExpenses } from '../hooks/useExpenses'
-import { useSettings } from '../hooks/useSettings'
-import { calculateSummary, calculateMonthlyTotals, calculateBalanceProjection, groupExpensesByFrequency } from '../utils/calculations'
-import { PieChart, Pie, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
-import { CHART_COLORS, MONTHS } from '../utils/constants'
-import './Dashboard.css'
+import React from 'react';
+import { useExpenses } from '../hooks/useExpenses';
+import { useSettings } from '../hooks/useSettings';
+import {
+  calculateSummary,
+  calculateMonthlyTotals,
+  calculateBalanceProjection,
+  groupExpensesByFrequency,
+} from '../utils/calculations';
+import {
+  PieChart,
+  Pie,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
+import { CHART_COLORS, MONTHS } from '../utils/constants';
+import './Dashboard.css';
 
 export default function Dashboard({ userId }) {
-  const { expenses, loading: expensesLoading } = useExpenses(userId)
-  const { settings, loading: settingsLoading } = useSettings(userId)
+  const { expenses, loading: expensesLoading } = useExpenses(userId);
+  const { settings, loading: settingsLoading } = useSettings(userId);
 
   // Use monthlyPayments array if available, otherwise fallback to single monthlyPayment
-  const paymentValue = settings.monthlyPayments || settings.monthlyPayment
+  const paymentValue = settings.monthlyPayments || settings.monthlyPayment;
 
   // Memoize expensive calculations
   const summary = React.useMemo(
     () => calculateSummary(expenses, paymentValue, settings.previousBalance),
     [expenses, paymentValue, settings.previousBalance]
-  )
+  );
 
   const monthlyTotals = React.useMemo(
     () => calculateMonthlyTotals(expenses),
     [expenses]
-  )
+  );
 
   const balanceProjection = React.useMemo(
-    () => calculateBalanceProjection(expenses, paymentValue, settings.previousBalance),
+    () =>
+      calculateBalanceProjection(
+        expenses,
+        paymentValue,
+        settings.previousBalance
+      ),
     [expenses, paymentValue, settings.previousBalance]
-  )
+  );
 
   const expensesByFrequency = React.useMemo(
     () => groupExpensesByFrequency(expenses),
     [expenses]
-  )
+  );
 
   // Prepare data for charts (memoized)
   // Handle variable monthly payments: use array if available, otherwise use fixed value
-  const monthlyData = React.useMemo(
-    () => {
-      const payments = Array.isArray(paymentValue)
-        ? paymentValue
-        : Array(12).fill(paymentValue)
+  const monthlyData = React.useMemo(() => {
+    const payments = Array.isArray(paymentValue)
+      ? paymentValue
+      : Array(12).fill(paymentValue);
 
-      return MONTHS.map((month, index) => ({
-        name: month,
-        udgifter: monthlyTotals[index],
-        indbetaling: payments[index] || 0
-      }))
-    },
-    [monthlyTotals, paymentValue]
-  )
+    return MONTHS.map((month, index) => ({
+      name: month,
+      udgifter: monthlyTotals[index],
+      indbetaling: payments[index] || 0,
+    }));
+  }, [monthlyTotals, paymentValue]);
 
   const balanceData = React.useMemo(
-    () => balanceProjection.map(item => ({
-      name: MONTHS[item.month - 1],
-      balance: item.balance
-    })),
+    () =>
+      balanceProjection.map(item => ({
+        name: MONTHS[item.month - 1],
+        balance: item.balance,
+      })),
     [balanceProjection]
-  )
+  );
 
   if (expensesLoading || settingsLoading) {
     return (
@@ -65,7 +87,7 @@ export default function Dashboard({ userId }) {
         <div className="spinner"></div>
         <p>Indlæser oversigt...</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -74,22 +96,30 @@ export default function Dashboard({ userId }) {
       <div className="summary-grid">
         <div className="summary-card">
           <h3>Årlige udgifter</h3>
-          <div className="value">{summary.totalAnnual.toLocaleString('da-DK')} kr.</div>
+          <div className="value">
+            {summary.totalAnnual.toLocaleString('da-DK')} kr.
+          </div>
         </div>
         <div className="summary-card">
           <h3>Gennemsnitlig månedlig udgift</h3>
-          <div className="value">{summary.avgMonthly.toLocaleString('da-DK')} kr.</div>
+          <div className="value">
+            {summary.avgMonthly.toLocaleString('da-DK')} kr.
+          </div>
         </div>
         <div className="summary-card">
           <h3>Månedlig balance</h3>
-          <div className={`value ${summary.monthlyBalance >= 0 ? 'positive' : 'negative'}`}>
+          <div
+            className={`value ${summary.monthlyBalance >= 0 ? 'positive' : 'negative'}`}
+          >
             {summary.monthlyBalance >= 0 ? '+' : ''}
             {summary.monthlyBalance.toLocaleString('da-DK')} kr.
           </div>
         </div>
         <div className="summary-card">
           <h3>Årlig reserve</h3>
-          <div className={`value ${summary.annualReserve >= 0 ? 'positive' : 'negative'}`}>
+          <div
+            className={`value ${summary.annualReserve >= 0 ? 'positive' : 'negative'}`}
+          >
             {summary.annualReserve.toLocaleString('da-DK')} kr.
           </div>
         </div>
@@ -108,16 +138,23 @@ export default function Dashboard({ userId }) {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) =>
+                    `${name}: ${(percent * 100).toFixed(0)}%`
+                  }
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
                 >
                   {expensesByFrequency.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={CHART_COLORS[index % CHART_COLORS.length]}
+                    />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => `${value.toLocaleString('da-DK')} kr.`} />
+                <Tooltip
+                  formatter={value => `${value.toLocaleString('da-DK')} kr.`}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -131,7 +168,9 @@ export default function Dashboard({ userId }) {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip formatter={(value) => `${value.toLocaleString('da-DK')} kr.`} />
+              <Tooltip
+                formatter={value => `${value.toLocaleString('da-DK')} kr.`}
+              />
               <Legend />
               <Bar dataKey="udgifter" fill="#ef4444" name="Udgifter" />
               <Bar dataKey="indbetaling" fill="#10b981" name="Indbetaling" />
@@ -147,9 +186,17 @@ export default function Dashboard({ userId }) {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip formatter={(value) => `${value.toLocaleString('da-DK')} kr.`} />
+              <Tooltip
+                formatter={value => `${value.toLocaleString('da-DK')} kr.`}
+              />
               <Legend />
-              <Line type="monotone" dataKey="balance" stroke="#667eea" strokeWidth={2} name="Balance" />
+              <Line
+                type="monotone"
+                dataKey="balance"
+                stroke="#667eea"
+                strokeWidth={2}
+                name="Balance"
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -184,5 +231,5 @@ export default function Dashboard({ userId }) {
         </div>
       </div>
     </div>
-  )
+  );
 }

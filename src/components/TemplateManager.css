@@ -80,7 +80,7 @@
   color: #ef4444;
 }
 
-.form-group input[type="text"],
+.form-group input[type='text'],
 .form-group textarea {
   width: 100%;
   padding: 10px 12px;
@@ -91,7 +91,7 @@
   transition: border-color 0.2s;
 }
 
-.form-group input[type="text"]:focus,
+.form-group input[type='text']:focus,
 .form-group textarea:focus {
   outline: none;
   border-color: #667eea;
@@ -182,7 +182,9 @@
   cursor: pointer;
   font-size: 18px;
   opacity: 0.6;
-  transition: opacity 0.2s, transform 0.2s;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
   flex-shrink: 0;
 }
 

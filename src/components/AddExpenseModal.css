@@ -124,11 +124,11 @@
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.form-group input[aria-invalid="true"] {
+.form-group input[aria-invalid='true'] {
   border-color: #ef4444;
 }
 
-.form-group input[aria-invalid="true"]:focus {
+.form-group input[aria-invalid='true']:focus {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 

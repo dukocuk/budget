@@ -4,12 +4,12 @@
  * OPTIMIZATION: Uses useLayoutEffect for history tracking to batch with render cycle
  */
 
-import { useState, useEffect, useReducer, useCallback, useRef } from 'react'
-import { localDB } from '../lib/pglite'
-import { useSyncContext } from './useSyncContext'
-import { sanitizeExpense } from '../utils/validators'
-import { logger } from '../utils/logger'
-import { generateUUID } from '../utils/uuid'
+import { useState, useEffect, useReducer, useCallback, useRef } from 'react';
+import { localDB } from '../lib/pglite';
+import { useSyncContext } from './useSyncContext';
+import { sanitizeExpense } from '../utils/validators';
+import { logger } from '../utils/logger';
+import { generateUUID } from '../utils/uuid';
 
 /**
  * Hook for managing expenses with local-first architecture
@@ -84,8 +84,8 @@ const expensesReducer = (state, action) => {
       return {
         ...state,
         loading: true,
-        error: null
-      }
+        error: null,
+      };
 
     case 'LOAD_SUCCESS':
       return {
@@ -95,67 +95,70 @@ const expensesReducer = (state, action) => {
         historyIndex: 0,
         loading: false,
         error: null,
-        isInitialLoad: false
-      }
+        isInitialLoad: false,
+      };
 
     case 'LOAD_ERROR':
       return {
         ...state,
         loading: false,
-        error: action.payload
-      }
+        error: action.payload,
+      };
 
     case 'UPDATE_EXPENSES': {
-      const newExpenses = action.payload
+      const newExpenses = action.payload;
 
       // Don't add to history if expenses haven't changed
       if (JSON.stringify(state.expenses) === JSON.stringify(newExpenses)) {
-        return state
+        return state;
       }
 
       // Clear future history and add new snapshot
-      const newHistory = [...state.history.slice(0, state.historyIndex + 1), newExpenses]
+      const newHistory = [
+        ...state.history.slice(0, state.historyIndex + 1),
+        newExpenses,
+      ];
 
       return {
         ...state,
         expenses: newExpenses,
         history: newHistory,
-        historyIndex: newHistory.length - 1
-      }
+        historyIndex: newHistory.length - 1,
+      };
     }
 
     case 'UNDO':
       if (state.historyIndex > 0) {
-        const newIndex = state.historyIndex - 1
+        const newIndex = state.historyIndex - 1;
         return {
           ...state,
           expenses: state.history[newIndex],
-          historyIndex: newIndex
-        }
+          historyIndex: newIndex,
+        };
       }
-      return state
+      return state;
 
     case 'REDO':
       if (state.historyIndex < state.history.length - 1) {
-        const newIndex = state.historyIndex + 1
+        const newIndex = state.historyIndex + 1;
         return {
           ...state,
           expenses: state.history[newIndex],
-          historyIndex: newIndex
-        }
+          historyIndex: newIndex,
+        };
       }
-      return state
+      return state;
 
     case 'SET_ERROR':
       return {
         ...state,
-        error: action.payload
-      }
+        error: action.payload,
+      };
 
     default:
-      return state
+      return state;
   }
-}
+};
 
 const initialState = {
   expenses: [],
@@ -163,36 +166,37 @@ const initialState = {
   historyIndex: -1,
   loading: true,
   error: null,
-  isInitialLoad: true
-}
+  isInitialLoad: true,
+};
 
 export const useExpenses = (userId, periodId) => {
-  const [state, dispatch] = useReducer(expensesReducer, initialState)
-  const { expenses, history, historyIndex, loading, error, isInitialLoad } = state
+  const [state, dispatch] = useReducer(expensesReducer, initialState);
+  const { expenses, history, historyIndex, loading, error, isInitialLoad } =
+    state;
 
   // Get sync functions from context
-  const { syncExpenses } = useSyncContext()
+  const { syncExpenses } = useSyncContext();
 
   // Track if we need to sync after local changes
-  const needsSyncRef = useRef(false)
-  const syncTimeoutRef = useRef(null)
+  const needsSyncRef = useRef(false);
+  const syncTimeoutRef = useRef(null);
 
   /**
    * Load expenses from local PGlite database
    */
   const loadExpenses = useCallback(async () => {
     if (!userId || !periodId) {
-      dispatch({ type: 'LOAD_ERROR', payload: null })
-      return
+      dispatch({ type: 'LOAD_ERROR', payload: null });
+      return;
     }
 
     try {
-      dispatch({ type: 'LOAD_START' })
+      dispatch({ type: 'LOAD_START' });
 
       const result = await localDB.query(
         'SELECT * FROM expenses WHERE user_id = $1 AND budget_period_id = $2 ORDER BY id DESC',
         [userId, periodId]
-      )
+      );
 
       const loadedExpenses = result.rows.map(row => ({
         id: row.id,
@@ -203,55 +207,58 @@ export const useExpenses = (userId, periodId) => {
         endMonth: row.end_month,
         budgetPeriodId: row.budget_period_id,
         createdAt: row.created_at,
-        updatedAt: row.updated_at
-      }))
+        updatedAt: row.updated_at,
+      }));
 
-      dispatch({ type: 'LOAD_SUCCESS', payload: loadedExpenses })
+      dispatch({ type: 'LOAD_SUCCESS', payload: loadedExpenses });
     } catch (err) {
-      logger.error('❌ Error loading expenses from local DB:', err)
-      dispatch({ type: 'LOAD_ERROR', payload: err.message })
+      logger.error('❌ Error loading expenses from local DB:', err);
+      dispatch({ type: 'LOAD_ERROR', payload: err.message });
     }
-  }, [userId, periodId])
+  }, [userId, periodId]);
 
   /**
    * Debounced cloud sync - only sync after user stops making changes
    */
   const debouncedCloudSync = useCallback(() => {
     if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current)
+      clearTimeout(syncTimeoutRef.current);
     }
 
     syncTimeoutRef.current = setTimeout(() => {
       if (needsSyncRef.current && periodId) {
         // Get current expenses for this period and sync to cloud
-        localDB.query(
-          'SELECT * FROM expenses WHERE user_id = $1 AND budget_period_id = $2',
-          [userId, periodId]
-        ).then(result => {
-          const expensesToSync = result.rows.map(row => ({
-            id: row.id,
-            name: row.name,
-            amount: row.amount,
-            frequency: row.frequency,
-            startMonth: row.start_month,
-            endMonth: row.end_month,
-            budgetPeriodId: row.budget_period_id
-          }))
-          syncExpenses(expensesToSync)
-          needsSyncRef.current = false
-        }).catch(err => {
-          logger.error('❌ Error syncing to cloud:', err)
-        })
+        localDB
+          .query(
+            'SELECT * FROM expenses WHERE user_id = $1 AND budget_period_id = $2',
+            [userId, periodId]
+          )
+          .then(result => {
+            const expensesToSync = result.rows.map(row => ({
+              id: row.id,
+              name: row.name,
+              amount: row.amount,
+              frequency: row.frequency,
+              startMonth: row.start_month,
+              endMonth: row.end_month,
+              budgetPeriodId: row.budget_period_id,
+            }));
+            syncExpenses(expensesToSync);
+            needsSyncRef.current = false;
+          })
+          .catch(err => {
+            logger.error('❌ Error syncing to cloud:', err);
+          });
       }
-    }, 1000) // Sync 1 second after last change
-  }, [userId, periodId, syncExpenses])
+    }, 1000); // Sync 1 second after last change
+  }, [userId, periodId, syncExpenses]);
 
   /**
    * Initial load on mount
    */
   useEffect(() => {
-    loadExpenses()
-  }, [loadExpenses])
+    loadExpenses();
+  }, [loadExpenses]);
 
   /**
    * Cleanup timeout on unmount
@@ -259,240 +266,39 @@ export const useExpenses = (userId, periodId) => {
   useEffect(() => {
     return () => {
       if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current)
+        clearTimeout(syncTimeoutRef.current);
       }
-    }
-  }, [])
+    };
+  }, []);
 
   /**
    * Add new expense (optimistic update with UUID)
    */
-  const addExpense = useCallback(async (expenseData) => {
-    if (!userId || !periodId) return
+  const addExpense = useCallback(
+    async expenseData => {
+      if (!userId || !periodId) return;
 
-    try {
-      dispatch({ type: 'SET_ERROR', payload: null })
+      try {
+        dispatch({ type: 'SET_ERROR', payload: null });
 
-      // Generate UUID for new expense
-      const newId = generateUUID()
+        // Generate UUID for new expense
+        const newId = generateUUID();
 
-      // Sanitize input
-      const sanitized = sanitizeExpense({
-        name: expenseData.name || 'Ny udgift',
-        amount: expenseData.amount || 100,
-        frequency: expenseData.frequency || 'monthly',
-        startMonth: expenseData.startMonth || 1,
-        endMonth: expenseData.endMonth || 12
-      })
+        // Sanitize input
+        const sanitized = sanitizeExpense({
+          name: expenseData.name || 'Ny udgift',
+          amount: expenseData.amount || 100,
+          frequency: expenseData.frequency || 'monthly',
+          startMonth: expenseData.startMonth || 1,
+          endMonth: expenseData.endMonth || 12,
+        });
 
-      const now = new Date().toISOString()
+        const now = new Date().toISOString();
 
-      // Insert into local database with client-generated UUID
-      await localDB.query(
-        `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, budget_period_id, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [
-          newId,
-          userId,
-          sanitized.name,
-          sanitized.amount,
-          sanitized.frequency,
-          sanitized.startMonth,
-          sanitized.endMonth,
-          periodId,
-          now,
-          now
-        ]
-      )
-
-      const newExpense = {
-        id: newId,
-        name: sanitized.name,
-        amount: sanitized.amount,
-        frequency: sanitized.frequency,
-        startMonth: sanitized.startMonth,
-        endMonth: sanitized.endMonth,
-        budgetPeriodId: periodId,
-        createdAt: now,
-        updatedAt: now
-      }
-
-      // Optimistic UI update - add to local state immediately with history tracking
-      dispatch({ type: 'UPDATE_EXPENSES', payload: [newExpense, ...expenses] })
-
-      // Queue cloud sync
-      needsSyncRef.current = true
-      debouncedCloudSync()
-
-      return newExpense
-    } catch (err) {
-      logger.error('❌ Error adding expense:', err)
-      dispatch({ type: 'SET_ERROR', payload: err.message })
-      throw err
-    }
-  }, [userId, periodId, expenses, debouncedCloudSync])
-
-  /**
-   * Update expense (optimistic update)
-   */
-  const updateExpense = useCallback(async (id, updates) => {
-    if (!userId) return
-
-    try {
-      dispatch({ type: 'SET_ERROR', payload: null })
-
-      // Build update query dynamically based on provided fields
-      const updateFields = []
-      const values = []
-      let paramIndex = 1
-
-      if (updates.name !== undefined) {
-        updateFields.push(`name = $${paramIndex++}`)
-        values.push(updates.name)
-      }
-      if (updates.amount !== undefined) {
-        updateFields.push(`amount = $${paramIndex++}`)
-        values.push(Math.max(0, parseFloat(updates.amount) || 0))
-      }
-      if (updates.frequency !== undefined) {
-        updateFields.push(`frequency = $${paramIndex++}`)
-        values.push(updates.frequency)
-      }
-      if (updates.startMonth !== undefined) {
-        updateFields.push(`start_month = $${paramIndex++}`)
-        values.push(parseInt(updates.startMonth))
-      }
-      if (updates.endMonth !== undefined) {
-        updateFields.push(`end_month = $${paramIndex++}`)
-        values.push(parseInt(updates.endMonth))
-      }
-
-      updateFields.push(`updated_at = $${paramIndex++}`)
-      values.push(new Date().toISOString())
-
-      // Add WHERE conditions
-      values.push(id)
-      values.push(userId)
-      values.push(periodId)
-
-      // Execute update
-      await localDB.query(
-        `UPDATE expenses
-         SET ${updateFields.join(', ')}
-         WHERE id = $${paramIndex++} AND user_id = $${paramIndex++} AND budget_period_id = $${paramIndex}`,
-        values
-      )
-
-      // Optimistic UI update - update local state immediately with history tracking
-      const updatedExpenses = expenses.map(expense => {
-        if (expense.id === id) {
-          const updated = { ...expense, ...updates }
-          // Handle month field name conversion
-          if (updates.startMonth !== undefined) updated.startMonth = updates.startMonth
-          if (updates.endMonth !== undefined) updated.endMonth = updates.endMonth
-          return sanitizeExpense(updated)
-        }
-        return expense
-      })
-
-      dispatch({ type: 'UPDATE_EXPENSES', payload: updatedExpenses })
-
-      // Queue cloud sync
-      needsSyncRef.current = true
-      debouncedCloudSync()
-
-    } catch (err) {
-      logger.error('❌ Error updating expense:', err)
-      dispatch({ type: 'SET_ERROR', payload: err.message })
-      throw err
-    }
-  }, [userId, periodId, expenses, debouncedCloudSync])
-
-  /**
-   * Delete single expense (optimistic update)
-   */
-  const deleteExpense = useCallback(async (id) => {
-    if (!userId) return
-
-    try {
-      dispatch({ type: 'SET_ERROR', payload: null })
-
-      // Delete from local database
-      await localDB.query(
-        'DELETE FROM expenses WHERE id = $1 AND user_id = $2 AND budget_period_id = $3',
-        [id, userId, periodId]
-      )
-
-      // Optimistic UI update - remove from local state immediately with history tracking
-      dispatch({ type: 'UPDATE_EXPENSES', payload: expenses.filter(expense => expense.id !== id) })
-
-      // Queue cloud sync
-      needsSyncRef.current = true
-      debouncedCloudSync()
-
-    } catch (err) {
-      logger.error('❌ Error deleting expense:', err)
-      dispatch({ type: 'SET_ERROR', payload: err.message })
-      throw err
-    }
-  }, [userId, periodId, expenses, debouncedCloudSync])
-
-  /**
-   * Delete multiple expenses (optimistic update)
-   */
-  const deleteExpenses = useCallback(async (ids) => {
-    if (!userId || !ids || ids.length === 0) return
-
-    try {
-      dispatch({ type: 'SET_ERROR', payload: null })
-
-      // Delete from local database
-      const placeholders = ids.map((_, i) => `$${i + 1}`).join(',')
-      await localDB.query(
-        `DELETE FROM expenses WHERE id IN (${placeholders}) AND user_id = $${ids.length + 1} AND budget_period_id = $${ids.length + 2}`,
-        [...ids, userId, periodId]
-      )
-
-      // Optimistic UI update - remove from local state immediately with history tracking
-      dispatch({ type: 'UPDATE_EXPENSES', payload: expenses.filter(expense => !ids.includes(expense.id)) })
-
-      // Queue cloud sync
-      needsSyncRef.current = true
-      debouncedCloudSync()
-
-    } catch (err) {
-      logger.error('❌ Error deleting expenses:', err)
-      dispatch({ type: 'SET_ERROR', payload: err.message })
-      throw err
-    }
-  }, [userId, periodId, expenses, debouncedCloudSync])
-
-  /**
-   * Import expenses (replace all with UUID generation)
-   */
-  const importExpenses = useCallback(async (newExpenses) => {
-    if (!userId || !periodId) return
-
-    try {
-      dispatch({ type: 'SET_ERROR', payload: null })
-
-      // Delete all existing expenses for this period
-      await localDB.query(
-        'DELETE FROM expenses WHERE user_id = $1 AND budget_period_id = $2',
-        [userId, periodId]
-      )
-
-      const now = new Date().toISOString()
-      const importedExpenses = []
-
-      // Insert new expenses with generated UUIDs
-      for (const expense of newExpenses) {
-        const sanitized = sanitizeExpense(expense)
-        const newId = generateUUID()
-
+        // Insert into local database with client-generated UUID
         await localDB.query(
           `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, budget_period_id, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
           [
             newId,
             userId,
@@ -503,11 +309,11 @@ export const useExpenses = (userId, periodId) => {
             sanitized.endMonth,
             periodId,
             now,
-            now
+            now,
           ]
-        )
+        );
 
-        importedExpenses.push({
+        const newExpense = {
           id: newId,
           name: sanitized.name,
           amount: sanitized.amount,
@@ -516,98 +322,321 @@ export const useExpenses = (userId, periodId) => {
           endMonth: sanitized.endMonth,
           budgetPeriodId: periodId,
           createdAt: now,
-          updatedAt: now
-        })
+          updatedAt: now,
+        };
+
+        // Optimistic UI update - add to local state immediately with history tracking
+        dispatch({
+          type: 'UPDATE_EXPENSES',
+          payload: [newExpense, ...expenses],
+        });
+
+        // Queue cloud sync
+        needsSyncRef.current = true;
+        debouncedCloudSync();
+
+        return newExpense;
+      } catch (err) {
+        logger.error('❌ Error adding expense:', err);
+        dispatch({ type: 'SET_ERROR', payload: err.message });
+        throw err;
       }
+    },
+    [userId, periodId, expenses, debouncedCloudSync]
+  );
 
-      // Update state with imported expenses (adds to history)
-      dispatch({ type: 'UPDATE_EXPENSES', payload: importedExpenses })
+  /**
+   * Update expense (optimistic update)
+   */
+  const updateExpense = useCallback(
+    async (id, updates) => {
+      if (!userId) return;
 
-      // Queue cloud sync
-      needsSyncRef.current = true
-      debouncedCloudSync()
+      try {
+        dispatch({ type: 'SET_ERROR', payload: null });
 
-    } catch (err) {
-      logger.error('❌ Error importing expenses:', err)
-      dispatch({ type: 'SET_ERROR', payload: err.message })
-      throw err
-    }
-  }, [userId, periodId, debouncedCloudSync])
+        // Build update query dynamically based on provided fields
+        const updateFields = [];
+        const values = [];
+        let paramIndex = 1;
+
+        if (updates.name !== undefined) {
+          updateFields.push(`name = $${paramIndex++}`);
+          values.push(updates.name);
+        }
+        if (updates.amount !== undefined) {
+          updateFields.push(`amount = $${paramIndex++}`);
+          values.push(Math.max(0, parseFloat(updates.amount) || 0));
+        }
+        if (updates.frequency !== undefined) {
+          updateFields.push(`frequency = $${paramIndex++}`);
+          values.push(updates.frequency);
+        }
+        if (updates.startMonth !== undefined) {
+          updateFields.push(`start_month = $${paramIndex++}`);
+          values.push(parseInt(updates.startMonth));
+        }
+        if (updates.endMonth !== undefined) {
+          updateFields.push(`end_month = $${paramIndex++}`);
+          values.push(parseInt(updates.endMonth));
+        }
+
+        updateFields.push(`updated_at = $${paramIndex++}`);
+        values.push(new Date().toISOString());
+
+        // Add WHERE conditions
+        values.push(id);
+        values.push(userId);
+        values.push(periodId);
+
+        // Execute update
+        await localDB.query(
+          `UPDATE expenses
+         SET ${updateFields.join(', ')}
+         WHERE id = $${paramIndex++} AND user_id = $${paramIndex++} AND budget_period_id = $${paramIndex}`,
+          values
+        );
+
+        // Optimistic UI update - update local state immediately with history tracking
+        const updatedExpenses = expenses.map(expense => {
+          if (expense.id === id) {
+            const updated = { ...expense, ...updates };
+            // Handle month field name conversion
+            if (updates.startMonth !== undefined)
+              updated.startMonth = updates.startMonth;
+            if (updates.endMonth !== undefined)
+              updated.endMonth = updates.endMonth;
+            return sanitizeExpense(updated);
+          }
+          return expense;
+        });
+
+        dispatch({ type: 'UPDATE_EXPENSES', payload: updatedExpenses });
+
+        // Queue cloud sync
+        needsSyncRef.current = true;
+        debouncedCloudSync();
+      } catch (err) {
+        logger.error('❌ Error updating expense:', err);
+        dispatch({ type: 'SET_ERROR', payload: err.message });
+        throw err;
+      }
+    },
+    [userId, periodId, expenses, debouncedCloudSync]
+  );
+
+  /**
+   * Delete single expense (optimistic update)
+   */
+  const deleteExpense = useCallback(
+    async id => {
+      if (!userId) return;
+
+      try {
+        dispatch({ type: 'SET_ERROR', payload: null });
+
+        // Delete from local database
+        await localDB.query(
+          'DELETE FROM expenses WHERE id = $1 AND user_id = $2 AND budget_period_id = $3',
+          [id, userId, periodId]
+        );
+
+        // Optimistic UI update - remove from local state immediately with history tracking
+        dispatch({
+          type: 'UPDATE_EXPENSES',
+          payload: expenses.filter(expense => expense.id !== id),
+        });
+
+        // Queue cloud sync
+        needsSyncRef.current = true;
+        debouncedCloudSync();
+      } catch (err) {
+        logger.error('❌ Error deleting expense:', err);
+        dispatch({ type: 'SET_ERROR', payload: err.message });
+        throw err;
+      }
+    },
+    [userId, periodId, expenses, debouncedCloudSync]
+  );
+
+  /**
+   * Delete multiple expenses (optimistic update)
+   */
+  const deleteExpenses = useCallback(
+    async ids => {
+      if (!userId || !ids || ids.length === 0) return;
+
+      try {
+        dispatch({ type: 'SET_ERROR', payload: null });
+
+        // Delete from local database
+        const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+        await localDB.query(
+          `DELETE FROM expenses WHERE id IN (${placeholders}) AND user_id = $${ids.length + 1} AND budget_period_id = $${ids.length + 2}`,
+          [...ids, userId, periodId]
+        );
+
+        // Optimistic UI update - remove from local state immediately with history tracking
+        dispatch({
+          type: 'UPDATE_EXPENSES',
+          payload: expenses.filter(expense => !ids.includes(expense.id)),
+        });
+
+        // Queue cloud sync
+        needsSyncRef.current = true;
+        debouncedCloudSync();
+      } catch (err) {
+        logger.error('❌ Error deleting expenses:', err);
+        dispatch({ type: 'SET_ERROR', payload: err.message });
+        throw err;
+      }
+    },
+    [userId, periodId, expenses, debouncedCloudSync]
+  );
+
+  /**
+   * Import expenses (replace all with UUID generation)
+   */
+  const importExpenses = useCallback(
+    async newExpenses => {
+      if (!userId || !periodId) return;
+
+      try {
+        dispatch({ type: 'SET_ERROR', payload: null });
+
+        // Delete all existing expenses for this period
+        await localDB.query(
+          'DELETE FROM expenses WHERE user_id = $1 AND budget_period_id = $2',
+          [userId, periodId]
+        );
+
+        const now = new Date().toISOString();
+        const importedExpenses = [];
+
+        // Insert new expenses with generated UUIDs
+        for (const expense of newExpenses) {
+          const sanitized = sanitizeExpense(expense);
+          const newId = generateUUID();
+
+          await localDB.query(
+            `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, budget_period_id, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [
+              newId,
+              userId,
+              sanitized.name,
+              sanitized.amount,
+              sanitized.frequency,
+              sanitized.startMonth,
+              sanitized.endMonth,
+              periodId,
+              now,
+              now,
+            ]
+          );
+
+          importedExpenses.push({
+            id: newId,
+            name: sanitized.name,
+            amount: sanitized.amount,
+            frequency: sanitized.frequency,
+            startMonth: sanitized.startMonth,
+            endMonth: sanitized.endMonth,
+            budgetPeriodId: periodId,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+
+        // Update state with imported expenses (adds to history)
+        dispatch({ type: 'UPDATE_EXPENSES', payload: importedExpenses });
+
+        // Queue cloud sync
+        needsSyncRef.current = true;
+        debouncedCloudSync();
+      } catch (err) {
+        logger.error('❌ Error importing expenses:', err);
+        dispatch({ type: 'SET_ERROR', payload: err.message });
+        throw err;
+      }
+    },
+    [userId, periodId, debouncedCloudSync]
+  );
 
   // Selection state for bulk operations
-  const [selectedExpenses, setSelectedExpenses] = useState([])
+  const [selectedExpenses, setSelectedExpenses] = useState([]);
 
   /**
    * Toggle expense selection
    */
-  const toggleExpenseSelection = useCallback((id) => {
+  const toggleExpenseSelection = useCallback(id => {
     setSelectedExpenses(prev => {
       if (prev.includes(id)) {
-        return prev.filter(expId => expId !== id)
+        return prev.filter(expId => expId !== id);
       } else {
-        return [...prev, id]
+        return [...prev, id];
       }
-    })
-  }, [])
+    });
+  }, []);
 
   /**
    * Toggle select all expenses
    */
   const toggleSelectAll = useCallback(() => {
     if (selectedExpenses.length === expenses.length) {
-      setSelectedExpenses([])
+      setSelectedExpenses([]);
     } else {
-      setSelectedExpenses(expenses.map(e => e.id))
+      setSelectedExpenses(expenses.map(e => e.id));
     }
-  }, [selectedExpenses.length, expenses])
+  }, [selectedExpenses.length, expenses]);
 
   /**
    * Delete selected expenses
    */
   const deleteSelected = useCallback(async () => {
     if (selectedExpenses.length === 0) {
-      return { success: false, message: 'No expenses selected' }
+      return { success: false, message: 'No expenses selected' };
     }
 
     try {
-      await deleteExpenses(selectedExpenses)
-      setSelectedExpenses([])
-      return { success: true, count: selectedExpenses.length }
+      await deleteExpenses(selectedExpenses);
+      setSelectedExpenses([]);
+      return { success: true, count: selectedExpenses.length };
     } catch (err) {
-      return { success: false, message: err.message }
+      return { success: false, message: err.message };
     }
-  }, [selectedExpenses, deleteExpenses])
+  }, [selectedExpenses, deleteExpenses]);
 
   /**
    * Set all expenses (for cloud sync)
    */
-  const setAllExpenses = useCallback((newExpenses) => {
-    dispatch({ type: 'UPDATE_EXPENSES', payload: newExpenses })
-  }, [])
+  const setAllExpenses = useCallback(newExpenses => {
+    dispatch({ type: 'UPDATE_EXPENSES', payload: newExpenses });
+  }, []);
 
   // Undo/Redo functionality (managed by reducer)
-  const canUndo = historyIndex > 0
-  const canRedo = historyIndex < history.length - 1
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < history.length - 1;
 
   const undo = useCallback(() => {
     if (canUndo) {
-      dispatch({ type: 'UNDO' })
-      needsSyncRef.current = true
-      debouncedCloudSync()
-      return true
+      dispatch({ type: 'UNDO' });
+      needsSyncRef.current = true;
+      debouncedCloudSync();
+      return true;
     }
-    return false
-  }, [canUndo, debouncedCloudSync])
+    return false;
+  }, [canUndo, debouncedCloudSync]);
 
   const redo = useCallback(() => {
     if (canRedo) {
-      dispatch({ type: 'REDO' })
-      needsSyncRef.current = true
-      debouncedCloudSync()
-      return true
+      dispatch({ type: 'REDO' });
+      needsSyncRef.current = true;
+      debouncedCloudSync();
+      return true;
     }
-    return false
-  }, [canRedo, debouncedCloudSync])
+    return false;
+  }, [canRedo, debouncedCloudSync]);
 
   return {
     expenses,
@@ -627,6 +656,6 @@ export const useExpenses = (userId, periodId) => {
     redo,
     canUndo,
     canRedo,
-    reload: loadExpenses
-  }
-}
+    reload: loadExpenses,
+  };
+};

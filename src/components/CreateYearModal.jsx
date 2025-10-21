@@ -4,11 +4,11 @@
  * Supports copying expenses from previous year and automatic balance carryover
  */
 
-import { useState, useEffect } from 'react'
-import Modal from 'react-modal'
-import { useBudgetPeriods } from '../hooks/useBudgetPeriods'
-import { useAuth } from '../hooks/useAuth'
-import './CreateYearModal.css'
+import { useState, useEffect } from 'react';
+import Modal from 'react-modal';
+import { useBudgetPeriods } from '../hooks/useBudgetPeriods';
+import { useAuth } from '../hooks/useAuth';
+import './CreateYearModal.css';
 
 /**
  * @param {Object} props
@@ -23,90 +23,91 @@ export default function CreateYearModal({
   onClose,
   onCreate,
   periods = [],
-  calculateEndingBalance
+  calculateEndingBalance,
 }) {
-  const { user } = useAuth()
-  const { getTemplates } = useBudgetPeriods(user?.id)
+  const { user } = useAuth();
+  const { getTemplates } = useBudgetPeriods(user?.id);
 
-  const [year, setYear] = useState('')
-  const [sourceType, setSourceType] = useState('period') // 'period' or 'template'
-  const [copyExpensesFrom, setCopyExpensesFrom] = useState('')
-  const [selectedTemplate, setSelectedTemplate] = useState('')
-  const [shouldCopyExpenses, setShouldCopyExpenses] = useState(false)
-  const [monthlyPayment, setMonthlyPayment] = useState(5700)
-  const [calculatedBalance, setCalculatedBalance] = useState(0)
-  const [isCalculating, setIsCalculating] = useState(false)
-  const [error, setError] = useState('')
-  const [templates, setTemplates] = useState([])
+  const [year, setYear] = useState('');
+  const [sourceType, setSourceType] = useState('period'); // 'period' or 'template'
+  const [copyExpensesFrom, setCopyExpensesFrom] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [shouldCopyExpenses, setShouldCopyExpenses] = useState(false);
+  const [monthlyPayment, setMonthlyPayment] = useState(5700);
+  const [calculatedBalance, setCalculatedBalance] = useState(0);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [error, setError] = useState('');
+  const [templates, setTemplates] = useState([]);
 
   // Calculate suggested next year based on existing periods
-  const suggestedNextYear = periods.length > 0
-    ? Math.max(...periods.map(p => p.year)) + 1
-    : new Date().getFullYear()
+  const suggestedNextYear =
+    periods.length > 0
+      ? Math.max(...periods.map(p => p.year)) + 1
+      : new Date().getFullYear();
 
   // Load templates when modal opens
   useEffect(() => {
     if (isOpen && getTemplates) {
       getTemplates().then(loadedTemplates => {
-        setTemplates(loadedTemplates)
-      })
+        setTemplates(loadedTemplates);
+      });
     }
-  }, [isOpen, getTemplates])
+  }, [isOpen, getTemplates]);
 
   // Auto-fill year on open
   useEffect(() => {
     if (isOpen && !year) {
-      setYear(String(suggestedNextYear))
+      setYear(String(suggestedNextYear));
     }
-  }, [isOpen, suggestedNextYear, year])
+  }, [isOpen, suggestedNextYear, year]);
 
   // Auto-calculate balance when source period changes
   useEffect(() => {
     if (copyExpensesFrom && calculateEndingBalance) {
-      setIsCalculating(true)
+      setIsCalculating(true);
       calculateEndingBalance(copyExpensesFrom)
         .then(balance => {
-          setCalculatedBalance(balance)
-          setIsCalculating(false)
+          setCalculatedBalance(balance);
+          setIsCalculating(false);
         })
         .catch(err => {
-          console.error('Error calculating balance:', err)
-          setCalculatedBalance(0)
-          setIsCalculating(false)
-        })
+          console.error('Error calculating balance:', err);
+          setCalculatedBalance(0);
+          setIsCalculating(false);
+        });
     } else {
-      setCalculatedBalance(0)
+      setCalculatedBalance(0);
     }
-  }, [copyExpensesFrom, calculateEndingBalance])
+  }, [copyExpensesFrom, calculateEndingBalance]);
 
   // Auto-select most recent period for copying
   useEffect(() => {
     if (isOpen && periods.length > 0 && !copyExpensesFrom) {
-      const mostRecentPeriod = periods.sort((a, b) => b.year - a.year)[0]
-      setCopyExpensesFrom(mostRecentPeriod.id)
-      setMonthlyPayment(mostRecentPeriod.monthlyPayment || 5700)
+      const mostRecentPeriod = periods.sort((a, b) => b.year - a.year)[0];
+      setCopyExpensesFrom(mostRecentPeriod.id);
+      setMonthlyPayment(mostRecentPeriod.monthlyPayment || 5700);
     }
-  }, [isOpen, periods, copyExpensesFrom])
+  }, [isOpen, periods, copyExpensesFrom]);
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    setError('')
+  const handleSubmit = e => {
+    e.preventDefault();
+    setError('');
 
     // Validation
-    const yearNum = parseInt(year)
+    const yearNum = parseInt(year);
     if (!year || isNaN(yearNum) || yearNum < 2000 || yearNum > 2100) {
-      setError('Indtast et gyldigt år mellem 2000 og 2100')
-      return
+      setError('Indtast et gyldigt år mellem 2000 og 2100');
+      return;
     }
 
     if (periods.some(p => p.year === yearNum)) {
-      setError(`Budget for år ${yearNum} findes allerede`)
-      return
+      setError(`Budget for år ${yearNum} findes allerede`);
+      return;
     }
 
     if (monthlyPayment < 0) {
-      setError('Månedlig indbetaling skal være positiv')
-      return
+      setError('Månedlig indbetaling skal være positiv');
+      return;
     }
 
     // Create year with options
@@ -114,32 +115,36 @@ export default function CreateYearModal({
       year: yearNum,
       monthlyPayment: parseFloat(monthlyPayment),
       previousBalance: calculatedBalance,
-    }
+    };
 
     // Add source based on type
     if (sourceType === 'template' && selectedTemplate) {
-      yearData.templateId = selectedTemplate
-    } else if (sourceType === 'period' && shouldCopyExpenses && copyExpensesFrom) {
-      yearData.copyExpensesFrom = copyExpensesFrom
+      yearData.templateId = selectedTemplate;
+    } else if (
+      sourceType === 'period' &&
+      shouldCopyExpenses &&
+      copyExpensesFrom
+    ) {
+      yearData.copyExpensesFrom = copyExpensesFrom;
     }
 
-    onCreate(yearData)
+    onCreate(yearData);
 
     // Reset form
-    handleClose()
-  }
+    handleClose();
+  };
 
   const handleClose = () => {
-    setYear('')
-    setSourceType('period')
-    setCopyExpensesFrom('')
-    setSelectedTemplate('')
-    setShouldCopyExpenses(false)
-    setMonthlyPayment(5700)
-    setCalculatedBalance(0)
-    setError('')
-    onClose()
-  }
+    setYear('');
+    setSourceType('period');
+    setCopyExpensesFrom('');
+    setSelectedTemplate('');
+    setShouldCopyExpenses(false);
+    setMonthlyPayment(5700);
+    setCalculatedBalance(0);
+    setError('');
+    onClose();
+  };
 
   return (
     <Modal
@@ -179,7 +184,7 @@ export default function CreateYearModal({
             id="year"
             className="form-input"
             value={year}
-            onChange={(e) => setYear(e.target.value)}
+            onChange={e => setYear(e.target.value)}
             min="2000"
             max="2100"
             required
@@ -198,7 +203,7 @@ export default function CreateYearModal({
             id="monthlyPayment"
             className="form-input"
             value={monthlyPayment}
-            onChange={(e) => setMonthlyPayment(e.target.value)}
+            onChange={e => setMonthlyPayment(e.target.value)}
             min="0"
             step="0.01"
             required
@@ -217,8 +222,8 @@ export default function CreateYearModal({
                 type="button"
                 className={`source-tab ${sourceType === 'period' ? 'active' : ''}`}
                 onClick={() => {
-                  setSourceType('period')
-                  setSelectedTemplate('')
+                  setSourceType('period');
+                  setSelectedTemplate('');
                 }}
                 disabled={periods.length === 0}
               >
@@ -228,9 +233,9 @@ export default function CreateYearModal({
                 type="button"
                 className={`source-tab ${sourceType === 'template' ? 'active' : ''}`}
                 onClick={() => {
-                  setSourceType('template')
-                  setCopyExpensesFrom('')
-                  setShouldCopyExpenses(false)
+                  setSourceType('template');
+                  setCopyExpensesFrom('');
+                  setShouldCopyExpenses(false);
                 }}
                 disabled={templates.length === 0}
               >
@@ -247,13 +252,14 @@ export default function CreateYearModal({
             <select
               className="form-input"
               value={copyExpensesFrom}
-              onChange={(e) => setCopyExpensesFrom(e.target.value)}
+              onChange={e => setCopyExpensesFrom(e.target.value)}
             >
               {periods
                 .sort((a, b) => b.year - a.year)
                 .map(period => (
                   <option key={period.id} value={period.id}>
-                    {period.year} ({period.status === 'active' ? 'Aktiv' : 'Arkiveret'})
+                    {period.year} (
+                    {period.status === 'active' ? 'Aktiv' : 'Arkiveret'})
                   </option>
                 ))}
             </select>
@@ -270,7 +276,7 @@ export default function CreateYearModal({
               <input
                 type="checkbox"
                 checked={shouldCopyExpenses}
-                onChange={(e) => setShouldCopyExpenses(e.target.checked)}
+                onChange={e => setShouldCopyExpenses(e.target.checked)}
               />
               <span className="form-checkbox-label">
                 Kopier udgifter fra valgt år
@@ -292,13 +298,14 @@ export default function CreateYearModal({
               id="templateSelect"
               className="form-input"
               value={selectedTemplate}
-              onChange={(e) => setSelectedTemplate(e.target.value)}
+              onChange={e => setSelectedTemplate(e.target.value)}
             >
               <option value="">-- Vælg en skabelon --</option>
               {templates.map(template => (
                 <option key={template.id} value={template.id}>
                   {template.templateName}
-                  {template.templateDescription && ` - ${template.templateDescription.substring(0, 40)}`}
+                  {template.templateDescription &&
+                    ` - ${template.templateDescription.substring(0, 40)}`}
                 </option>
               ))}
             </select>
@@ -316,11 +323,14 @@ export default function CreateYearModal({
               {isCalculating ? (
                 <span className="balance-loading">Beregner...</span>
               ) : (
-                <span className={`balance-amount ${calculatedBalance < 0 ? 'negative' : 'positive'}`}>
+                <span
+                  className={`balance-amount ${calculatedBalance < 0 ? 'negative' : 'positive'}`}
+                >
                   {calculatedBalance.toLocaleString('da-DK', {
                     minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                  })} kr.
+                    maximumFractionDigits: 2,
+                  })}{' '}
+                  kr.
                 </span>
               )}
             </div>
@@ -356,5 +366,5 @@ export default function CreateYearModal({
         </div>
       </form>
     </Modal>
-  )
+  );
 }

@@ -1,8 +1,8 @@
-import { PGlite } from "@electric-sql/pglite";
+import { PGlite } from '@electric-sql/pglite';
 
 // Create local PostgreSQL database in browser with IndexedDB persistence
 // Using IndexedDB ensures data persists and avoids filesystem bundle issues
-export const localDB = new PGlite("idb://budget-db");
+export const localDB = new PGlite('idb://budget-db');
 
 // Initialize local database schema (mirrors Supabase schema)
 export async function initLocalDB() {
@@ -119,11 +119,13 @@ export async function initLocalDB() {
       CREATE INDEX IF NOT EXISTS idx_expenses_frequency ON expenses(frequency);
     `);
 
-    console.log("✅ Local PGlite database initialized successfully");
-    console.log("  📦 Schema migrations applied: budget_period_id (003), templates (004)");
+    console.log('✅ Local PGlite database initialized successfully');
+    console.log(
+      '  📦 Schema migrations applied: budget_period_id (003), templates (004)'
+    );
     return true;
   } catch (error) {
-    console.error("❌ Error initializing local database:", error);
+    console.error('❌ Error initializing local database:', error);
     throw error;
   }
 }
@@ -131,14 +133,14 @@ export async function initLocalDB() {
 // Helper function to clear local database (for testing/reset)
 export async function clearLocalDB() {
   try {
-    await localDB.exec("DROP TABLE IF EXISTS expenses CASCADE");
-    await localDB.exec("DROP TABLE IF EXISTS budget_periods CASCADE");
-    await localDB.exec("DROP TABLE IF EXISTS settings CASCADE");
-    await localDB.exec("DROP TABLE IF EXISTS sync_metadata CASCADE");
+    await localDB.exec('DROP TABLE IF EXISTS expenses CASCADE');
+    await localDB.exec('DROP TABLE IF EXISTS budget_periods CASCADE');
+    await localDB.exec('DROP TABLE IF EXISTS settings CASCADE');
+    await localDB.exec('DROP TABLE IF EXISTS sync_metadata CASCADE');
     await initLocalDB();
-    console.log("✅ Local database cleared and reinitialized");
+    console.log('✅ Local database cleared and reinitialized');
   } catch (error) {
-    console.error("❌ Error clearing local database:", error);
+    console.error('❌ Error clearing local database:', error);
     throw error;
   }
 }
@@ -149,29 +151,31 @@ export async function clearLocalDB() {
  */
 export async function migrateToBudgetPeriods(userId) {
   try {
-    console.log("🔄 Starting local database migration to budget periods...");
+    console.log('🔄 Starting local database migration to budget periods...');
 
     // Check if migration is needed (check if there are expenses without budget_period_id)
     const needsMigration = await localDB.query(
-      "SELECT COUNT(*) as count FROM expenses WHERE user_id = $1 AND budget_period_id IS NULL",
+      'SELECT COUNT(*) as count FROM expenses WHERE user_id = $1 AND budget_period_id IS NULL',
       [userId]
     );
 
     if (needsMigration.rows[0].count === 0) {
-      console.log("✅ Migration not needed - all expenses already linked to periods");
+      console.log(
+        '✅ Migration not needed - all expenses already linked to periods'
+      );
       return true;
     }
 
     // Get existing settings
     const settingsResult = await localDB.query(
-      "SELECT * FROM settings WHERE user_id = $1",
+      'SELECT * FROM settings WHERE user_id = $1',
       [userId]
     );
 
     const settings = settingsResult.rows[0] || {
       monthly_payment: 5700,
       previous_balance: 0,
-      monthly_payments: null
+      monthly_payments: null,
     };
 
     // Generate UUID for 2025 budget period
@@ -189,13 +193,13 @@ export async function migrateToBudgetPeriods(userId) {
         settings.monthly_payment || 5700,
         settings.previous_balance || 0,
         settings.monthly_payments,
-        'active'
+        'active',
       ]
     );
 
     // Get the created period ID (in case of conflict)
     const periodResult = await localDB.query(
-      "SELECT id FROM budget_periods WHERE user_id = $1 AND year = $2",
+      'SELECT id FROM budget_periods WHERE user_id = $1 AND year = $2',
       [userId, 2025]
     );
 
@@ -203,14 +207,16 @@ export async function migrateToBudgetPeriods(userId) {
 
     // Link all existing expenses to 2025 period
     await localDB.query(
-      "UPDATE expenses SET budget_period_id = $1 WHERE user_id = $2 AND budget_period_id IS NULL",
+      'UPDATE expenses SET budget_period_id = $1 WHERE user_id = $2 AND budget_period_id IS NULL',
       [actualPeriodId, userId]
     );
 
-    console.log("✅ Local database migrated successfully to budget periods (2025)");
+    console.log(
+      '✅ Local database migrated successfully to budget periods (2025)'
+    );
     return true;
   } catch (error) {
-    console.error("❌ Error migrating local database:", error);
+    console.error('❌ Error migrating local database:', error);
     throw error;
   }
 }

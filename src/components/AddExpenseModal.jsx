@@ -2,14 +2,19 @@
  * Modal component for adding new expenses with validation
  */
 
-import { useState, useEffect } from 'react'
-import Modal from 'react-modal'
-import { MONTHS, FREQUENCY_LABELS, FREQUENCY_TYPES, DEFAULT_EXPENSE } from '../utils/constants'
-import './AddExpenseModal.css'
+import { useState, useEffect } from 'react';
+import Modal from 'react-modal';
+import {
+  MONTHS,
+  FREQUENCY_LABELS,
+  FREQUENCY_TYPES,
+  DEFAULT_EXPENSE,
+} from '../utils/constants';
+import './AddExpenseModal.css';
 
 // Set app element for accessibility (only if root exists)
 if (typeof document !== 'undefined' && document.querySelector('#root')) {
-  Modal.setAppElement('#root')
+  Modal.setAppElement('#root');
 }
 
 /**
@@ -24,10 +29,10 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
     amount: DEFAULT_EXPENSE.amount,
     frequency: DEFAULT_EXPENSE.frequency,
     startMonth: DEFAULT_EXPENSE.startMonth,
-    endMonth: DEFAULT_EXPENSE.endMonth
-  })
+    endMonth: DEFAULT_EXPENSE.endMonth,
+  });
 
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState({});
 
   // Reset form when modal opens
   useEffect(() => {
@@ -37,96 +42,96 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
         amount: DEFAULT_EXPENSE.amount,
         frequency: DEFAULT_EXPENSE.frequency,
         startMonth: DEFAULT_EXPENSE.startMonth,
-        endMonth: DEFAULT_EXPENSE.endMonth
-      })
-      setErrors({})
+        endMonth: DEFAULT_EXPENSE.endMonth,
+      });
+      setErrors({});
     }
-  }, [isOpen])
+  }, [isOpen]);
 
   // Handle field changes
   const handleChange = (field, value) => {
-    let newFormData = { ...formData }
+    let newFormData = { ...formData };
 
     if (field === 'amount') {
       // Allow any input during typing, store as-is
       // Only validate the number when it's actually used
-      const numValue = value === '' ? '' : value
-      newFormData.amount = numValue
+      const numValue = value === '' ? '' : value;
+      newFormData.amount = numValue;
 
       // Only show error if value is invalid and not empty
-      const parsedValue = parseFloat(value)
+      const parsedValue = parseFloat(value);
       if (value !== '' && (isNaN(parsedValue) || parsedValue < 0)) {
-        setErrors({ ...errors, amount: 'Beløbet skal være mindst 0 kr.' })
+        setErrors({ ...errors, amount: 'Beløbet skal være mindst 0 kr.' });
       } else {
         // Remove amount error if it exists
-        const newErrors = { ...errors }
-        delete newErrors.amount
-        setErrors(newErrors)
+        const newErrors = { ...errors };
+        delete newErrors.amount;
+        setErrors(newErrors);
       }
     } else if (field === 'startMonth' || field === 'endMonth') {
-      const intValue = parseInt(value)
-      newFormData[field] = intValue
+      const intValue = parseInt(value);
+      newFormData[field] = intValue;
 
       // Validate month range
       if (field === 'startMonth' && intValue > formData.endMonth) {
-        newFormData.endMonth = intValue
+        newFormData.endMonth = intValue;
       } else if (field === 'endMonth' && intValue < formData.startMonth) {
-        newFormData.endMonth = formData.startMonth
+        newFormData.endMonth = formData.startMonth;
       }
 
       // Remove month errors if they exist
-      const newErrors = { ...errors }
-      delete newErrors.startMonth
-      delete newErrors.endMonth
-      setErrors(newErrors)
+      const newErrors = { ...errors };
+      delete newErrors.startMonth;
+      delete newErrors.endMonth;
+      setErrors(newErrors);
     } else if (field === 'name') {
-      newFormData.name = value
+      newFormData.name = value;
       if (!value.trim()) {
-        setErrors({ ...errors, name: 'Udgiftsnavn er påkrævet' })
+        setErrors({ ...errors, name: 'Udgiftsnavn er påkrævet' });
       } else {
         // Remove name error if it exists
-        const newErrors = { ...errors }
-        delete newErrors.name
-        setErrors(newErrors)
+        const newErrors = { ...errors };
+        delete newErrors.name;
+        setErrors(newErrors);
       }
     } else {
-      newFormData[field] = value
+      newFormData[field] = value;
     }
 
-    setFormData(newFormData)
-  }
+    setFormData(newFormData);
+  };
 
   // Validate form
   const validateForm = () => {
-    const newErrors = {}
+    const newErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Udgiftsnavn er påkrævet'
+      newErrors.name = 'Udgiftsnavn er påkrævet';
     }
 
-    const amount = parseFloat(formData.amount)
+    const amount = parseFloat(formData.amount);
     if (formData.amount === '' || isNaN(amount) || amount < 0) {
-      newErrors.amount = 'Beløbet skal være mindst 0 kr.'
+      newErrors.amount = 'Beløbet skal være mindst 0 kr.';
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   // Handle submit
-  const handleSubmit = (e) => {
-    e.preventDefault()
+  const handleSubmit = e => {
+    e.preventDefault();
 
     if (validateForm()) {
       // Convert amount to number before submitting
       const submissionData = {
         ...formData,
-        amount: parseFloat(formData.amount) || 0
-      }
-      onAdd(submissionData)
-      onClose()
+        amount: parseFloat(formData.amount) || 0,
+      };
+      onAdd(submissionData);
+      onClose();
     }
-  }
+  };
 
   // Handle cancel
   const handleCancel = () => {
@@ -135,19 +140,19 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
       amount: DEFAULT_EXPENSE.amount,
       frequency: DEFAULT_EXPENSE.frequency,
       startMonth: DEFAULT_EXPENSE.startMonth,
-      endMonth: DEFAULT_EXPENSE.endMonth
-    })
-    setErrors({})
-    onClose()
-  }
+      endMonth: DEFAULT_EXPENSE.endMonth,
+    });
+    setErrors({});
+    onClose();
+  };
 
   // Handle keyboard shortcuts
-  const handleKeyDown = (e) => {
+  const handleKeyDown = e => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit(e)
+      e.preventDefault();
+      handleSubmit(e);
     }
-  }
+  };
 
   return (
     <Modal
@@ -180,7 +185,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
               id="expense-name"
               type="text"
               value={formData.name}
-              onChange={(e) => handleChange('name', e.target.value)}
+              onChange={e => handleChange('name', e.target.value)}
               placeholder="F.eks. Netflix abonnement"
               autoFocus
               aria-required="true"
@@ -202,7 +207,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
               id="expense-amount"
               type="number"
               value={formData.amount}
-              onChange={(e) => handleChange('amount', e.target.value)}
+              onChange={e => handleChange('amount', e.target.value)}
               min="0"
               step="1"
               aria-required="true"
@@ -223,7 +228,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
             <select
               id="expense-frequency"
               value={formData.frequency}
-              onChange={(e) => handleChange('frequency', e.target.value)}
+              onChange={e => handleChange('frequency', e.target.value)}
               aria-required="true"
             >
               <option value={FREQUENCY_TYPES.MONTHLY}>
@@ -246,7 +251,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
               <select
                 id="expense-start-month"
                 value={formData.startMonth}
-                onChange={(e) => handleChange('startMonth', e.target.value)}
+                onChange={e => handleChange('startMonth', e.target.value)}
                 aria-required="true"
               >
                 {MONTHS.map((month, index) => (
@@ -264,7 +269,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
               <select
                 id="expense-end-month"
                 value={formData.endMonth}
-                onChange={(e) => handleChange('endMonth', e.target.value)}
+                onChange={e => handleChange('endMonth', e.target.value)}
                 aria-required="true"
               >
                 {MONTHS.map((month, index) => (
@@ -299,5 +304,5 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
         </div>
       </form>
     </Modal>
-  )
-}
+  );
+};

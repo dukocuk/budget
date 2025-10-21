@@ -2,15 +2,11 @@
  * Alert notification component
  */
 
-import { memo } from 'react'
-import './Alert.css'
+import { memo } from 'react';
+import './Alert.css';
 
 export const Alert = memo(({ message, type }) => {
-  if (!message) return null
+  if (!message) return null;
 
-  return (
-    <div className={`alert alert-${type}`}>
-      {message}
-    </div>
-  )
-})
+  return <div className={`alert alert-${type}`}>{message}</div>;
+});

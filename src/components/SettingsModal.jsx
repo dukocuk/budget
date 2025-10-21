@@ -3,12 +3,12 @@
  * Provides modal overlay and accessibility features
  */
 
-import Modal from 'react-modal'
-import { Settings } from './Settings'
-import './SettingsModal.css'
+import Modal from 'react-modal';
+import { Settings } from './Settings';
+import './SettingsModal.css';
 
 // Set app element for accessibility
-Modal.setAppElement('#root')
+Modal.setAppElement('#root');
 
 /**
  * SettingsModal component
@@ -31,7 +31,7 @@ export const SettingsModal = ({
   onImport,
   activePeriod,
   onArchivePeriod,
-  onOpenTemplateManager
+  onOpenTemplateManager,
 }) => {
   return (
     <Modal
@@ -72,5 +72,5 @@ export const SettingsModal = ({
         />
       </div>
     </Modal>
-  )
-}
+  );
+};
