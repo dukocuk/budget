@@ -58,6 +58,7 @@ export const INITIAL_EXPENSES = [];
 
 /**
  * Debounce delays for various operations (in milliseconds)
+ * These values balance responsiveness with performance
  */
 export const DEBOUNCE_DELAYS = {
   INPUT: 300, // For text input fields (ExpenseManager inline editing)
