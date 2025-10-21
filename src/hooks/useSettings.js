@@ -5,10 +5,10 @@
  * Settings are now year-specific (part of budget period)
  */
 
-import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
-import { localDB } from '../lib/pglite'
-import { logger } from '../utils/logger'
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
+import { localDB } from '../lib/pglite';
+import { logger } from '../utils/logger';
 
 /**
  * Hook for managing budget period settings
@@ -35,36 +35,37 @@ export function useSettings(userId, periodId) {
     monthlyPayment: 0,
     previousBalance: 0,
     monthlyPayments: null, // Array of 12 values or null
-    useVariablePayments: false // Toggle between fixed/variable
-  })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+    useVariablePayments: false, // Toggle between fixed/variable
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Load settings from budget_periods table
   const loadSettings = useCallback(async () => {
     if (!userId || !periodId) {
-      setLoading(false)
-      return
+      setLoading(false);
+      return;
     }
 
     try {
       const result = await localDB.query(
         'SELECT * FROM budget_periods WHERE id = $1 AND user_id = $2',
         [periodId, userId]
-      )
+      );
 
       if (result.rows.length > 0) {
-        const period = result.rows[0]
+        const period = result.rows[0];
 
         // Parse monthly_payments if exists
-        let monthlyPayments = null
+        let monthlyPayments = null;
         if (period.monthly_payments) {
           try {
-            monthlyPayments = typeof period.monthly_payments === 'string'
-              ? JSON.parse(period.monthly_payments)
-              : period.monthly_payments
+            monthlyPayments =
+              typeof period.monthly_payments === 'string'
+                ? JSON.parse(period.monthly_payments)
+                : period.monthly_payments;
           } catch (e) {
-            logger.error('Error parsing monthly_payments:', e)
+            logger.error('Error parsing monthly_payments:', e);
           }
         }
 
@@ -72,37 +73,41 @@ export function useSettings(userId, periodId) {
           monthlyPayment: period.monthly_payment || 0,
           previousBalance: period.previous_balance || 0,
           monthlyPayments: monthlyPayments,
-          useVariablePayments: monthlyPayments !== null
-        })
+          useVariablePayments: monthlyPayments !== null,
+        });
       }
 
-      setLoading(false)
+      setLoading(false);
     } catch (err) {
-      logger.error('Error loading settings from budget_periods:', err)
-      setError(err.message)
-      setLoading(false)
+      logger.error('Error loading settings from budget_periods:', err);
+      setError(err.message);
+      setLoading(false);
     }
-  }, [userId, periodId])
+  }, [userId, periodId]);
 
   useEffect(() => {
-    loadSettings()
-  }, [loadSettings])
+    loadSettings();
+  }, [loadSettings]);
 
   // Update settings for this budget period
-  const updateSettings = async (newSettings) => {
-    if (!userId || !periodId) return
+  const updateSettings = async newSettings => {
+    if (!userId || !periodId) return;
 
     try {
-      setError(null)
+      setError(null);
 
       const updatedValues = {
         monthly_payment: newSettings.monthlyPayment ?? settings.monthlyPayment,
-        previous_balance: newSettings.previousBalance ?? settings.previousBalance,
-        monthly_payments: newSettings.monthlyPayments !== undefined
-          ? JSON.stringify(newSettings.monthlyPayments)
-          : (settings.monthlyPayments ? JSON.stringify(settings.monthlyPayments) : null),
-        updated_at: new Date().toISOString()
-      }
+        previous_balance:
+          newSettings.previousBalance ?? settings.previousBalance,
+        monthly_payments:
+          newSettings.monthlyPayments !== undefined
+            ? JSON.stringify(newSettings.monthlyPayments)
+            : settings.monthlyPayments
+              ? JSON.stringify(settings.monthlyPayments)
+              : null,
+        updated_at: new Date().toISOString(),
+      };
 
       // Update local DB (budget_periods table)
       await localDB.query(
@@ -118,49 +123,56 @@ export function useSettings(userId, periodId) {
           updatedValues.monthly_payments,
           updatedValues.updated_at,
           periodId,
-          userId
+          userId,
         ]
-      )
+      );
 
       // Sync to cloud (budget_periods table in Supabase)
       const cloudUpdate = {
         monthly_payment: updatedValues.monthly_payment,
         previous_balance: updatedValues.previous_balance,
-        monthly_payments: newSettings.monthlyPayments !== undefined
-          ? newSettings.monthlyPayments
-          : settings.monthlyPayments, // Send as array or null (Supabase handles JSONB)
-        updated_at: updatedValues.updated_at
-      }
+        monthly_payments:
+          newSettings.monthlyPayments !== undefined
+            ? newSettings.monthlyPayments
+            : settings.monthlyPayments, // Send as array or null (Supabase handles JSONB)
+        updated_at: updatedValues.updated_at,
+      };
 
       const { error: cloudError } = await supabase
         .from('budget_periods')
         .update(cloudUpdate)
         .eq('id', periodId)
-        .eq('user_id', userId)
+        .eq('user_id', userId);
 
-      if (cloudError) throw cloudError
+      if (cloudError) throw cloudError;
 
       // Update local state
       setSettings({
         monthlyPayment: updatedValues.monthly_payment,
         previousBalance: updatedValues.previous_balance,
-        monthlyPayments: newSettings.monthlyPayments !== undefined ? newSettings.monthlyPayments : settings.monthlyPayments,
-        useVariablePayments: (newSettings.monthlyPayments !== undefined ? newSettings.monthlyPayments : settings.monthlyPayments) !== null
-      })
+        monthlyPayments:
+          newSettings.monthlyPayments !== undefined
+            ? newSettings.monthlyPayments
+            : settings.monthlyPayments,
+        useVariablePayments:
+          (newSettings.monthlyPayments !== undefined
+            ? newSettings.monthlyPayments
+            : settings.monthlyPayments) !== null,
+      });
 
-      logger.info('✅ Settings updated successfully for period:', periodId)
+      logger.info('✅ Settings updated successfully for period:', periodId);
     } catch (err) {
-      logger.error('Error updating settings:', err)
-      setError(err.message)
-      throw err
+      logger.error('Error updating settings:', err);
+      setError(err.message);
+      throw err;
     }
-  }
+  };
 
   return {
     settings,
     loading,
     error,
     updateSettings,
-    reload: loadSettings
-  }
+    reload: loadSettings,
+  };
 }

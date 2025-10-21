@@ -3,94 +3,98 @@
  * Comprehensive multi-year budget comparison with charts and insights
  */
 
-import { useState, useEffect, useMemo } from 'react'
-import { YearComparisonCharts } from './YearComparisonCharts'
+import { useState, useEffect, useMemo } from 'react';
+import { YearComparisonCharts } from './YearComparisonCharts';
 import {
   comparePeriods,
   compareExpenses,
   calculateYearlyTrends,
   generateComparisonSummary,
-  formatComparisonValue
-} from '../utils/yearComparison'
-import './YearComparison.css'
+  formatComparisonValue,
+} from '../utils/yearComparison';
+import './YearComparison.css';
 
 export default function YearComparison({ periods, getExpensesForPeriod }) {
-  const [selectedYear1, setSelectedYear1] = useState('')
-  const [selectedYear2, setSelectedYear2] = useState('')
-  const [period1Data, setPeriod1Data] = useState(null)
-  const [period2Data, setPeriod2Data] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [selectedYear1, setSelectedYear1] = useState('');
+  const [selectedYear2, setSelectedYear2] = useState('');
+  const [period1Data, setPeriod1Data] = useState(null);
+  const [period2Data, setPeriod2Data] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   // Sort periods by year descending for dropdown
   const sortedPeriods = useMemo(() => {
-    return [...periods].sort((a, b) => b.year - a.year)
-  }, [periods])
+    return [...periods].sort((a, b) => b.year - a.year);
+  }, [periods]);
 
   // Auto-select the two most recent years
   useEffect(() => {
     if (sortedPeriods.length >= 2 && !selectedYear1 && !selectedYear2) {
-      setSelectedYear1(sortedPeriods[0].id) // Most recent
-      setSelectedYear2(sortedPeriods[1].id) // Second most recent
+      setSelectedYear1(sortedPeriods[0].id); // Most recent
+      setSelectedYear2(sortedPeriods[1].id); // Second most recent
     } else if (sortedPeriods.length === 1 && !selectedYear1) {
-      setSelectedYear1(sortedPeriods[0].id)
+      setSelectedYear1(sortedPeriods[0].id);
     }
-  }, [sortedPeriods, selectedYear1, selectedYear2])
+  }, [sortedPeriods, selectedYear1, selectedYear2]);
 
   // Load expenses for selected periods
   useEffect(() => {
     const loadPeriodData = async () => {
-      if (!selectedYear1 && !selectedYear2) return
+      if (!selectedYear1 && !selectedYear2) return;
 
-      setLoading(true)
+      setLoading(true);
       try {
-        const data1 = selectedYear1 ? await getExpensesForPeriod(selectedYear1) : null
-        const data2 = selectedYear2 ? await getExpensesForPeriod(selectedYear2) : null
+        const data1 = selectedYear1
+          ? await getExpensesForPeriod(selectedYear1)
+          : null;
+        const data2 = selectedYear2
+          ? await getExpensesForPeriod(selectedYear2)
+          : null;
 
-        setPeriod1Data(data1)
-        setPeriod2Data(data2)
+        setPeriod1Data(data1);
+        setPeriod2Data(data2);
       } catch (error) {
-        console.error('Error loading period data:', error)
+        console.error('Error loading period data:', error);
       }
-      setLoading(false)
-    }
+      setLoading(false);
+    };
 
-    loadPeriodData()
-  }, [selectedYear1, selectedYear2, getExpensesForPeriod])
+    loadPeriodData();
+  }, [selectedYear1, selectedYear2, getExpensesForPeriod]);
 
   // Calculate comparison data
   const comparison = useMemo(() => {
-    if (!period1Data || !period2Data) return null
-    return comparePeriods(period1Data, period2Data)
-  }, [period1Data, period2Data])
+    if (!period1Data || !period2Data) return null;
+    return comparePeriods(period1Data, period2Data);
+  }, [period1Data, period2Data]);
 
   const expenseComparison = useMemo(() => {
-    if (!period1Data || !period2Data) return null
-    return compareExpenses(period1Data.expenses, period2Data.expenses)
-  }, [period1Data, period2Data])
+    if (!period1Data || !period2Data) return null;
+    return compareExpenses(period1Data.expenses, period2Data.expenses);
+  }, [period1Data, period2Data]);
 
   const trendData = useMemo(() => {
     const periodsWithExpenses = periods.map(p => ({
       ...p,
-      expenses: [] // Will be populated by parent if needed
-    }))
-    return calculateYearlyTrends(periodsWithExpenses)
-  }, [periods])
+      expenses: [], // Will be populated by parent if needed
+    }));
+    return calculateYearlyTrends(periodsWithExpenses);
+  }, [periods]);
 
   // Handle period selection changes
-  const handleYear1Change = (e) => {
-    setSelectedYear1(e.target.value)
-  }
+  const handleYear1Change = e => {
+    setSelectedYear1(e.target.value);
+  };
 
-  const handleYear2Change = (e) => {
-    setSelectedYear2(e.target.value)
-  }
+  const handleYear2Change = e => {
+    setSelectedYear2(e.target.value);
+  };
 
   // Swap years
   const handleSwapYears = () => {
-    const temp = selectedYear1
-    setSelectedYear1(selectedYear2)
-    setSelectedYear2(temp)
-  }
+    const temp = selectedYear1;
+    setSelectedYear1(selectedYear2);
+    setSelectedYear2(temp);
+  };
 
   if (periods.length === 0) {
     return (
@@ -99,7 +103,7 @@ export default function YearComparison({ periods, getExpensesForPeriod }) {
         <h3>Ingen budgetår at sammenligne</h3>
         <p>Opret flere budgetår for at se sammenligninger.</p>
       </div>
-    )
+    );
   }
 
   if (periods.length === 1) {
@@ -109,7 +113,7 @@ export default function YearComparison({ periods, getExpensesForPeriod }) {
         <h3>Mindst to år kræves for sammenligning</h3>
         <p>Du har kun ét budgetår. Opret flere år for at se sammenligninger.</p>
       </div>
-    )
+    );
   }
 
   if (loading) {
@@ -118,7 +122,7 @@ export default function YearComparison({ periods, getExpensesForPeriod }) {
         <div className="spinner"></div>
         <p>Indlæser sammenligningsdata...</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -126,7 +130,8 @@ export default function YearComparison({ periods, getExpensesForPeriod }) {
       <div className="year-comparison-header">
         <h2>📊 År-til-år sammenligning</h2>
         <p className="year-comparison-description">
-          Sammenlign budgetår for at se trends og ændringer i dine udgifter over tid.
+          Sammenlign budgetår for at se trends og ændringer i dine udgifter over
+          tid.
         </p>
       </div>
 
@@ -143,7 +148,8 @@ export default function YearComparison({ periods, getExpensesForPeriod }) {
             <option value="">-- Vælg år --</option>
             {sortedPeriods.map(period => (
               <option key={period.id} value={period.id}>
-                {period.year} {period.status === 'archived' ? '(Arkiveret)' : '(Aktiv)'}
+                {period.year}{' '}
+                {period.status === 'archived' ? '(Arkiveret)' : '(Aktiv)'}
               </option>
             ))}
           </select>
@@ -170,7 +176,8 @@ export default function YearComparison({ periods, getExpensesForPeriod }) {
             <option value="">-- Vælg år --</option>
             {sortedPeriods.map(period => (
               <option key={period.id} value={period.id}>
-                {period.year} {period.status === 'archived' ? '(Arkiveret)' : '(Aktiv)'}
+                {period.year}{' '}
+                {period.status === 'archived' ? '(Arkiveret)' : '(Aktiv)'}
               </option>
             ))}
           </select>
@@ -251,14 +258,17 @@ export default function YearComparison({ periods, getExpensesForPeriod }) {
                       <h4>Tilføjet ({expenseComparison.addedCount})</h4>
                     </div>
                     <ul className="expense-list">
-                      {expenseComparison.added.slice(0, 5).map((expense, index) => (
-                        <li key={index}>
-                          <span className="expense-name">{expense.name}</span>
-                          <span className="expense-amount">
-                            {expense.amount.toLocaleString('da-DK')} kr. ({expense.frequency})
-                          </span>
-                        </li>
-                      ))}
+                      {expenseComparison.added
+                        .slice(0, 5)
+                        .map((expense, index) => (
+                          <li key={index}>
+                            <span className="expense-name">{expense.name}</span>
+                            <span className="expense-amount">
+                              {expense.amount.toLocaleString('da-DK')} kr. (
+                              {expense.frequency})
+                            </span>
+                          </li>
+                        ))}
                       {expenseComparison.addedCount > 5 && (
                         <li className="more-items">
                           +{expenseComparison.addedCount - 5} mere
@@ -276,14 +286,17 @@ export default function YearComparison({ periods, getExpensesForPeriod }) {
                       <h4>Fjernet ({expenseComparison.removedCount})</h4>
                     </div>
                     <ul className="expense-list">
-                      {expenseComparison.removed.slice(0, 5).map((expense, index) => (
-                        <li key={index}>
-                          <span className="expense-name">{expense.name}</span>
-                          <span className="expense-amount">
-                            {expense.amount.toLocaleString('da-DK')} kr. ({expense.frequency})
-                          </span>
-                        </li>
-                      ))}
+                      {expenseComparison.removed
+                        .slice(0, 5)
+                        .map((expense, index) => (
+                          <li key={index}>
+                            <span className="expense-name">{expense.name}</span>
+                            <span className="expense-amount">
+                              {expense.amount.toLocaleString('da-DK')} kr. (
+                              {expense.frequency})
+                            </span>
+                          </li>
+                        ))}
                       {expenseComparison.removedCount > 5 && (
                         <li className="more-items">
                           +{expenseComparison.removedCount - 5} mere
@@ -301,20 +314,27 @@ export default function YearComparison({ periods, getExpensesForPeriod }) {
                       <h4>Ændret ({expenseComparison.modifiedCount})</h4>
                     </div>
                     <ul className="expense-list">
-                      {expenseComparison.modified.slice(0, 5).map((expense, index) => {
-                        const changeFormatted = formatComparisonValue(
-                          expense.percentageChange,
-                          false
-                        )
-                        return (
-                          <li key={index}>
-                            <span className="expense-name">{expense.name}</span>
-                            <span className={`expense-change ${changeFormatted.color}`}>
-                              {changeFormatted.icon} {changeFormatted.formatted}%
-                            </span>
-                          </li>
-                        )
-                      })}
+                      {expenseComparison.modified
+                        .slice(0, 5)
+                        .map((expense, index) => {
+                          const changeFormatted = formatComparisonValue(
+                            expense.percentageChange,
+                            false
+                          );
+                          return (
+                            <li key={index}>
+                              <span className="expense-name">
+                                {expense.name}
+                              </span>
+                              <span
+                                className={`expense-change ${changeFormatted.color}`}
+                              >
+                                {changeFormatted.icon}{' '}
+                                {changeFormatted.formatted}%
+                              </span>
+                            </li>
+                          );
+                        })}
                       {expenseComparison.modifiedCount > 5 && (
                         <li className="more-items">
                           +{expenseComparison.modifiedCount - 5} mere
@@ -338,24 +358,32 @@ export default function YearComparison({ periods, getExpensesForPeriod }) {
         </>
       )}
     </div>
-  )
+  );
 }
 
 /**
  * MetricCard - Display a single comparison metric
  */
-function MetricCard({ title, value1, value2, difference, percentage, format, higherIsBetter }) {
-  const formatValue = (value) => {
+function MetricCard({
+  title,
+  value1,
+  value2,
+  difference,
+  percentage,
+  format,
+  higherIsBetter,
+}) {
+  const formatValue = value => {
     if (format === 'currency') {
       return `${value.toLocaleString('da-DK', {
         minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      })} kr.`
+        maximumFractionDigits: 0,
+      })} kr.`;
     }
-    return value.toLocaleString('da-DK')
-  }
+    return value.toLocaleString('da-DK');
+  };
 
-  const formatted = formatComparisonValue(percentage, higherIsBetter)
+  const formatted = formatComparisonValue(percentage, higherIsBetter);
 
   return (
     <div className="metric-card">
@@ -368,9 +396,10 @@ function MetricCard({ title, value1, value2, difference, percentage, format, hig
       <div className={`metric-change ${formatted.color}`}>
         <span className="change-icon">{formatted.icon}</span>
         <span className="change-text">
-          {formatted.formatted}% ({difference > 0 ? '+' : ''}{formatValue(Math.abs(difference))})
+          {formatted.formatted}% ({difference > 0 ? '+' : ''}
+          {formatValue(Math.abs(difference))})
         </span>
       </div>
     </div>
-  )
+  );
 }

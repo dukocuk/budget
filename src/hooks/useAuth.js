@@ -3,9 +3,9 @@
  * Handles Google OAuth sign-in/sign-out and session management
  */
 
-import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
-import { logger } from '../utils/logger'
+import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { logger } from '../utils/logger';
 
 /**
  * Hook for managing user authentication
@@ -43,78 +43,78 @@ import { logger } from '../utils/logger'
  * await signOut()
  */
 export function useAuth() {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     // Check for existing session on mount
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
-        logger.error('Error getting session:', error)
-        setError(error.message)
+        logger.error('Error getting session:', error);
+        setError(error.message);
       }
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
     // Listen for auth state changes
     const {
-      data: { subscription }
+      data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      logger.log('Auth state changed:', _event)
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
+      logger.log('Auth state changed:', _event);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
     return () => {
-      subscription.unsubscribe()
-    }
-  }, [])
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const signInWithGoogle = async () => {
     try {
-      setError(null)
+      setError(null);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/`,
           queryParams: {
             access_type: 'offline',
-            prompt: 'consent'
-          }
-        }
-      })
+            prompt: 'consent',
+          },
+        },
+      });
 
       if (error) {
-        logger.error('Error signing in with Google:', error)
-        setError(error.message)
+        logger.error('Error signing in with Google:', error);
+        setError(error.message);
       }
     } catch (err) {
-      logger.error('Error signing in with Google:', err)
-      setError(err.message)
+      logger.error('Error signing in with Google:', err);
+      setError(err.message);
     }
-  }
+  };
 
   const signOut = async () => {
     try {
-      setError(null)
-      const { error } = await supabase.auth.signOut()
+      setError(null);
+      const { error } = await supabase.auth.signOut();
       if (error) {
-        logger.error('Error signing out:', error)
-        setError(error.message)
+        logger.error('Error signing out:', error);
+        setError(error.message);
       }
     } catch (err) {
-      logger.error('Error signing out:', err)
-      setError(err.message)
+      logger.error('Error signing out:', err);
+      setError(err.message);
     }
-  }
+  };
 
   return {
     user,
     loading,
     error,
     signInWithGoogle,
-    signOut
-  }
+    signOut,
+  };
 }

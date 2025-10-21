@@ -132,7 +132,11 @@
 .chart-insights {
   margin-top: 20px;
   padding: 16px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.1),
+    rgba(118, 75, 162, 0.1)
+  );
   border-radius: 8px;
   border-left: 4px solid var(--primary-color);
 }
@@ -149,22 +153,26 @@
 }
 
 /* Dark mode adjustments */
-[data-theme="dark"] .expense-distribution-container {
+[data-theme='dark'] .expense-distribution-container {
   background: var(--bg-card);
 }
 
-[data-theme="dark"] .custom-tooltip {
+[data-theme='dark'] .custom-tooltip {
   background: var(--bg-secondary);
   border-color: var(--border-color);
 }
 
-[data-theme="dark"] .distribution-summary {
+[data-theme='dark'] .distribution-summary {
   background: var(--bg-primary);
   border-color: var(--border-color);
 }
 
-[data-theme="dark"] .chart-insights {
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(168, 85, 247, 0.15));
+[data-theme='dark'] .chart-insights {
+  background: linear-gradient(
+    135deg,
+    rgba(124, 58, 237, 0.15),
+    rgba(168, 85, 247, 0.15)
+  );
   border-left-color: var(--primary-color);
 }
 

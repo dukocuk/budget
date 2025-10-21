@@ -3,43 +3,43 @@
  * Provides tab-based interface with dropdown menu support
  */
 
-import { useState } from 'react'
-import './TabView.css'
+import { useState } from 'react';
+import './TabView.css';
 
 export const TabView = ({ tabs, activeTab = 0, onTabChange }) => {
-  const [dropdownOpen, setDropdownOpen] = useState(null)
-  const [selectedDropdownItems, setSelectedDropdownItems] = useState({})
+  const [dropdownOpen, setDropdownOpen] = useState(null);
+  const [selectedDropdownItems, setSelectedDropdownItems] = useState({});
 
-  const handleTabClick = (index) => {
-    const tab = tabs[index]
+  const handleTabClick = index => {
+    const tab = tabs[index];
 
     // If tab has dropdown, select first item by default
     if (tab.dropdownItems && !selectedDropdownItems[index]) {
       setSelectedDropdownItems({
         ...selectedDropdownItems,
-        [index]: 0
-      })
+        [index]: 0,
+      });
     }
 
-    onTabChange(index)
-  }
+    onTabChange(index);
+  };
 
   const handleDropdownItemClick = (tabIndex, itemIndex) => {
     setSelectedDropdownItems({
       ...selectedDropdownItems,
-      [tabIndex]: itemIndex
-    })
-    setDropdownOpen(null)
-  }
+      [tabIndex]: itemIndex,
+    });
+    setDropdownOpen(null);
+  };
 
   const getTabContent = (tab, tabIndex) => {
-    if (!tab) return null
+    if (!tab) return null;
     if (tab.dropdownItems) {
-      const selectedItemIndex = selectedDropdownItems[tabIndex] ?? 0
-      return tab.dropdownItems[selectedItemIndex]?.content
+      const selectedItemIndex = selectedDropdownItems[tabIndex] ?? 0;
+      return tab.dropdownItems[selectedItemIndex]?.content;
     }
-    return tab.content
-  }
+    return tab.content;
+  };
 
   return (
     <div className="tab-view">
@@ -87,5 +87,5 @@ export const TabView = ({ tabs, activeTab = 0, onTabChange }) => {
         {getTabContent(tabs[activeTab], activeTab)}
       </div>
     </div>
-  )
-}
+  );
+};

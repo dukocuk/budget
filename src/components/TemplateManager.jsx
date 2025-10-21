@@ -3,103 +3,109 @@
  * Manages budget templates - view, create, and delete reusable budget configurations
  */
 
-import { useState, useEffect } from 'react'
-import { useBudgetPeriods } from '../hooks/useBudgetPeriods'
-import { useAuth } from '../hooks/useAuth'
-import { localDB } from '../lib/pglite'
-import './TemplateManager.css'
+import { useState, useEffect } from 'react';
+import { useBudgetPeriods } from '../hooks/useBudgetPeriods';
+import { useAuth } from '../hooks/useAuth';
+import { localDB } from '../lib/pglite';
+import './TemplateManager.css';
 
 export default function TemplateManager({ activePeriod, onTemplateCreated }) {
-  const { user } = useAuth()
-  const { getTemplates, saveAsTemplate, deleteTemplate } = useBudgetPeriods(user?.id)
+  const { user } = useAuth();
+  const { getTemplates, saveAsTemplate, deleteTemplate } = useBudgetPeriods(
+    user?.id
+  );
 
-  const [templates, setTemplates] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [templateName, setTemplateName] = useState('')
-  const [templateDescription, setTemplateDescription] = useState('')
-  const [selectedTemplate, setSelectedTemplate] = useState(null)
-  const [expensesPreview, setExpensesPreview] = useState([])
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [expensesPreview, setExpensesPreview] = useState([]);
 
   const loadTemplates = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const loadedTemplates = await getTemplates()
-      setTemplates(loadedTemplates)
+      const loadedTemplates = await getTemplates();
+      setTemplates(loadedTemplates);
     } catch (error) {
-      console.error('Error loading templates:', error)
+      console.error('Error loading templates:', error);
     }
-    setLoading(false)
-  }
+    setLoading(false);
+  };
 
   // Load templates on mount
   useEffect(() => {
-    loadTemplates()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    loadTemplates();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load expense preview for a template
-  const loadExpensePreview = async (templateId) => {
+  const loadExpensePreview = async templateId => {
     try {
       const result = await localDB.query(
         'SELECT name, amount, frequency FROM expenses WHERE budget_period_id = $1 ORDER BY name',
         [templateId]
-      )
-      setExpensesPreview(result.rows)
+      );
+      setExpensesPreview(result.rows);
     } catch (error) {
-      console.error('Error loading expense preview:', error)
-      setExpensesPreview([])
+      console.error('Error loading expense preview:', error);
+      setExpensesPreview([]);
     }
-  }
+  };
 
-  const handleCreateTemplate = async (e) => {
-    e.preventDefault()
+  const handleCreateTemplate = async e => {
+    e.preventDefault();
 
     if (!activePeriod) {
-      alert('Ingen aktiv budget periode at gemme')
-      return
+      alert('Ingen aktiv budget periode at gemme');
+      return;
     }
 
     if (!templateName.trim()) {
-      alert('Indtast venligst et skabelonnavn')
-      return
+      alert('Indtast venligst et skabelonnavn');
+      return;
     }
 
     try {
-      await saveAsTemplate(activePeriod.id, templateName, templateDescription)
-      setTemplateName('')
-      setTemplateDescription('')
-      setShowCreateForm(false)
-      await loadTemplates()
+      await saveAsTemplate(activePeriod.id, templateName, templateDescription);
+      setTemplateName('');
+      setTemplateDescription('');
+      setShowCreateForm(false);
+      await loadTemplates();
 
       if (onTemplateCreated) {
-        onTemplateCreated()
+        onTemplateCreated();
       }
     } catch (error) {
-      alert(`Fejl ved oprettelse af skabelon: ${error.message}`)
+      alert(`Fejl ved oprettelse af skabelon: ${error.message}`);
     }
-  }
+  };
 
   const handleDeleteTemplate = async (templateId, templateName) => {
-    if (!confirm(`Er du sikker på at du vil slette skabelonen "${templateName}"? Dette kan ikke fortrydes.`)) {
-      return
+    if (
+      !confirm(
+        `Er du sikker på at du vil slette skabelonen "${templateName}"? Dette kan ikke fortrydes.`
+      )
+    ) {
+      return;
     }
 
     try {
-      await deleteTemplate(templateId)
-      await loadTemplates()
+      await deleteTemplate(templateId);
+      await loadTemplates();
       if (selectedTemplate?.id === templateId) {
-        setSelectedTemplate(null)
-        setExpensesPreview([])
+        setSelectedTemplate(null);
+        setExpensesPreview([]);
       }
     } catch (error) {
-      alert(`Fejl ved sletning af skabelon: ${error.message}`)
+      alert(`Fejl ved sletning af skabelon: ${error.message}`);
     }
-  }
+  };
 
-  const handleTemplateClick = async (template) => {
-    setSelectedTemplate(template)
-    await loadExpensePreview(template.id)
-  }
+  const handleTemplateClick = async template => {
+    setSelectedTemplate(template);
+    await loadExpensePreview(template.id);
+  };
 
   if (loading) {
     return (
@@ -107,7 +113,7 @@ export default function TemplateManager({ activePeriod, onTemplateCreated }) {
         <div className="spinner"></div>
         <p>Indlæser skabeloner...</p>
       </div>
-    )
+    );
   }
 
   return (
@@ -115,7 +121,8 @@ export default function TemplateManager({ activePeriod, onTemplateCreated }) {
       <div className="template-manager-header">
         <h2>📋 Budget Skabeloner</h2>
         <p className="template-manager-description">
-          Gem dit nuværende budget som en genbrugelig skabelon for hurtigere oprettelse af fremtidige år.
+          Gem dit nuværende budget som en genbrugelig skabelon for hurtigere
+          oprettelse af fremtidige år.
         </p>
       </div>
 
@@ -141,7 +148,7 @@ export default function TemplateManager({ activePeriod, onTemplateCreated }) {
               type="text"
               id="templateName"
               value={templateName}
-              onChange={(e) => setTemplateName(e.target.value)}
+              onChange={e => setTemplateName(e.target.value)}
               placeholder="F.eks. Standard Familie Budget"
               required
               autoFocus
@@ -153,7 +160,7 @@ export default function TemplateManager({ activePeriod, onTemplateCreated }) {
             <textarea
               id="templateDescription"
               value={templateDescription}
-              onChange={(e) => setTemplateDescription(e.target.value)}
+              onChange={e => setTemplateDescription(e.target.value)}
               placeholder="Beskrivelse af hvad denne skabelon bruges til..."
               rows={3}
             />
@@ -167,9 +174,9 @@ export default function TemplateManager({ activePeriod, onTemplateCreated }) {
               type="button"
               className="btn btn-secondary"
               onClick={() => {
-                setShowCreateForm(false)
-                setTemplateName('')
-                setTemplateDescription('')
+                setShowCreateForm(false);
+                setTemplateName('');
+                setTemplateDescription('');
               }}
             >
               Annuller
@@ -182,11 +189,14 @@ export default function TemplateManager({ activePeriod, onTemplateCreated }) {
       {templates.length === 0 ? (
         <div className="no-templates">
           <p>📭 Du har ingen gemte skabeloner endnu.</p>
-          <p className="hint">Opret en skabelon fra dit aktuelle budget for at genbruge det senere.</p>
+          <p className="hint">
+            Opret en skabelon fra dit aktuelle budget for at genbruge det
+            senere.
+          </p>
         </div>
       ) : (
         <div className="templates-grid">
-          {templates.map((template) => (
+          {templates.map(template => (
             <div
               key={template.id}
               className={`template-card ${selectedTemplate?.id === template.id ? 'selected' : ''}`}
@@ -196,9 +206,9 @@ export default function TemplateManager({ activePeriod, onTemplateCreated }) {
                 <h3>{template.templateName}</h3>
                 <button
                   className="btn-delete-template"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleDeleteTemplate(template.id, template.templateName)
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleDeleteTemplate(template.id, template.templateName);
                   }}
                   title="Slet skabelon"
                   aria-label={`Slet ${template.templateName}`}
@@ -208,15 +218,19 @@ export default function TemplateManager({ activePeriod, onTemplateCreated }) {
               </div>
 
               {template.templateDescription && (
-                <p className="template-description">{template.templateDescription}</p>
+                <p className="template-description">
+                  {template.templateDescription}
+                </p>
               )}
 
               <div className="template-meta">
                 <span className="template-payment">
-                  💰 {template.monthlyPayment?.toLocaleString('da-DK')} kr./måned
+                  💰 {template.monthlyPayment?.toLocaleString('da-DK')}{' '}
+                  kr./måned
                 </span>
                 <span className="template-date">
-                  Oprettet: {new Date(template.createdAt).toLocaleDateString('da-DK')}
+                  Oprettet:{' '}
+                  {new Date(template.createdAt).toLocaleDateString('da-DK')}
                 </span>
               </div>
             </div>
@@ -236,7 +250,8 @@ export default function TemplateManager({ activePeriod, onTemplateCreated }) {
                 <div key={index} className="expense-preview-item">
                   <span className="expense-name">{expense.name}</span>
                   <span className="expense-details">
-                    {expense.amount.toLocaleString('da-DK')} kr. ({expense.frequency})
+                    {expense.amount.toLocaleString('da-DK')} kr. (
+                    {expense.frequency})
                   </span>
                 </div>
               ))}
@@ -248,5 +263,5 @@ export default function TemplateManager({ activePeriod, onTemplateCreated }) {
         </div>
       )}
     </div>
-  )
+  );
 }

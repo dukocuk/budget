@@ -8,7 +8,7 @@
  * logger.error('Error occurred:', error)
  */
 
-const isDev = import.meta.env.DEV
+const isDev = import.meta.env.DEV;
 
 export const logger = {
   /**
@@ -17,7 +17,7 @@ export const logger = {
    */
   log: (...args) => {
     if (isDev) {
-      console.log(...args)
+      console.log(...args);
     }
   },
 
@@ -27,7 +27,7 @@ export const logger = {
    */
   warn: (...args) => {
     if (isDev) {
-      console.warn(...args)
+      console.warn(...args);
     }
   },
 
@@ -37,7 +37,7 @@ export const logger = {
    */
   error: (...args) => {
     if (isDev) {
-      console.error(...args)
+      console.error(...args);
     }
   },
 
@@ -47,6 +47,6 @@ export const logger = {
    * @param {...any} args - Arguments to log
    */
   info: (...args) => {
-    console.info(...args)
-  }
-}
+    console.info(...args);
+  },
+};

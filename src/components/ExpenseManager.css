@@ -81,8 +81,8 @@
   background: #f9fafb;
 }
 
-.expenses-table input[type="text"],
-.expenses-table input[type="number"],
+.expenses-table input[type='text'],
+.expenses-table input[type='number'],
 .expenses-table select {
   width: 100%;
   padding: 8px;
@@ -99,7 +99,7 @@
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
-.expenses-table input[type="checkbox"] {
+.expenses-table input[type='checkbox'] {
   width: 20px;
   height: 20px;
   cursor: pointer;

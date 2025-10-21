@@ -70,6 +70,17 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "tools": ["Edit", "Write"],
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/PostToolUse.sh"
+          }
+        ]
+      }
     ]
   }
 }

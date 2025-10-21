@@ -1,10 +1,10 @@
-import { useState } from 'react'
-import { useAuth } from '../hooks/useAuth'
-import Dashboard from './Dashboard'
-import ExpenseManager from './ExpenseManager'
-import MonthlyView from './MonthlyView'
-import Settings from './Settings'
-import './Layout.css'
+import { useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import Dashboard from './Dashboard';
+import ExpenseManager from './ExpenseManager';
+import MonthlyView from './MonthlyView';
+import Settings from './Settings';
+import './Layout.css';
 
 /**
  * Layout Component (Alternative Layout - NOT CURRENTLY USED)
@@ -18,30 +18,30 @@ import './Layout.css'
  * - onError fallback handler
  */
 export default function Layout() {
-  const { user, signOut } = useAuth()
-  const [activeTab, setActiveTab] = useState('dashboard')
+  const { user, signOut } = useAuth();
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   const tabs = [
     { id: 'dashboard', label: 'Oversigt', icon: '📊' },
     { id: 'expenses', label: 'Udgifter', icon: '💰' },
     { id: 'monthly', label: 'Månedsoversigt', icon: '📅' },
-    { id: 'settings', label: 'Indstillinger', icon: '⚙️' }
-  ]
+    { id: 'settings', label: 'Indstillinger', icon: '⚙️' },
+  ];
 
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard userId={user.id} />
+        return <Dashboard userId={user.id} />;
       case 'expenses':
-        return <ExpenseManager userId={user.id} />
+        return <ExpenseManager userId={user.id} />;
       case 'monthly':
-        return <MonthlyView userId={user.id} />
+        return <MonthlyView userId={user.id} />;
       case 'settings':
-        return <Settings userId={user.id} />
+        return <Settings userId={user.id} />;
       default:
-        return <Dashboard userId={user.id} />
+        return <Dashboard userId={user.id} />;
     }
-  }
+  };
 
   return (
     <div className="layout">
@@ -91,9 +91,7 @@ export default function Layout() {
       </nav>
 
       {/* Main Content */}
-      <main className="layout-content">
-        {renderContent()}
-      </main>
+      <main className="layout-content">{renderContent()}</main>
     </div>
-  )
+  );
 }

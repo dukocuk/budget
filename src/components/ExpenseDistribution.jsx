@@ -3,58 +3,72 @@
  * Uses Recharts to visualize monthly/quarterly/yearly expense distribution across the year
  */
 
-import React from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { calculateMonthlyBreakdownByFrequency, groupExpensesByFrequency } from '../utils/calculations'
-import './ExpenseDistribution.css'
+import React from 'react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
+import {
+  calculateMonthlyBreakdownByFrequency,
+  groupExpensesByFrequency,
+} from '../utils/calculations';
+import './ExpenseDistribution.css';
 
 const COLORS = {
   monthly: '#667eea',
   quarterly: '#10b981',
-  yearly: '#f59e0b'
-}
+  yearly: '#f59e0b',
+};
 
 const LABELS = {
   monthly: 'Månedlig',
   quarterly: 'Kvartalsvis',
-  yearly: 'Årlig'
-}
+  yearly: 'Årlig',
+};
 
 export const ExpenseDistribution = React.memo(({ expenses }) => {
   // Memoize expensive calculations to prevent re-renders
   const monthlyBreakdown = React.useMemo(
     () => calculateMonthlyBreakdownByFrequency(expenses),
     [expenses]
-  )
+  );
 
   const totalDistribution = React.useMemo(
     () => groupExpensesByFrequency(expenses),
     [expenses]
-  )
+  );
 
   // Custom tooltip formatter
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
-      const total = payload.reduce((sum, item) => sum + (item.value || 0), 0)
+      const total = payload.reduce((sum, item) => sum + (item.value || 0), 0);
 
       return (
         <div className="custom-tooltip">
           <p className="tooltip-label">{label}</p>
-          {payload.reverse().map((entry, index) => (
-            entry.value > 0 && (
-              <p key={index} style={{ color: entry.fill }}>
-                {LABELS[entry.dataKey]}: {entry.value.toLocaleString('da-DK')} kr.
-              </p>
-            )
-          ))}
+          {payload.reverse().map(
+            (entry, index) =>
+              entry.value > 0 && (
+                <p key={index} style={{ color: entry.fill }}>
+                  {LABELS[entry.dataKey]}: {entry.value.toLocaleString('da-DK')}{' '}
+                  kr.
+                </p>
+              )
+          )}
           <p className="tooltip-total">
             <strong>Total: {total.toLocaleString('da-DK')} kr.</strong>
           </p>
         </div>
-      )
+      );
     }
-    return null
-  }
+    return null;
+  };
 
   if (expenses.length === 0) {
     return (
@@ -62,14 +76,17 @@ export const ExpenseDistribution = React.memo(({ expenses }) => {
         <h3 className="chart-title">📊 Månedlig udgiftsfordeling</h3>
         <p className="no-data-message">Ingen udgifter at vise</p>
       </div>
-    )
+    );
   }
 
   return (
     <div className="expense-distribution-container">
-      <h3 className="chart-title">📊 Månedlig udgiftsfordeling efter frekvens</h3>
+      <h3 className="chart-title">
+        📊 Månedlig udgiftsfordeling efter frekvens
+      </h3>
       <p className="chart-description">
-        Viser hvordan dine udgifter fordeler sig over året opdelt på betalingsfrekvens
+        Viser hvordan dine udgifter fordeler sig over året opdelt på
+        betalingsfrekvens
       </p>
 
       <ResponsiveContainer width="100%" height={350}>
@@ -86,13 +103,13 @@ export const ExpenseDistribution = React.memo(({ expenses }) => {
           <YAxis
             stroke="#6b7280"
             style={{ fontSize: '14px' }}
-            tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+            tickFormatter={value => `${(value / 1000).toFixed(0)}k`}
           />
           <Tooltip content={<CustomTooltip />} />
           <Legend
             wrapperStyle={{ paddingTop: '20px' }}
             iconType="rect"
-            formatter={(value) => LABELS[value] || value}
+            formatter={value => LABELS[value] || value}
           />
 
           <Bar
@@ -121,10 +138,15 @@ export const ExpenseDistribution = React.memo(({ expenses }) => {
 
       <div className="distribution-summary">
         <h4 className="summary-title">Årlig total fordeling</h4>
-        {totalDistribution.map((item) => {
-          const total = totalDistribution.reduce((sum, i) => sum + i.value, 0)
-          const percentage = ((item.value / total) * 100).toFixed(1)
-          const colorKey = item.name === 'Månedlig' ? 'monthly' : item.name === 'Kvartalsvis' ? 'quarterly' : 'yearly'
+        {totalDistribution.map(item => {
+          const total = totalDistribution.reduce((sum, i) => sum + i.value, 0);
+          const percentage = ((item.value / total) * 100).toFixed(1);
+          const colorKey =
+            item.name === 'Månedlig'
+              ? 'monthly'
+              : item.name === 'Kvartalsvis'
+                ? 'quarterly'
+                : 'yearly';
 
           return (
             <div key={item.name} className="summary-item">
@@ -142,15 +164,16 @@ export const ExpenseDistribution = React.memo(({ expenses }) => {
                 <span className="summary-percentage">({percentage}%)</span>
               </div>
             </div>
-          )
+          );
         })}
       </div>
 
       <div className="chart-insights">
         <p className="insight-text">
-          💡 <strong>Tip:</strong> Hover over søjlerne for at se detaljeret udgiftsfordeling for hver måned
+          💡 <strong>Tip:</strong> Hover over søjlerne for at se detaljeret
+          udgiftsfordeling for hver måned
         </p>
       </div>
     </div>
-  )
-})
+  );
+});

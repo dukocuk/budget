@@ -3,12 +3,12 @@
  * Provides modal overlay and accessibility features
  */
 
-import Modal from 'react-modal'
-import TemplateManager from './TemplateManager'
-import './TemplateManagerModal.css'
+import Modal from 'react-modal';
+import TemplateManager from './TemplateManager';
+import './TemplateManagerModal.css';
 
 // Set app element for accessibility
-Modal.setAppElement('#root')
+Modal.setAppElement('#root');
 
 /**
  * TemplateManagerModal component
@@ -16,15 +16,11 @@ Modal.setAppElement('#root')
  * @param {function} onClose - Close modal callback
  * @param {object} activePeriod - Current active budget period
  */
-export const TemplateManagerModal = ({
-  isOpen,
-  onClose,
-  activePeriod
-}) => {
+export const TemplateManagerModal = ({ isOpen, onClose, activePeriod }) => {
   const handleTemplateCreated = () => {
     // Optional: Show success feedback or refresh data
     // For now, we'll just let the TemplateManager handle its own alerts
-  }
+  };
 
   return (
     <Modal
@@ -54,5 +50,5 @@ export const TemplateManagerModal = ({
         />
       </div>
     </Modal>
-  )
-}
+  );
+};

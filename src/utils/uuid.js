@@ -10,15 +10,15 @@
 export function generateUUID() {
   // Use native crypto.randomUUID() if available (modern browsers)
   if (crypto && crypto.randomUUID) {
-    return crypto.randomUUID()
+    return crypto.randomUUID();
   }
 
   // Fallback for older browsers (RFC4122 version 4)
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = Math.random() * 16 | 0
-    const v = c === 'x' ? r : (r & 0x3 | 0x8)
-    return v.toString(16)
-  })
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 /**
@@ -27,10 +27,11 @@ export function generateUUID() {
  * @returns {boolean} True if valid UUID
  */
 export function isValidUUID(uuid) {
-  if (typeof uuid !== 'string') return false
+  if (typeof uuid !== 'string') return false;
 
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-  return uuidRegex.test(uuid)
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
 }
 
 /**
@@ -39,7 +40,7 @@ export function isValidUUID(uuid) {
  * @returns {boolean} True if numeric ID
  */
 export function isNumericId(id) {
-  return typeof id === 'number' || (typeof id === 'string' && /^\d+$/.test(id))
+  return typeof id === 'number' || (typeof id === 'string' && /^\d+$/.test(id));
 }
 
 /**
@@ -51,8 +52,8 @@ export function isNumericId(id) {
 export function numericToUUID(numericId) {
   // Create deterministic UUID from numeric ID
   // Use namespace UUID as base and append numeric ID
-  const namespace = '00000000-0000-4000-8000-000000000000'
-  const idStr = String(numericId).padStart(12, '0')
+  const namespace = '00000000-0000-4000-8000-000000000000';
+  const idStr = String(numericId).padStart(12, '0');
 
-  return `${namespace.slice(0, 24)}${idStr}`
+  return `${namespace.slice(0, 24)}${idStr}`;
 }

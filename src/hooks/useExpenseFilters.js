@@ -21,18 +21,21 @@ export function useExpenseFilters(expenses) {
 
     return expenses.filter(expense => {
       // Search text filter (case-insensitive)
-      const matchesSearch = !searchText ||
+      const matchesSearch =
+        !searchText ||
         expense.name.toLowerCase().includes(searchText.toLowerCase());
 
       // Frequency filter
-      const matchesFrequency = frequencyFilter === 'all' ||
-        expense.frequency === frequencyFilter;
+      const matchesFrequency =
+        frequencyFilter === 'all' || expense.frequency === frequencyFilter;
 
       // Month filter (checks if expense is active in the selected month)
-      const matchesMonth = monthFilter === 'all' || (() => {
-        const month = parseInt(monthFilter);
-        return expense.startMonth <= month && expense.endMonth >= month;
-      })();
+      const matchesMonth =
+        monthFilter === 'all' ||
+        (() => {
+          const month = parseInt(monthFilter);
+          return expense.startMonth <= month && expense.endMonth >= month;
+        })();
 
       return matchesSearch && matchesFrequency && matchesMonth;
     });
@@ -50,7 +53,8 @@ export function useExpenseFilters(expenses) {
   /**
    * Check if any filters are active
    */
-  const hasActiveFilters = searchText || frequencyFilter !== 'all' || monthFilter !== 'all';
+  const hasActiveFilters =
+    searchText || frequencyFilter !== 'all' || monthFilter !== 'all';
 
   return {
     // Filtered data

@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
@@ -36,6 +38,7 @@
     "globals": "^16.4.0",
     "happy-dom": "^20.0.0",
     "jsdom": "^27.0.0",
+    "prettier": "^3.6.2",
     "vite": "^7.1.7",
     "vitest": "^3.2.4"
   }

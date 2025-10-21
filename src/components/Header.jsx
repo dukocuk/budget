@@ -2,43 +2,51 @@
  * Header component with user info and connection status
  */
 
-import { useState } from 'react'
-import { useAuth } from '../hooks/useAuth'
-import { useSyncContext } from '../hooks/useSyncContext'
-import './Header.css'
+import { useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import { useSyncContext } from '../hooks/useSyncContext';
+import './Header.css';
 
 export const Header = ({ user, onOpenSettings }) => {
-  const { signOut } = useAuth()
-  const [imageError, setImageError] = useState(false)
+  const { signOut } = useAuth();
+  const [imageError, setImageError] = useState(false);
 
   // Get sync status from isolated context (won't trigger parent re-renders)
-  const { syncStatus, isOnline } = useSyncContext()
+  const { syncStatus, isOnline } = useSyncContext();
 
   // Get connection status display
   const getConnectionStatus = () => {
     if (!isOnline) {
-      return { icon: '📴', text: 'Offline', className: 'status-offline' }
+      return { icon: '📴', text: 'Offline', className: 'status-offline' };
     }
 
     switch (syncStatus) {
       case 'syncing':
-        return { icon: '🔄', text: 'Synkroniserer', className: 'status-syncing' }
+        return {
+          icon: '🔄',
+          text: 'Synkroniserer',
+          className: 'status-syncing',
+        };
       case 'synced':
-        return { icon: '✅', text: 'Synkroniseret', className: 'status-synced' }
+        return {
+          icon: '✅',
+          text: 'Synkroniseret',
+          className: 'status-synced',
+        };
       case 'error':
-        return { icon: '❌', text: 'Fejl', className: 'status-error' }
+        return { icon: '❌', text: 'Fejl', className: 'status-error' };
       default:
-        return { icon: '☁️', text: 'Online', className: 'status-online' }
+        return { icon: '☁️', text: 'Online', className: 'status-online' };
     }
-  }
+  };
 
-  const connectionStatus = getConnectionStatus()
+  const connectionStatus = getConnectionStatus();
 
   // Handle image load errors (rate limiting, network issues)
   const handleImageError = () => {
-    console.warn('⚠️ Failed to load profile image (possibly rate limited)')
-    setImageError(true)
-  }
+    console.warn('⚠️ Failed to load profile image (possibly rate limited)');
+    setImageError(true);
+  };
 
   return (
     <header className="header">
@@ -68,7 +76,9 @@ export const Header = ({ user, onOpenSettings }) => {
                 />
               ) : (
                 <div className="user-avatar user-avatar-fallback">
-                  {(user.user_metadata?.full_name || user.email).charAt(0).toUpperCase()}
+                  {(user.user_metadata?.full_name || user.email)
+                    .charAt(0)
+                    .toUpperCase()}
                 </div>
               )}
               <div className="user-details">
@@ -78,7 +88,11 @@ export const Header = ({ user, onOpenSettings }) => {
               </div>
             </div>
 
-            <button onClick={onOpenSettings} className="btn-settings" title="Indstillinger">
+            <button
+              onClick={onOpenSettings}
+              className="btn-settings"
+              title="Indstillinger"
+            >
               ⚙️
             </button>
 
@@ -89,5 +103,5 @@ export const Header = ({ user, onOpenSettings }) => {
         )}
       </div>
     </header>
-  )
-}
+  );
+};
