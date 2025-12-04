@@ -7,7 +7,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useBudgetPeriods } from './useBudgetPeriods';
 import { localDB } from '../lib/pglite';
-import { useSyncContext } from './useSyncContext';
+// useSyncContext is mocked below
+// import { useSyncContext } from './useSyncContext';
 
 // Mock PGlite database
 vi.mock('../lib/pglite', () => ({
@@ -97,7 +98,7 @@ describe('useBudgetPeriods', () => {
     vi.clearAllMocks();
 
     // Default mock for periods query
-    localDB.query.mockImplementation((query, params) => {
+    localDB.query.mockImplementation(query => {
       if (
         query.includes('SELECT * FROM budget_periods') &&
         query.includes('is_template = 0')
@@ -546,7 +547,7 @@ describe('useBudgetPeriods', () => {
 
       try {
         await result.current.getExpensesForPeriod('period-2025');
-      } catch (error) {
+      } catch {
         // Expected error
       }
 
@@ -577,7 +578,7 @@ describe('useBudgetPeriods', () => {
           },
         ];
 
-        localDB.query.mockImplementation((query, params) => {
+        localDB.query.mockImplementation(query => {
           if (
             query.includes('SELECT * FROM budget_periods') &&
             query.includes('is_template = 0')
@@ -611,7 +612,7 @@ describe('useBudgetPeriods', () => {
       });
 
       it('should return empty array when no templates exist', async () => {
-        localDB.query.mockImplementation((query, params) => {
+        localDB.query.mockImplementation(query => {
           if (
             query.includes('SELECT * FROM budget_periods') &&
             query.includes('is_template = 0')
@@ -658,7 +659,7 @@ describe('useBudgetPeriods', () => {
           },
         ];
 
-        localDB.query.mockImplementation((query, params) => {
+        localDB.query.mockImplementation(query => {
           if (
             query.includes('SELECT * FROM budget_periods') &&
             query.includes('is_template = 0')
@@ -844,7 +845,7 @@ describe('useBudgetPeriods', () => {
       it('should delete template successfully', async () => {
         let templateDeleted = false;
 
-        localDB.query.mockImplementation((query, params) => {
+        localDB.query.mockImplementation(query => {
           if (
             query.includes('SELECT * FROM budget_periods') &&
             query.includes('is_template = 0')
@@ -1027,7 +1028,7 @@ describe('useBudgetPeriods', () => {
       });
 
       it('should throw error when template not found', async () => {
-        localDB.query.mockImplementation((query, params) => {
+        localDB.query.mockImplementation(query => {
           if (
             query.includes('SELECT * FROM budget_periods') &&
             query.includes('is_template = 0')

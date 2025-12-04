@@ -157,11 +157,9 @@ function AppContent() {
   // Cloud sync (from isolated context to prevent re-renders)
   const {
     syncExpenses,
-    syncBudgetPeriods,
     syncSettings,
     loadExpenses,
     loadBudgetPeriods,
-    loadSettings,
     immediateSyncExpenses,
     immediateSyncBudgetPeriods,
     isOnline,

@@ -559,7 +559,7 @@ describe('YearComparison', () => {
       await waitFor(() => {
         // Should show icons (📈 or 📉)
         const content = document.body.textContent;
-        expect(content).toMatch(/[📈📉]/);
+        expect(content).toMatch(/📈|📉/);
       });
     });
   });

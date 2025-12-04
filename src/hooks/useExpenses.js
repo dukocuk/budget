@@ -171,8 +171,7 @@ const initialState = {
 
 export const useExpenses = (userId, periodId) => {
   const [state, dispatch] = useReducer(expensesReducer, initialState);
-  const { expenses, history, historyIndex, loading, error, isInitialLoad } =
-    state;
+  const { expenses, history, historyIndex, loading, error } = state;
 
   // Get sync functions from context
   const { syncExpenses } = useSyncContext();

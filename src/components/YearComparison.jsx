@@ -72,7 +72,8 @@ export default function YearComparison({ periods, getExpensesForPeriod }) {
     return compareExpenses(period1Data.expenses, period2Data.expenses);
   }, [period1Data, period2Data]);
 
-  const trendData = useMemo(() => {
+  // Reserved for future trend visualization
+  const _TrendData = useMemo(() => {
     const periodsWithExpenses = periods.map(p => ({
       ...p,
       expenses: [], // Will be populated by parent if needed

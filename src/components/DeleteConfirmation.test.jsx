@@ -386,7 +386,7 @@ describe('DeleteConfirmation', () => {
 
   describe('Accessibility', () => {
     it('should have cancel button focused by default', () => {
-      const { container } = render(
+      render(
         <DeleteConfirmation
           isOpen={true}
           onConfirm={mockOnConfirm}
