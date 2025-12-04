@@ -17,30 +17,8 @@ vi.mock('../lib/pglite', () => ({
   },
 }));
 
-// Mock Supabase
-const mockUpdate = vi.fn();
-const mockEq = vi.fn();
-
-vi.mock('../lib/supabase', () => ({
-  supabase: {
-    from: () => ({
-      update: (...args) => {
-        mockUpdate(...args);
-        return {
-          eq: (...eqArgs) => {
-            mockEq(...eqArgs);
-            return {
-              eq: (...args2) => {
-                mockEq(...args2);
-                return { error: null };
-              },
-            };
-          },
-        };
-      },
-    }),
-  },
-}));
+// NOTE: Supabase is no longer used by useSettings
+// Cloud sync is now handled by SyncContext separately
 
 // Mock logger
 vi.mock('../utils/logger', () => ({
@@ -256,33 +234,8 @@ describe('useSettings', () => {
       );
     });
 
-    it('should sync budget period to Supabase cloud', async () => {
-      mockQuery.mockResolvedValue({ rows: [] });
-
-      const { result } = renderHook(() => useSettings(userId, periodId));
-
-      await waitFor(() => {
-        expect(result.current.loading).toBe(false);
-      });
-
-      await act(async () => {
-        await result.current.updateSettings({
-          monthlyPayment: 6000,
-          previousBalance: 5000,
-        });
-      });
-
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          monthly_payment: 6000,
-          previous_balance: 5000,
-          monthly_payments: null,
-        })
-      );
-
-      expect(mockEq).toHaveBeenCalledWith('id', periodId);
-      expect(mockEq).toHaveBeenCalledWith('user_id', userId);
-    });
+    // NOTE: Cloud sync is now handled by SyncContext, not by useSettings hook directly
+    // The hook only updates PGlite local database
 
     it('should update local state immediately', async () => {
       mockQuery.mockResolvedValue({ rows: [] });
@@ -452,7 +405,7 @@ describe('useSettings', () => {
       );
     });
 
-    it('should send monthlyPayments as array to Supabase', async () => {
+    it('should send monthlyPayments as JSON string to PGlite', async () => {
       mockQuery.mockResolvedValue({ rows: [] });
 
       const { result } = renderHook(() => useSettings(userId, periodId));
@@ -471,10 +424,10 @@ describe('useSettings', () => {
         });
       });
 
-      expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          monthly_payments: monthlyPayments, // Array, not string (Supabase handles JSONB)
-        })
+      // PGlite receives JSON string (stringified array)
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE budget_periods'),
+        expect.arrayContaining([JSON.stringify(monthlyPayments)])
       );
     });
   });

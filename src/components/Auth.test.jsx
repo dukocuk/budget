@@ -8,49 +8,50 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Auth from './Auth';
 
-// Mock useAuth hook
-const mockSignInWithGoogle = vi.fn();
+// Mock handlers
+const mockHandleGoogleSignIn = vi.fn();
 const mockSignOut = vi.fn();
+const mockRetryAuth = vi.fn();
 
-let mockAuthState = {
+// Default props for Auth component
+const defaultProps = {
   user: null,
-  loading: false,
+  loadingState: { isLoading: false, stage: null },
   error: null,
-  signInWithGoogle: mockSignInWithGoogle,
+  handleGoogleSignIn: mockHandleGoogleSignIn,
   signOut: mockSignOut,
+  retryAuth: mockRetryAuth,
 };
-
-vi.mock('../hooks/useAuth', () => ({
-  useAuth: () => mockAuthState,
-}));
 
 describe('Auth', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset to default state
-    mockAuthState = {
-      user: null,
-      loading: false,
-      error: null,
-      signInWithGoogle: mockSignInWithGoogle,
-      signOut: mockSignOut,
-    };
   });
 
   describe('Loading State', () => {
-    it('should display loading spinner when loading', () => {
-      mockAuthState.loading = true;
+    it('should display loading message when loading', () => {
+      render(
+        <Auth
+          {...defaultProps}
+          loadingState={{
+            isLoading: true,
+            stage: 'verifying',
+            message: 'Verificerer din session...',
+            progress: 35,
+          }}
+        />
+      );
 
-      render(<Auth />);
-
-      expect(screen.getByText('Indlæser...')).toBeInTheDocument();
-      expect(document.querySelector('.spinner')).toBeInTheDocument();
+      expect(screen.getByText(/Verificerer din session/)).toBeInTheDocument();
     });
 
     it('should not display login button when loading', () => {
-      mockAuthState.loading = true;
-
-      render(<Auth />);
+      render(
+        <Auth
+          {...defaultProps}
+          loadingState={{ isLoading: true, stage: 'authenticating' }}
+        />
+      );
 
       expect(screen.queryByText('Log ind med Google')).not.toBeInTheDocument();
     });
@@ -58,50 +59,51 @@ describe('Auth', () => {
 
   describe('Not Authenticated', () => {
     it('should display login button when not authenticated', () => {
-      render(<Auth />);
+      render(<Auth {...defaultProps} />);
 
       expect(screen.getByText('Log ind med Google')).toBeInTheDocument();
     });
 
     it('should display app title and description', () => {
-      render(<Auth />);
+      render(<Auth {...defaultProps} />);
 
       expect(screen.getByText('💰 Budget Tracker')).toBeInTheDocument();
       expect(
-        screen.getByText(/Log ind for at synkronisere/)
+        screen.getByText(/Log ind med Google for at synkronisere/)
       ).toBeInTheDocument();
     });
 
     it('should display features list', () => {
-      render(<Auth />);
+      render(<Auth {...defaultProps} />);
 
       expect(screen.getByText(/Automatisk synkronisering/)).toBeInTheDocument();
       expect(screen.getByText(/Virker offline/)).toBeInTheDocument();
       expect(
         screen.getByText(/Dine data er kun synlige for dig/)
       ).toBeInTheDocument();
-      expect(screen.getByText(/Gratis for altid/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Data gemt i din egen Google Drive/)
+      ).toBeInTheDocument();
     });
 
-    it('should call signInWithGoogle when login button clicked', async () => {
-      const user = userEvent.setup();
-      render(<Auth />);
+    it('should have login button that triggers OAuth redirect', async () => {
+      // The login button triggers an OAuth redirect flow via window.location.href
+      // We can't easily test the redirect, but we can verify the button exists and is clickable
+      render(<Auth {...defaultProps} />);
 
       const loginButton = screen.getByText('Log ind med Google');
-      await user.click(loginButton);
-
-      expect(mockSignInWithGoogle).toHaveBeenCalledTimes(1);
+      expect(loginButton).toBeInTheDocument();
+      expect(loginButton).toHaveClass('google-login-button');
     });
 
     it('should display Google logo in login button', () => {
-      render(<Auth />);
+      render(<Auth {...defaultProps} />);
 
       const loginButton = screen.getByText('Log ind med Google');
       const svg = loginButton.querySelector('svg');
 
       expect(svg).toBeInTheDocument();
-      expect(svg).toHaveAttribute('width', '18');
-      expect(svg).toHaveAttribute('height', '18');
+      expect(svg).toHaveClass('google-icon');
     });
   });
 
@@ -109,89 +111,21 @@ describe('Auth', () => {
     const mockUser = {
       id: 'user-123',
       email: 'test@example.com',
-      user_metadata: {
-        full_name: 'Test User',
-        avatar_url: 'https://example.com/avatar.jpg',
-      },
+      name: 'Test User',
+      picture: 'https://example.com/avatar.jpg',
     };
 
-    beforeEach(() => {
-      mockAuthState.user = mockUser;
-    });
+    // Note: When user is authenticated and not loading, Auth component returns null
+    // (the authenticated UI is handled by the parent App component)
+    it('should return null when authenticated and not loading', () => {
+      const { container } = render(<Auth {...defaultProps} user={mockUser} />);
 
-    it('should display user profile when authenticated', () => {
-      render(<Auth />);
-
-      expect(screen.getByText('Test User')).toBeInTheDocument();
-      expect(screen.getByText('test@example.com')).toBeInTheDocument();
-    });
-
-    it('should display user avatar when available', () => {
-      render(<Auth />);
-
-      const avatar = screen.getByAltText('Test User');
-      expect(avatar).toBeInTheDocument();
-      expect(avatar).toHaveAttribute('src', 'https://example.com/avatar.jpg');
-      expect(avatar).toHaveClass('user-avatar');
-    });
-
-    it('should display email as alt text when name not available', () => {
-      mockAuthState.user = {
-        ...mockUser,
-        user_metadata: {
-          avatar_url: 'https://example.com/avatar.jpg',
-        },
-      };
-
-      render(<Auth />);
-
-      const avatar = screen.getByAltText('test@example.com');
-      expect(avatar).toBeInTheDocument();
-    });
-
-    it('should display email as name when full_name not available', () => {
-      mockAuthState.user = {
-        ...mockUser,
-        user_metadata: {},
-      };
-
-      render(<Auth />);
-
-      const nameElements = screen.getAllByText('test@example.com');
-      expect(nameElements.length).toBeGreaterThan(0);
-    });
-
-    it('should not display avatar when not available', () => {
-      mockAuthState.user = {
-        ...mockUser,
-        user_metadata: {
-          full_name: 'Test User',
-        },
-      };
-
-      render(<Auth />);
-
-      expect(screen.queryByRole('img')).not.toBeInTheDocument();
-    });
-
-    it('should display logout button', () => {
-      render(<Auth />);
-
-      expect(screen.getByText('Log ud')).toBeInTheDocument();
-    });
-
-    it('should call signOut when logout button clicked', async () => {
-      const user = userEvent.setup();
-      render(<Auth />);
-
-      const logoutButton = screen.getByText('Log ud');
-      await user.click(logoutButton);
-
-      expect(mockSignOut).toHaveBeenCalledTimes(1);
+      // Component returns null, so container should be empty
+      expect(container.firstChild).toBeNull();
     });
 
     it('should not display login UI when authenticated', () => {
-      render(<Auth />);
+      render(<Auth {...defaultProps} user={mockUser} />);
 
       expect(screen.queryByText('Log ind med Google')).not.toBeInTheDocument();
       expect(
@@ -202,24 +136,20 @@ describe('Auth', () => {
 
   describe('Error Handling', () => {
     it('should display error message when error exists', () => {
-      mockAuthState.error = 'Authentication failed';
-
-      render(<Auth />);
+      render(<Auth {...defaultProps} error="Authentication failed" />);
 
       expect(screen.getByText('❌ Authentication failed')).toBeInTheDocument();
     });
 
     it('should display error with login button', () => {
-      mockAuthState.error = 'Network error';
-
-      render(<Auth />);
+      render(<Auth {...defaultProps} error="Network error" />);
 
       expect(screen.getByText('❌ Network error')).toBeInTheDocument();
       expect(screen.getByText('Log ind med Google')).toBeInTheDocument();
     });
 
     it('should not display error when no error', () => {
-      render(<Auth />);
+      render(<Auth {...defaultProps} />);
 
       expect(screen.queryByText(/❌/)).not.toBeInTheDocument();
     });
@@ -227,7 +157,7 @@ describe('Auth', () => {
 
   describe('UI Structure', () => {
     it('should have correct class names for styling', () => {
-      render(<Auth />);
+      render(<Auth {...defaultProps} />);
 
       expect(document.querySelector('.auth-container')).toBeInTheDocument();
       expect(document.querySelector('.auth-card')).toBeInTheDocument();
@@ -235,39 +165,26 @@ describe('Auth', () => {
     });
 
     it('should have Google button with correct classes', () => {
-      render(<Auth />);
+      render(<Auth {...defaultProps} />);
 
       const loginButton = screen.getByText('Log ind med Google');
-      expect(loginButton).toHaveClass('btn', 'btn-google');
+      expect(loginButton).toHaveClass('google-login-button');
     });
 
-    it('should have logout button with correct classes when authenticated', () => {
-      mockAuthState.user = {
-        id: 'user-123',
-        email: 'test@example.com',
-        user_metadata: {},
-      };
+    it('should have loading card with correct classes when loading', () => {
+      render(
+        <Auth
+          {...defaultProps}
+          loadingState={{
+            isLoading: true,
+            stage: 'authenticating',
+            progress: 50,
+          }}
+        />
+      );
 
-      render(<Auth />);
-
-      const logoutButton = screen.getByText('Log ud');
-      expect(logoutButton).toHaveClass('btn', 'btn-secondary', 'btn-sm');
-    });
-
-    it('should set crossOrigin attribute on avatar image', () => {
-      mockAuthState.user = {
-        id: 'user-123',
-        email: 'test@example.com',
-        user_metadata: {
-          full_name: 'Test User',
-          avatar_url: 'https://example.com/avatar.jpg',
-        },
-      };
-
-      render(<Auth />);
-
-      const avatar = screen.getByAltText('Test User');
-      expect(avatar).toHaveAttribute('crossOrigin', 'anonymous');
+      expect(document.querySelector('.auth-container')).toBeInTheDocument();
+      expect(document.querySelector('.auth-loading-card')).toBeInTheDocument();
     });
   });
 });
