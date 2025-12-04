@@ -598,7 +598,7 @@ describe('SyncContext', () => {
 
     it.skip('should debounce sync by 1 second', async () => {
       const mockUpsert = vi.fn().mockResolvedValue({ error: null });
-      const mockDelete = vi.fn().mockReturnThis();
+      const _mockDelete = vi.fn().mockReturnThis();
       const mockIn = vi.fn().mockResolvedValue({ error: null });
 
       // Mock PGlite for budget periods query
@@ -667,7 +667,7 @@ describe('SyncContext', () => {
 
     it.skip('should cancel previous debounced sync on new call', async () => {
       const mockUpsert = vi.fn().mockResolvedValue({ error: null });
-      const mockDelete = vi.fn().mockReturnThis();
+      const _mockDelete = vi.fn().mockReturnThis();
       const mockIn = vi.fn().mockResolvedValue({ error: null });
 
       // Mock PGlite for budget periods query
@@ -744,7 +744,7 @@ describe('SyncContext', () => {
 
     it.skip('should reset status from synced to idle after 2 seconds', async () => {
       const mockUpsert = vi.fn().mockResolvedValue({ error: null });
-      const mockDelete = vi.fn().mockReturnThis();
+      const _mockDelete = vi.fn().mockReturnThis();
       const mockIn = vi.fn().mockResolvedValue({ error: null });
 
       // Mock PGlite for budget periods query

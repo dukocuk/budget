@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useExpenses } from './useExpenses';
-import { localDB } from '../lib/pglite';
+// localDB is mocked below
 
 // Mock PGlite
 const mockQuery = vi.fn();

@@ -829,7 +829,7 @@ describe('Variable Payments Edge Cases', () => {
 
       // Verify projection consistency
       let runningBalance = 2000;
-      projection.forEach((month, idx) => {
+      projection.forEach(month => {
         runningBalance += month.income - month.expenses;
         expect(month.balance).toBe(runningBalance);
       });
