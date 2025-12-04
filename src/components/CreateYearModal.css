@@ -338,7 +338,7 @@
   .form-input {
     background: var(--color-bg-secondary-dark, #1e293b);
     border-color: var(--color-border-dark, #334155);
-    color: var(--color-text-primary-dark, #f1f5f9);
+    color: var(--color-text-primary-dark, #000000);
   }
 
   .calculated-balance {
