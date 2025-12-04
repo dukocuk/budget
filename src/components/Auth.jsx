@@ -1,11 +1,22 @@
 import { useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
 import './Auth.css';
 
-export default function Auth() {
-  const { user, loading, error, handleGoogleSignIn, signOut } = useAuth();
-
-  console.log('🔧 Auth component rendering, user:', user, 'loading:', loading);
+export default function Auth({
+  user,
+  loadingState,
+  error,
+  handleGoogleSignIn,
+  signOut,
+  retryAuth,
+}) {
+  console.log(
+    '🔧 Auth component rendering, user:',
+    user,
+    'loading:',
+    loadingState.isLoading,
+    'stage:',
+    loadingState.stage
+  );
 
   // Initialize Google Identity Services (GIS) directly
   useEffect(() => {
@@ -70,12 +81,77 @@ export default function Auth() {
     window.location.href = authUrl.toString();
   };
 
-  if (loading) {
+  // If user is authenticated, don't render anything (let App wrapper handle it)
+  if (user && !loadingState.isLoading) {
+    console.log('✅ User authenticated, Auth component returning null');
+    return null;
+  }
+
+  if (loadingState.isLoading || loadingState.stage === 'error') {
+    // Get stage-specific icon
+    const getStageIcon = () => {
+      switch (loadingState.stage) {
+        case 'initializing':
+          return '⚙️';
+        case 'verifying':
+          return '🔐';
+        case 'connecting':
+          return '☁️';
+        case 'complete':
+          return '✅';
+        case 'error':
+          return '⚠️';
+        default:
+          return '⚙️';
+      }
+    };
+
     return (
       <div className="auth-container">
-        <div className="auth-loading">
-          <div className="spinner"></div>
-          <p>Indlæser...</p>
+        <div className="auth-loading-card">
+          {/* Stage Icon */}
+          <div className="loading-icon" aria-hidden="true">
+            {getStageIcon()}
+          </div>
+
+          {/* Progress Bar */}
+          {loadingState.stage !== 'error' && (
+            <div className="progress-bar-container">
+              <div
+                className="progress-bar-fill"
+                style={{ width: `${loadingState.progress}%` }}
+                role="progressbar"
+                aria-label="Indlæsningsforløb"
+                aria-valuenow={loadingState.progress}
+                aria-valuemin="0"
+                aria-valuemax="100"
+              />
+            </div>
+          )}
+
+          {/* Stage Message */}
+          <p className="loading-message" id="loading-status" aria-live="polite">
+            {loadingState.message}
+          </p>
+
+          {/* Spinner (for non-error stages) */}
+          {loadingState.stage !== 'error' && (
+            <div className="spinner-enhanced" aria-hidden="true" />
+          )}
+
+          {/* Error State */}
+          {loadingState.stage === 'error' && (
+            <div className="error-actions">
+              <p className="error-details">{loadingState.errorMessage}</p>
+              <button
+                onClick={retryAuth}
+                className="retry-button"
+                aria-label="Prøv igen"
+              >
+                🔄 Prøv igen
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -158,21 +234,8 @@ export default function Auth() {
             <li>✅ Automatisk synkronisering via Google Drive</li>
             <li>✅ Virker offline med lokal database</li>
             <li>✅ Dine data er kun synlige for dig</li>
-            <li>✅ Gratis for altid (ingen subscriptions)</li>
             <li>✅ Data gemt i din egen Google Drive</li>
           </ul>
-        </div>
-
-        <div className="auth-footer">
-          <p className="auth-note">
-            ⚠️ <strong>Vigtigt:</strong> Denne app kræver nu Google Cloud
-            konfiguration
-          </p>
-          <p className="auth-setup-note">
-            Se <code>.env</code> filen for at tilføje din{' '}
-            <code>VITE_GOOGLE_CLIENT_ID</code> og{' '}
-            <code>VITE_GOOGLE_API_KEY</code>
-          </p>
         </div>
       </div>
     </div>

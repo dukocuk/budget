@@ -201,6 +201,13 @@ function AppContent() {
 
   // Load data from cloud when user logs in (OPTIMIZED: batched updates prevent multiple re-renders)
   useEffect(() => {
+    console.log('📊 Data loading check:', {
+      hasUser: !!user,
+      hasActivePeriod: !!activePeriod,
+      isInitialized,
+      willLoad: user && activePeriod && !isInitialized,
+    });
+
     if (user && activePeriod && !isInitialized) {
       const loadData = async () => {
         logger.info('🔄 Starting data initialization...');
@@ -298,6 +305,12 @@ function AppContent() {
             setIsLoadingData(false);
             setIsInitialized(true);
           });
+        } finally {
+          // SAFETY NET: Always ensure loading state is cleared
+          // This handles edge cases where neither success nor catch blocks execute
+          setTimeout(() => {
+            setIsLoadingData(false);
+          }, 100);
         }
       };
 
@@ -369,14 +382,24 @@ function AppContent() {
   // Show loading screen while fetching cloud data
   if (isLoadingData) {
     return (
-      <div className="auth-loading-container">
-        <div className="spinner"></div>
-        <p>Henter dine data...</p>
-        <p
-          style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '1rem' }}
-        >
-          Hvis indlæsning tager lang tid, prøv at genindlæse siden.
-        </p>
+      <div className="auth-container">
+        <div className="auth-loading-card">
+          <div className="loading-icon">☁️</div>
+          <div className="progress-bar-container">
+            <div className="progress-bar-fill" style={{ width: '60%' }}></div>
+          </div>
+          <p className="loading-message">Henter dine data...</p>
+          <div className="spinner-enhanced"></div>
+          <p
+            style={{
+              fontSize: '0.875rem',
+              color: '#6b7280',
+              marginTop: '1rem',
+            }}
+          >
+            Hvis indlæsning tager lang tid, prøv at genindlæse siden.
+          </p>
+        </div>
       </div>
     );
   }
@@ -811,20 +834,45 @@ function AppContent() {
  * App - Wrapper component that provides SyncContext
  */
 function App() {
-  const { user, loading: authLoading } = useAuth();
+  const {
+    user,
+    loading: authLoading,
+    loadingState,
+    error,
+    handleGoogleSignIn,
+    signOut,
+    retryAuth,
+  } = useAuth();
+
+  console.log('🔐 App wrapper render:', { hasUser: !!user, authLoading });
 
   // Show auth screen if not logged in
   if (authLoading) {
     return (
-      <div className="auth-loading-container">
-        <div className="spinner"></div>
-        <p>Indlæser...</p>
+      <div className="auth-container">
+        <div className="auth-loading-card">
+          <div className="loading-icon">⚙️</div>
+          <div className="progress-bar-container">
+            <div className="progress-bar-fill" style={{ width: '30%' }}></div>
+          </div>
+          <p className="loading-message">Indlæser...</p>
+          <div className="spinner-enhanced"></div>
+        </div>
       </div>
     );
   }
 
   if (!user) {
-    return <Auth />;
+    return (
+      <Auth
+        user={user}
+        loadingState={loadingState}
+        error={error}
+        handleGoogleSignIn={handleGoogleSignIn}
+        signOut={signOut}
+        retryAuth={retryAuth}
+      />
+    );
   }
 
   // Wrap AppContent with SyncProvider to isolate sync state

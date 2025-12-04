@@ -45,7 +45,13 @@ const STORAGE_KEY = 'google_auth_session';
  */
 export function useAuth() {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingState, setLoadingState] = useState({
+    isLoading: true,
+    stage: 'initializing', // initializing | verifying | connecting | complete | error
+    message: 'Forbereder applikationen...',
+    progress: 10,
+    errorMessage: null,
+  });
   const [error, setError] = useState(null);
 
   // Check for existing session on mount
@@ -63,18 +69,53 @@ export function useAuth() {
 
           if (expiresAt > now) {
             logger.log('Found valid session, initializing Google Drive...');
+
+            // Update to verifying stage
+            setLoadingState({
+              isLoading: true,
+              stage: 'verifying',
+              message: 'Verificerer din session...',
+              progress: 35,
+              errorMessage: null,
+            });
+
             setUser(session.user);
 
             // Initialize Google Drive with stored access token
             try {
+              // Update to connecting stage
+              setLoadingState({
+                isLoading: true,
+                stage: 'connecting',
+                message: 'Forbinder til Google Drive...',
+                progress: 70,
+                errorMessage: null,
+              });
+
               await initGoogleDrive(session.accessToken);
               logger.log('✅ Session restored successfully');
+
+              // Complete stage
+              setLoadingState({
+                isLoading: true,
+                stage: 'complete',
+                message: 'Klar!',
+                progress: 100,
+                errorMessage: null,
+              });
             } catch (driveError) {
               logger.error('❌ Error initializing Drive API:', driveError);
               // Clear invalid session
               localStorage.removeItem(STORAGE_KEY);
               setUser(null);
               setError('Session expired. Please sign in again.');
+              setLoadingState({
+                isLoading: false,
+                stage: 'error',
+                message: 'Der opstod en fejl',
+                progress: 0,
+                errorMessage: 'Session expired. Please sign in again.',
+              });
             }
           } else {
             logger.log('Session expired, clearing...');
@@ -85,8 +126,19 @@ export function useAuth() {
       } catch (err) {
         logger.error('Error loading session:', err);
         localStorage.removeItem(STORAGE_KEY);
+        setLoadingState({
+          isLoading: false,
+          stage: 'error',
+          message: 'Der opstod en fejl',
+          progress: 0,
+          errorMessage: 'Error loading session',
+        });
       } finally {
-        setLoading(false);
+        // Always clear loading state immediately
+        setLoadingState(prev => ({
+          ...prev,
+          isLoading: false,
+        }));
       }
     };
 
@@ -106,7 +158,13 @@ export function useAuth() {
 
     try {
       setError(null);
-      setLoading(true);
+      setLoadingState({
+        isLoading: true,
+        stage: 'verifying',
+        message: 'Verificerer din session...',
+        progress: 25,
+        errorMessage: null,
+      });
 
       logger.log('Processing Google Sign-In...');
 
@@ -162,24 +220,59 @@ export function useAuth() {
 
       // Initialize Google Drive API
       console.log('☁️ Attempting Google Drive initialization...');
+      setLoadingState({
+        isLoading: true,
+        stage: 'connecting',
+        message: 'Forbinder til Google Drive...',
+        progress: 70,
+        errorMessage: null,
+      });
+
       try {
         await initGoogleDrive(accessToken);
         logger.log('✅ Google Drive API initialized');
+
+        // Complete stage
+        setLoadingState({
+          isLoading: true,
+          stage: 'complete',
+          message: 'Klar!',
+          progress: 100,
+          errorMessage: null,
+        });
       } catch (driveError) {
         logger.error('❌ Error initializing Drive API:', driveError);
         setError(
           'Google Drive fejlede. Du kan arbejde offline, men cloud sync vil ikke virke.'
         );
+        setLoadingState({
+          isLoading: false,
+          stage: 'error',
+          message: 'Der opstod en fejl',
+          progress: 0,
+          errorMessage:
+            'Google Drive fejlede. Du kan arbejde offline, men cloud sync vil ikke virke.',
+        });
         // Continue anyway - local DB still works
       }
     } catch (err) {
       console.error('❌ CRITICAL ERROR in handleGoogleSignIn:', err);
       logger.error('Error during Google Sign-In:', err);
       setError(err.message || 'Login fejlede. Prøv venligst igen.');
+      setLoadingState({
+        isLoading: false,
+        stage: 'error',
+        message: 'Der opstod en fejl',
+        progress: 0,
+        errorMessage: err.message || 'Login fejlede. Prøv venligst igen.',
+      });
     } finally {
-      // ✅ ALWAYS clear loading state
+      // ✅ Always clear loading state immediately after login
       console.log('🔄 Finally block: clearing loading state');
-      setLoading(false);
+      setLoadingState(prev => ({
+        ...prev,
+        isLoading: false,
+      }));
       console.log('✅ Loading state cleared');
     }
   };
@@ -202,17 +295,38 @@ export function useAuth() {
 
       setUser(null);
       logger.log('✅ Signed out successfully');
+
+      // Reload page to return to login screen
+      window.location.reload();
     } catch (err) {
       logger.error('Error signing out:', err);
       setError(err.message || 'Failed to sign out. Please try again.');
     }
   };
 
+  /**
+   * Retry authentication after error
+   */
+  const retryAuth = () => {
+    setLoadingState({
+      isLoading: true,
+      stage: 'initializing',
+      message: 'Forbereder applikationen...',
+      progress: 10,
+      errorMessage: null,
+    });
+    setError(null);
+    // Reload the page to restart auth flow
+    window.location.reload();
+  };
+
   return {
     user,
-    loading,
+    loading: loadingState.isLoading, // For backward compatibility
+    loadingState,
     error,
     handleGoogleSignIn,
     signOut,
+    retryAuth,
   };
 }
