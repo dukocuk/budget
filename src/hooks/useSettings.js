@@ -6,7 +6,6 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
 import { localDB } from '../lib/pglite';
 import { logger } from '../utils/logger';
 
@@ -127,24 +126,8 @@ export function useSettings(userId, periodId) {
         ]
       );
 
-      // Sync to cloud (budget_periods table in Supabase)
-      const cloudUpdate = {
-        monthly_payment: updatedValues.monthly_payment,
-        previous_balance: updatedValues.previous_balance,
-        monthly_payments:
-          newSettings.monthlyPayments !== undefined
-            ? newSettings.monthlyPayments
-            : settings.monthlyPayments, // Send as array or null (Supabase handles JSONB)
-        updated_at: updatedValues.updated_at,
-      };
-
-      const { error: cloudError } = await supabase
-        .from('budget_periods')
-        .update(cloudUpdate)
-        .eq('id', periodId)
-        .eq('user_id', userId);
-
-      if (cloudError) throw cloudError;
+      // NOTE: Cloud sync is now handled by SyncContext automatically
+      // No need to call Supabase directly here
 
       // Update local state
       setSettings({

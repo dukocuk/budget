@@ -1,67 +1,68 @@
 /**
- * SyncContext - Isolated context for cloud sync state
- * Prevents sync status updates from triggering re-renders in data editing components
+ * SyncContext - Cloud sync with Google Drive
+ * MIGRATION: Replaced Supabase with Google Drive API
  *
- * OPTIMIZATION: Sync status is managed via refs to prevent unnecessary re-renders
- * Only UI-facing components (Header) subscribe to status changes
+ * Features:
+ * - Single JSON file storage in Google Drive
+ * - Auto-sync with debouncing (1 second delay)
+ * - Polling for multi-device updates (30 seconds)
+ * - Last-write-wins conflict resolution
+ * - Offline-first architecture (PGlite primary storage)
  */
 
 import { createContext, useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import {
+  downloadBudgetData,
+  uploadBudgetData,
+  checkForUpdates,
+} from '../lib/googleDrive';
 import { logger } from '../utils/logger';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const SyncContext = createContext(null);
 
+const SYNC_DEBOUNCE_DELAY = 1000; // 1 second
+const POLLING_INTERVAL = 30000; // 30 seconds
+
 /**
- * SyncProvider - Manages cloud sync state in isolation
+ * SyncProvider - Manages Google Drive sync state
  * @param {Object} props - Component props
  * @param {Object} props.user - Authenticated user object
  * @param {ReactNode} props.children - Child components
  */
 export const SyncProvider = ({ user, children }) => {
-  // Use refs for sync status to avoid triggering re-renders
-  // Only update state when UI components explicitly need updates
-  const syncStatusRef = useRef('idle'); // idle, syncing, synced, error, offline
+  // Sync status (idle, syncing, synced, error, offline)
+  const syncStatusRef = useRef('idle');
   const lastSyncTimeRef = useRef(null);
   const syncErrorRef = useRef(null);
 
-  // Keep state ONLY for UI components that need to react to changes
+  // UI state (only updates when needed)
   const [uiSyncStatus, setUiSyncStatus] = useState('idle');
   const [uiLastSyncTime, setUiLastSyncTime] = useState(null);
   const [uiSyncError, setUiSyncError] = useState(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Refs for debouncing and preventing duplicate syncs
+  // Debouncing and sync control
   const syncTimeoutRef = useRef(null);
   const isSyncingRef = useRef(false);
+  const pollingIntervalRef = useRef(null);
 
-  // Refs for status reset timeouts to ensure cleanup
-  const statusResetTimeoutRef = useRef(null);
-  const errorResetTimeoutRef = useRef(null);
+  // Track last synced timestamp for conflict detection
+  const lastRemoteModifiedRef = useRef(null);
 
   /**
    * Update sync status - updates both ref and UI state
-   * @param {string} status - New sync status
    */
   const updateSyncStatus = useCallback(status => {
     syncStatusRef.current = status;
     setUiSyncStatus(status);
   }, []);
 
-  /**
-   * Update sync error - updates both ref and UI state
-   * @param {string|null} error - Error message or null
-   */
   const updateSyncError = useCallback(error => {
     syncErrorRef.current = error;
     setUiSyncError(error);
   }, []);
 
-  /**
-   * Update last sync time - updates both ref and UI state
-   * @param {Date} time - Last sync timestamp
-   */
   const updateLastSyncTime = useCallback(time => {
     lastSyncTimeRef.current = time;
     setUiLastSyncTime(time);
@@ -72,11 +73,13 @@ export const SyncProvider = ({ user, children }) => {
     const handleOnline = () => {
       setIsOnline(true);
       updateSyncStatus('idle');
+      logger.log('🌐 Back online');
     };
 
     const handleOffline = () => {
       setIsOnline(false);
       updateSyncStatus('offline');
+      logger.log('📴 Offline mode');
     };
 
     window.addEventListener('online', handleOnline);
@@ -89,193 +92,67 @@ export const SyncProvider = ({ user, children }) => {
   }, [updateSyncStatus]);
 
   /**
-   * Smart sync expenses to Supabase using merge-based strategy
-   * Implements last-write-wins conflict resolution with timestamp comparison
-   * Preserves UUIDs and handles concurrent edits from multiple devices
-   * Translates local budget period IDs to cloud IDs to prevent foreign key violations
+   * Unified sync function - uploads all data to Google Drive
+   * @param {Array} expenses - Expense array
+   * @param {Array} budgetPeriods - Budget periods array
+   * @param {Object} settings - Settings object (optional, for backward compatibility)
    */
-  const syncExpenses = useCallback(
-    async expenses => {
-      if (!user || !isOnline || isSyncingRef.current) return;
+  const syncToCloud = useCallback(
+    async (expenses, budgetPeriods, settings = {}) => {
+      if (!user || !isOnline || isSyncingRef.current) {
+        logger.log('⚠️ Sync skipped:', {
+          hasUser: !!user,
+          isOnline,
+          isSyncing: isSyncingRef.current,
+        });
+        return;
+      }
 
       try {
         isSyncingRef.current = true;
         updateSyncStatus('syncing');
         updateSyncError(null);
 
-        // Step 1: Fetch budget periods from local and cloud to build ID mapping
-        // This is necessary because local and cloud may have different UUIDs for the same period (year)
-        const localDB = await import('../lib/pglite').then(m => m.localDB);
-        const localPeriods = await localDB.query(
-          'SELECT id, year FROM budget_periods WHERE user_id = $1',
-          [user.id]
-        );
+        logger.log('☁️ Starting Google Drive sync...');
 
-        const { data: cloudPeriods, error: periodFetchError } = await supabase
-          .from('budget_periods')
-          .select('id, year')
-          .eq('user_id', user.id);
+        // Prepare data with timestamp
+        const dataToUpload = {
+          expenses: expenses || [],
+          budgetPeriods: budgetPeriods || [],
+          settings: settings || {},
+        };
 
-        if (periodFetchError) throw periodFetchError;
+        // Upload to Google Drive
+        const result = await uploadBudgetData(dataToUpload);
 
-        // Build mapping: local period ID → cloud period ID (matched by year)
-        const periodIdMap = new Map();
-        for (const localPeriod of localPeriods.rows || []) {
-          const cloudPeriod = (cloudPeriods || []).find(
-            cp => cp.year === localPeriod.year
-          );
-          if (cloudPeriod) {
-            periodIdMap.set(localPeriod.id, cloudPeriod.id);
-          } else {
-            logger.warn(
-              `⚠️ No cloud budget period found for year ${localPeriod.year}, local ID: ${localPeriod.id}`
-            );
-          }
-        }
+        if (result.success) {
+          lastRemoteModifiedRef.current = result.lastModified;
+          updateLastSyncTime(new Date());
+          updateSyncStatus('synced');
+          logger.log('✅ Sync successful:', {
+            expenses: dataToUpload.expenses.length,
+            periods: dataToUpload.budgetPeriods.length,
+            lastModified: result.lastModified,
+          });
 
-        // Step 2: Fetch current cloud expenses
-        const { data: cloudExpenses, error: fetchError } = await supabase
-          .from('expenses')
-          .select('*')
-          .eq('user_id', user.id);
-
-        if (fetchError) throw fetchError;
-
-        // Step 3: Build maps for efficient comparison
-        const cloudMap = new Map((cloudExpenses || []).map(e => [e.id, e]));
-        const localMap = new Map(expenses.map(e => [e.id, e]));
-
-        // Step 4: Determine operations (upsert, delete)
-        const toUpsert = [];
-        const toDelete = [];
-
-        // Check local expenses for upserts (add or update)
-        for (const localExpense of expenses) {
-          // Validate budget_period_id exists (prevent foreign key violation)
-          if (!localExpense.budgetPeriodId) {
-            logger.warn(
-              `⚠️ Skipping expense "${localExpense.name}" - missing budget_period_id`
-            );
-            continue;
-          }
-
-          // Translate local budget period ID to cloud ID
-          const cloudBudgetPeriodId = periodIdMap.get(
-            localExpense.budgetPeriodId
-          );
-          if (!cloudBudgetPeriodId) {
-            logger.warn(
-              `⚠️ Skipping expense "${localExpense.name}" - budget period not found in cloud (local ID: ${localExpense.budgetPeriodId})`
-            );
-            continue;
-          }
-
-          const cloudExpense = cloudMap.get(localExpense.id);
-
-          if (!cloudExpense) {
-            // New expense - insert with client-provided UUID and cloud budget period ID
-            toUpsert.push({
-              id: localExpense.id,
-              user_id: user.id,
-              name: localExpense.name,
-              amount: localExpense.amount,
-              frequency: localExpense.frequency,
-              start_month: localExpense.startMonth,
-              end_month: localExpense.endMonth,
-              budget_period_id: cloudBudgetPeriodId, // Use cloud ID to prevent foreign key violation
-              updated_at: new Date().toISOString(),
-            });
-          } else {
-            // Existing expense - check if local is newer
-            const localUpdated = new Date(localExpense.updatedAt || 0);
-            const cloudUpdated = new Date(cloudExpense.updated_at || 0);
-
-            if (localUpdated >= cloudUpdated) {
-              // Local version is newer or equal - update cloud with cloud budget period ID
-              toUpsert.push({
-                id: localExpense.id,
-                user_id: user.id,
-                name: localExpense.name,
-                amount: localExpense.amount,
-                frequency: localExpense.frequency,
-                start_month: localExpense.startMonth,
-                end_month: localExpense.endMonth,
-                budget_period_id: cloudBudgetPeriodId, // Use cloud ID to prevent foreign key violation
-                updated_at: localUpdated.toISOString(),
-              });
+          // Reset to idle after 2 seconds
+          setTimeout(() => {
+            if (syncStatusRef.current === 'synced') {
+              updateSyncStatus('idle');
             }
-            // If cloud is newer, we skip (don't overwrite newer cloud data)
-          }
+          }, 2000);
         }
-
-        // Check cloud expenses for deletions
-        for (const cloudExpense of cloudExpenses || []) {
-          if (!localMap.has(cloudExpense.id)) {
-            // Expense exists in cloud but not local - delete from cloud
-            toDelete.push(cloudExpense.id);
-          }
-        }
-
-        // Step 5: Execute operations
-        if (toUpsert.length > 0) {
-          const { error: upsertError } = await supabase
-            .from('expenses')
-            .upsert(toUpsert, {
-              onConflict: 'id',
-              ignoreDuplicates: false,
-            });
-
-          if (upsertError) throw upsertError;
-          logger.log(`✅ Synced ${toUpsert.length} expenses to cloud`);
-        }
-
-        if (toDelete.length > 0) {
-          const { error: deleteError } = await supabase
-            .from('expenses')
-            .delete()
-            .in('id', toDelete);
-
-          if (deleteError) throw deleteError;
-          logger.log(`🗑️ Deleted ${toDelete.length} expenses from cloud`);
-        }
-
-        updateSyncStatus('synced');
-        updateLastSyncTime(new Date());
-
-        // Reset to idle after 2 seconds (with cleanup tracking)
-        if (statusResetTimeoutRef.current) {
-          clearTimeout(statusResetTimeoutRef.current);
-        }
-        statusResetTimeoutRef.current = setTimeout(() => {
-          updateSyncStatus('idle');
-          statusResetTimeoutRef.current = null;
-        }, 2000);
       } catch (error) {
-        // Check if it's a foreign key constraint error for budget_period_id
-        if (
-          error.code === '23503' &&
-          error.message?.includes('budget_period')
-        ) {
-          logger.error(
-            '❌ Budget period not found in cloud database. Budget periods must be synced before expenses.'
-          );
-          updateSyncError(
-            'Budget periode mangler i skyen. Genindlæs venligst appen.'
-          );
-        } else {
-          logger.error('❌ Error syncing expenses:', error);
-          updateSyncError(error.message);
-        }
+        logger.error('❌ Sync error:', error);
+        updateSyncError(error.message);
         updateSyncStatus('error');
 
-        // Reset error state after 5 seconds (with cleanup tracking)
-        if (errorResetTimeoutRef.current) {
-          clearTimeout(errorResetTimeoutRef.current);
-        }
-        errorResetTimeoutRef.current = setTimeout(() => {
-          updateSyncStatus('idle');
-          updateSyncError(null);
-          errorResetTimeoutRef.current = null;
+        // Clear error after 5 seconds
+        setTimeout(() => {
+          if (syncStatusRef.current === 'error') {
+            updateSyncError(null);
+            updateSyncStatus('idle');
+          }
         }, 5000);
       } finally {
         isSyncingRef.current = false;
@@ -285,377 +162,259 @@ export const SyncProvider = ({ user, children }) => {
   );
 
   /**
-   * Sync budget periods to Supabase
-   * Smart matching by (user_id, year) to prevent duplicate key violations
-   * Fetches existing cloud periods first to match by year and preserve cloud IDs
+   * Load data from Google Drive
+   * @returns {Promise<{expenses: Array, budgetPeriods: Array, settings: Object}>}
    */
-  const syncBudgetPeriods = useCallback(
-    async periods => {
-      if (!user || !isOnline || isSyncingRef.current) return;
+  const loadFromCloud = useCallback(async () => {
+    if (!user || !isOnline) {
+      logger.log('⚠️ Load skipped: no user or offline');
+      return { expenses: [], budgetPeriods: [], settings: {} };
+    }
 
-      try {
-        updateSyncStatus('syncing');
-        updateSyncError(null);
+    try {
+      logger.log('📥 Loading data from Google Drive...');
 
-        // Fetch existing cloud periods first to match by (user_id, year)
-        const { data: cloudPeriods, error: fetchError } = await supabase
-          .from('budget_periods')
-          .select('*')
-          .eq('user_id', user.id);
+      const data = await downloadBudgetData();
 
-        if (fetchError) throw fetchError;
-
-        // Build map of cloud periods by year for fast lookup
-        const cloudMap = new Map();
-        if (cloudPeriods) {
-          cloudPeriods.forEach(period => {
-            cloudMap.set(period.year, period);
-          });
-        }
-
-        // Transform periods to database format, using cloud ID if period exists
-        const periodsToSync = (periods || []).map(period => {
-          const cloudPeriod = cloudMap.get(period.year);
-
-          return {
-            id: cloudPeriod ? cloudPeriod.id : period.id, // Use cloud ID if exists, else local ID
-            user_id: user.id,
-            year: period.year,
-            monthly_payment: period.monthlyPayment,
-            previous_balance: period.previousBalance,
-            monthly_payments: period.monthlyPayments, // Supabase handles JSONB automatically
-            status: period.status || 'active',
-            updated_at: new Date().toISOString(),
-          };
+      if (data) {
+        lastRemoteModifiedRef.current = data.lastModified;
+        logger.log('✅ Data loaded:', {
+          expenses: data.expenses?.length || 0,
+          periods: data.budgetPeriods?.length || 0,
+          lastModified: data.lastModified,
         });
 
-        if (periodsToSync.length > 0) {
-          const { error } = await supabase
-            .from('budget_periods')
-            .upsert(periodsToSync, {
-              onConflict: 'id', // Now safe because we use cloud ID when it exists
-              ignoreDuplicates: false,
-            });
-
-          if (error) throw error;
-          logger.log(
-            `✅ Synced ${periodsToSync.length} budget periods to cloud`
-          );
-        }
-
-        updateSyncStatus('synced');
-        updateLastSyncTime(new Date());
-
-        // Reset to idle after 2 seconds
-        if (statusResetTimeoutRef.current) {
-          clearTimeout(statusResetTimeoutRef.current);
-        }
-        statusResetTimeoutRef.current = setTimeout(() => {
-          updateSyncStatus('idle');
-          statusResetTimeoutRef.current = null;
-        }, 2000);
-      } catch (error) {
-        logger.error('❌ Error syncing budget periods:', error);
-        updateSyncError(error.message);
-        updateSyncStatus('error');
-
-        // Reset error state after 5 seconds
-        if (errorResetTimeoutRef.current) {
-          clearTimeout(errorResetTimeoutRef.current);
-        }
-        errorResetTimeoutRef.current = setTimeout(() => {
-          updateSyncStatus('idle');
-          updateSyncError(null);
-          errorResetTimeoutRef.current = null;
-        }, 5000);
+        return {
+          expenses: data.expenses || [],
+          budgetPeriods: data.budgetPeriods || [],
+          settings: data.settings || {},
+        };
       }
-    },
-    [user, isOnline, updateSyncStatus, updateSyncError, updateLastSyncTime]
-  );
+
+      logger.log('ℹ️ No existing data in Google Drive');
+      return { expenses: [], budgetPeriods: [], settings: {} };
+    } catch (error) {
+      logger.error('❌ Load error:', error);
+      updateSyncError(error.message);
+      return { expenses: [], budgetPeriods: [], settings: {} };
+    }
+  }, [user, isOnline, updateSyncError]);
 
   /**
-   * Sync settings to Supabase (DEPRECATED - use syncBudgetPeriods instead)
-   * Kept for backward compatibility during migration
+   * Check for updates and download if newer
+   * Used by polling mechanism for multi-device sync
    */
-  const syncSettings = useCallback(
-    async (monthlyPayment, previousBalance, monthlyPayments = null) => {
-      if (!user || !isOnline || isSyncingRef.current) return;
+  const checkAndDownloadUpdates = useCallback(async () => {
+    if (!user || !isOnline || isSyncingRef.current) return null;
 
-      try {
-        updateSyncStatus('syncing');
-        updateSyncError(null);
+    try {
+      const hasUpdates = await checkForUpdates(lastRemoteModifiedRef.current);
 
-        const { error } = await supabase.from('settings').upsert(
-          {
-            user_id: user.id,
-            monthly_payment: monthlyPayment,
-            previous_balance: previousBalance,
-            monthly_payments: monthlyPayments, // Supabase handles JSONB automatically
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: 'user_id',
-          }
-        );
+      if (hasUpdates) {
+        logger.log('🔄 Remote updates detected, downloading...');
+        const data = await downloadBudgetData();
 
-        if (error) throw error;
-
-        updateSyncStatus('synced');
-        updateLastSyncTime(new Date());
-
-        // Reset to idle after 2 seconds (with cleanup tracking)
-        if (statusResetTimeoutRef.current) {
-          clearTimeout(statusResetTimeoutRef.current);
+        if (data) {
+          lastRemoteModifiedRef.current = data.lastModified;
+          logger.log('✅ Updates downloaded:', {
+            expenses: data.expenses?.length || 0,
+            periods: data.budgetPeriods?.length || 0,
+          });
+          return data;
         }
-        statusResetTimeoutRef.current = setTimeout(() => {
-          updateSyncStatus('idle');
-          statusResetTimeoutRef.current = null;
-        }, 2000);
-      } catch (error) {
-        logger.error('Error syncing settings:', error);
-        updateSyncError(error.message);
-        updateSyncStatus('error');
-
-        // Reset error state after 5 seconds (with cleanup tracking)
-        if (errorResetTimeoutRef.current) {
-          clearTimeout(errorResetTimeoutRef.current);
-        }
-        errorResetTimeoutRef.current = setTimeout(() => {
-          updateSyncStatus('idle');
-          updateSyncError(null);
-          errorResetTimeoutRef.current = null;
-        }, 5000);
       }
-    },
-    [user, isOnline, updateSyncStatus, updateSyncError, updateLastSyncTime]
-  );
+
+      return null;
+    } catch (error) {
+      logger.error('❌ Update check error:', error);
+      return null;
+    }
+  }, [user, isOnline]);
 
   /**
-   * Debounced sync for expenses - waits 1 second before syncing
+   * Start polling for remote updates (multi-device sync)
    */
-  const debouncedSyncExpenses = useCallback(
+  useEffect(() => {
+    if (!user || !isOnline) {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+        logger.log('⏸️ Polling stopped');
+      }
+      return;
+    }
+
+    // Start polling
+    logger.log('▶️ Starting polling for remote updates (30s interval)');
+    pollingIntervalRef.current = setInterval(
+      checkAndDownloadUpdates,
+      POLLING_INTERVAL
+    );
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+        logger.log('⏹️ Polling stopped');
+      }
+    };
+  }, [user, isOnline, checkAndDownloadUpdates]);
+
+  /**
+   * Debounced sync for expenses
+   */
+  const syncExpenses = useCallback(
     expenses => {
+      if (!user || !isOnline) return;
+
+      // Clear existing timeout
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }
 
+      // Debounce sync
       syncTimeoutRef.current = setTimeout(() => {
-        syncExpenses(expenses);
-      }, 1000);
+        // Note: We need periods and settings for complete sync
+        // These will be loaded from PGlite when we implement full sync
+        syncToCloud(expenses, [], {});
+      }, SYNC_DEBOUNCE_DELAY);
     },
-    [syncExpenses]
+    [user, isOnline, syncToCloud]
   );
 
   /**
    * Debounced sync for budget periods
    */
-  const debouncedSyncBudgetPeriods = useCallback(
+  const syncBudgetPeriods = useCallback(
     periods => {
+      if (!user || !isOnline) return;
+
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }
 
       syncTimeoutRef.current = setTimeout(() => {
-        syncBudgetPeriods(periods);
-      }, 1000);
+        syncToCloud([], periods, {});
+      }, SYNC_DEBOUNCE_DELAY);
     },
-    [syncBudgetPeriods]
+    [user, isOnline, syncToCloud]
   );
 
   /**
-   * Debounced sync for settings (DEPRECATED)
+   * Debounced sync for settings
    */
-  const debouncedSyncSettings = useCallback(
-    (monthlyPayment, previousBalance, monthlyPayments = null) => {
+  const syncSettings = useCallback(
+    (monthlyPayment, previousBalance, monthlyPayments) => {
+      if (!user || !isOnline) return;
+
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }
 
       syncTimeoutRef.current = setTimeout(() => {
-        syncSettings(monthlyPayment, previousBalance, monthlyPayments);
-      }, 1000);
+        const settings = {
+          monthlyPayment,
+          previousBalance,
+          monthlyPayments,
+        };
+        syncToCloud([], [], settings);
+      }, SYNC_DEBOUNCE_DELAY);
     },
-    [syncSettings]
+    [user, isOnline, syncToCloud]
   );
 
   /**
-   * Load expenses from Supabase
-   * Preserves UUIDs for consistent multi-device sync
+   * Load expenses from Google Drive
    */
   const loadExpenses = useCallback(async () => {
-    if (!user || !isOnline) return { success: false, data: [] };
-
-    try {
-      updateSyncStatus('syncing');
-
-      const { data, error } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Transform data to match app format - preserve UUIDs
-      const expenses = (data || []).map(expense => ({
-        id: expense.id, // Preserve UUID from cloud
-        name: expense.name,
-        amount: parseFloat(expense.amount),
-        frequency: expense.frequency,
-        startMonth: expense.start_month,
-        endMonth: expense.end_month,
-        budgetPeriodId: expense.budget_period_id, // Required for multi-year support
-        createdAt: expense.created_at,
-        updatedAt: expense.updated_at,
-      }));
-
-      updateSyncStatus('synced');
-      updateLastSyncTime(new Date());
-
-      setTimeout(() => {
-        updateSyncStatus('idle');
-      }, 2000);
-
-      return { success: true, data: expenses };
-    } catch (error) {
-      logger.error('Error loading expenses:', error);
-      updateSyncError(error.message);
-      updateSyncStatus('error');
-
-      setTimeout(() => {
-        updateSyncStatus('idle');
-        updateSyncError(null);
-      }, 5000);
-
-      return { success: false, data: [] };
-    }
-  }, [user, isOnline, updateSyncStatus, updateSyncError, updateLastSyncTime]);
+    const data = await loadFromCloud();
+    return {
+      success: true,
+      data: data.expenses || [],
+    };
+  }, [loadFromCloud]);
 
   /**
-   * Load budget periods from Supabase
+   * Load budget periods from Google Drive
    */
   const loadBudgetPeriods = useCallback(async () => {
-    if (!user || !isOnline) return { success: false, data: [] };
-
-    try {
-      updateSyncStatus('syncing');
-
-      const { data, error } = await supabase
-        .from('budget_periods')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('year', { ascending: false });
-
-      if (error) throw error;
-
-      // Transform data to match app format
-      const periods = (data || []).map(period => ({
-        id: period.id,
-        userId: period.user_id,
-        year: period.year,
-        monthlyPayment: parseFloat(period.monthly_payment),
-        previousBalance: parseFloat(period.previous_balance),
-        monthlyPayments: period.monthly_payments || null, // JSONB automatically parsed
-        status: period.status,
-        createdAt: period.created_at,
-        updatedAt: period.updated_at,
-      }));
-
-      updateSyncStatus('synced');
-      updateLastSyncTime(new Date());
-
-      setTimeout(() => {
-        updateSyncStatus('idle');
-      }, 2000);
-
-      return { success: true, data: periods };
-    } catch (error) {
-      logger.error('Error loading budget periods:', error);
-      updateSyncError(error.message);
-      updateSyncStatus('error');
-
-      setTimeout(() => {
-        updateSyncStatus('idle');
-        updateSyncError(null);
-      }, 5000);
-
-      return { success: false, data: [] };
-    }
-  }, [user, isOnline, updateSyncStatus, updateSyncError, updateLastSyncTime]);
+    const data = await loadFromCloud();
+    return {
+      success: true,
+      data: data.budgetPeriods || [],
+    };
+  }, [loadFromCloud]);
 
   /**
-   * Load settings from Supabase (DEPRECATED - use loadBudgetPeriods instead)
+   * Load settings from Google Drive (deprecated - kept for compatibility)
    */
   const loadSettings = useCallback(async () => {
-    if (!user || !isOnline) return { success: false, data: null };
-
-    try {
-      const { data, error } = await supabase
-        .from('settings')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        // Ignore "not found" error
-        throw error;
-      }
-
-      if (data) {
-        return {
-          success: true,
-          data: {
-            monthlyPayment: parseFloat(data.monthly_payment),
-            previousBalance: parseFloat(data.previous_balance),
-            monthlyPayments: data.monthly_payments || null, // JSONB automatically parsed
-          },
-        };
-      }
-
-      return { success: false, data: null };
-    } catch (error) {
-      logger.error('Error loading settings:', error);
-      return { success: false, data: null };
-    }
-  }, [user, isOnline]);
+    const data = await loadFromCloud();
+    return {
+      success: true,
+      data: data.settings || {},
+    };
+  }, [loadFromCloud]);
 
   /**
-   * Cleanup all timeouts on unmount to prevent memory leaks
+   * Immediate sync (bypasses debounce) - for critical operations
    */
-  useEffect(() => {
-    return () => {
+  const immediateSyncExpenses = useCallback(
+    async expenses => {
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }
-      if (statusResetTimeoutRef.current) {
-        clearTimeout(statusResetTimeoutRef.current);
-      }
-      if (errorResetTimeoutRef.current) {
-        clearTimeout(errorResetTimeoutRef.current);
-      }
-    };
-  }, []);
+      await syncToCloud(expenses, [], {});
+    },
+    [syncToCloud]
+  );
 
+  const immediateSyncBudgetPeriods = useCallback(
+    async periods => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+      await syncToCloud([], periods, {});
+    },
+    [syncToCloud]
+  );
+
+  const immediateSyncSettings = useCallback(
+    async (monthlyPayment, previousBalance, monthlyPayments) => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+      const settings = { monthlyPayment, previousBalance, monthlyPayments };
+      await syncToCloud([], [], settings);
+    },
+    [syncToCloud]
+  );
+
+  // Context value
   const value = {
-    // Expose UI state for components that need to display status (Header)
+    // Sync status (for UI components)
     syncStatus: uiSyncStatus,
     lastSyncTime: uiLastSyncTime,
     syncError: uiSyncError,
     isOnline,
-    // Expose ref-based values for components that just need to check status
-    syncStatusRef,
-    lastSyncTimeRef,
-    syncErrorRef,
-    // Sync functions
-    syncExpenses: debouncedSyncExpenses,
-    syncBudgetPeriods: debouncedSyncBudgetPeriods,
-    syncSettings: debouncedSyncSettings, // DEPRECATED
+
+    // Sync methods (debounced)
+    syncExpenses,
+    syncBudgetPeriods,
+    syncSettings,
+
+    // Load methods
     loadExpenses,
     loadBudgetPeriods,
-    loadSettings, // DEPRECATED
-    immediateSyncExpenses: syncExpenses, // For cases where immediate sync is needed
-    immediateSyncBudgetPeriods: syncBudgetPeriods,
-    immediateSyncSettings: syncSettings, // DEPRECATED
+    loadSettings,
+
+    // Immediate sync (no debounce)
+    immediateSyncExpenses,
+    immediateSyncBudgetPeriods,
+    immediateSyncSettings,
+
+    // Utility
+    checkAndDownloadUpdates,
   };
 
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;

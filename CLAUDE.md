@@ -16,7 +16,8 @@ Personal budget tracker application for managing fixed expenses in DKK (Danish K
 - ESLint 9.36.0 (code quality)
 - Recharts 3.2.1 (charting library)
 - React Modal 3.16.3 (modal dialogs)
-- Supabase 2.74.0 (cloud sync & authentication)
+- @react-oauth/google 0.12.1 (Google OAuth authentication) ✅
+- gapi-script 1.2.0 (Google Drive API integration) ✅
 - PGlite 0.3.10 (local PostgreSQL with offline-first architecture) ✅
 - uuid 11.0.5 (UUID generation for offline-first) ✅
 
@@ -81,7 +82,7 @@ budget/
 │   │   ├── useOnlineStatus.js # Online/offline detection ✅
 │   │   └── useSettings.js  # Settings management with PGlite ✅
 │   ├── lib/                # External integrations
-│   │   ├── supabase.js    # Supabase client ✅
+│   │   ├── googleDrive.js # Google Drive API client ✅
 │   │   └── pglite.js      # PGlite local database ✅
 │   ├── contexts/           # React contexts
 │   │   ├── SyncContext.jsx # Centralized sync state management ✅
@@ -102,12 +103,6 @@ budget/
 │   └── main.jsx           # React entry point
 ├── test/                  # Test utilities
 │   └── setup.js          # Vitest test setup and configuration ✅
-├── supabase/
-│   └── migrations/
-│       ├── 001_initial_schema.sql # Database schema ✅
-│       ├── 002_monthly_payments.sql # Variable payments ✅
-│       ├── 003_budget_periods.sql # Multi-year budget periods ✅
-│       └── 004_budget_templates.sql # Budget templates feature ✅
 ├── public/              # Static assets
 ├── .env.example         # Example environment variables ✅
 ├── index.html           # HTML template
@@ -120,7 +115,7 @@ budget/
 
 ## Architecture & State Management
 
-**Modular Component Architecture**: Refactored from 530-line monolithic App.jsx into component-based architecture with separation of concerns. **Tabbed Navigation**: Major UI redesign with no-scroll tab-based interface. **Cloud Sync**: Automatic Supabase synchronization with offline-first architecture.
+**Modular Component Architecture**: Refactored from 530-line monolithic App.jsx into component-based architecture with separation of concerns. **Tabbed Navigation**: Major UI redesign with no-scroll tab-based interface. **Cloud Sync**: Automatic Google Drive synchronization with offline-first architecture.
 
 **State Management** (via custom hooks):
 
@@ -146,9 +141,9 @@ budget/
   - `isOnline`: Online/offline detection
   - `syncExpenses()`: Debounced expense sync (1 second delay)
   - `syncSettings()`: Debounced settings sync
-  - `loadExpenses()`, `loadSettings()`: Load data from cloud
+  - `loadExpenses()`, `loadSettings()`: Load data from Google Drive
   - `syncBudgetPeriods()`: Sync budget periods to cloud
-  - Real-time subscriptions for multi-device sync
+  - Polling (30 seconds) for multi-device sync
   - See [contexts/SyncContext.jsx](src/contexts/SyncContext.jsx) for implementation
 
 - **`useExpenseFilters()`**: Search and filtering ✅
@@ -188,7 +183,7 @@ budget/
   - `loading`: Loading state during settings operations
   - `error`: Error messages from settings operations
   - `updateSettings(newSettings)`: Update settings with dual sync
-  - **Dual Persistence**: PGlite (local) + Supabase (cloud)
+  - **Dual Persistence**: PGlite (local) + Google Drive (cloud)
   - Automatic upsert with conflict resolution
 
 **Global State** (App.jsx):
@@ -261,9 +256,9 @@ budget/
 
 - **Cloud Storage & Synchronization** ([contexts/SyncContext.jsx](src/contexts/SyncContext.jsx)): ✅
   - **Centralized Sync State**: React Context manages all sync operations
-  - **Database tables**: `expenses`, `settings` with Row Level Security
+  - **Google Drive Storage**: Single JSON file (`/BudgetTracker/budget-data.json`)
   - **Automatic sync**: Debounced (1 second delay) after changes
-  - **Real-time updates**: Multi-device sync via Supabase realtime
+  - **Multi-device sync**: Polling (30 seconds) for cross-device updates
   - **Offline-first**: Works without internet, syncs when reconnected
   - **Backup & Sync**: Cloud serves as backup and multi-device sync layer
   - **Context Hook**: `useSyncContext()` for accessing sync state and operations
@@ -284,20 +279,24 @@ budget/
 
 ### Cloud Synchronization ✅
 - **Automatic Sync**: Changes sync to cloud within 1 second
-- **Real-time Multi-Device**: Updates appear on all devices instantly
-- **Conflict Resolution**: Last-write-wins strategy
-- **Row Level Security**: User data isolation at database level
+- **Multi-Device Sync**: Polling (30 seconds) for cross-device updates
+- **Conflict Resolution**: Last-write-wins strategy with timestamp comparison
+- **User Data Isolation**: Each user's data stored in their own Google Drive
 - **Backup Layer**: Cloud serves as backup and cross-device sync
 
 ### Architecture
-- **Authentication**: Google OAuth via Supabase Auth
-- **Local Database**: PGlite with tables `expenses`, `settings`
-- **Cloud Database**: Supabase PostgreSQL with automatic schema migrations
-- **Real-time**: Supabase Realtime for instant cross-device updates
+- **Authentication**: Google OAuth via Google Identity Services
+- **Local Database**: PGlite with tables `expenses`, `budget_periods`
+- **Cloud Storage**: Google Drive API with single JSON file
+- **Multi-Device Sync**: 30-second polling interval for updates
 - **Sync Strategy**: Local-first writes, debounced cloud sync, optimistic UI
 
 ### Setup
-See `.env.example` for required environment variables and Supabase documentation for complete setup instructions.
+See `.env.example` for required environment variables:
+- `VITE_GOOGLE_CLIENT_ID`: OAuth 2.0 Client ID from Google Cloud Console
+- `VITE_GOOGLE_API_KEY`: API Key from Google Cloud Console
+- Enable Google Drive API in Google Cloud Console
+- Configure OAuth consent screen with `https://www.googleapis.com/auth/drive.file` scope
 
 ## Multi-Year Budget Periods Architecture ✅
 
@@ -325,34 +324,32 @@ The application supports multiple budget years with complete data isolation, his
 - Archive old years (read-only mode)
 - Never lose historical records
 
-### Database Schema
+### Local Database Schema
 
-**budget_periods table** ([003_budget_periods.sql](supabase/migrations/003_budget_periods.sql)):
-```sql
-CREATE TABLE budget_periods (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  year INTEGER NOT NULL CHECK (year >= 2000 AND year <= 2100),
-  monthly_payment NUMERIC(10, 2) NOT NULL DEFAULT 5700,
-  previous_balance NUMERIC(10, 2) NOT NULL DEFAULT 0,
-  monthly_payments JSONB DEFAULT NULL,
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived')),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, year)
-);
-```
+**PGlite Tables** (browser-based PostgreSQL):
 
-**expenses table** (modified):
-```sql
-ALTER TABLE expenses
-ADD COLUMN budget_period_id UUID REFERENCES budget_periods(id) ON DELETE CASCADE;
-```
+**budget_periods table**:
+- `id`: UUID primary key (client-generated)
+- `user_id`: User identifier (from Google OAuth)
+- `year`: Calendar year (2000-2100)
+- `monthly_payment`: Fixed monthly deposit amount
+- `previous_balance`: Starting balance from previous year
+- `monthly_payments`: Optional variable payments (JSONB)
+- `status`: 'active' or 'archived'
+- `created_at`, `updated_at`: Timestamps
 
-**Foreign Key Relationship**: One-to-many (budget_periods → expenses)
+**expenses table**:
+- `id`: UUID primary key (client-generated)
+- `budget_period_id`: Foreign key to budget_periods
+- `name`: Expense description
+- `amount`: Expense amount
+- `frequency`: 'monthly', 'quarterly', or 'yearly'
+- `start_month`, `end_month`: Date range (1-12)
+
+**Data Relationships**: One-to-many (budget_periods → expenses)
 - Each expense belongs to exactly one budget period
-- Deleting a budget period cascades to delete all its expenses
 - All expense queries filter by budget_period_id
+- Cloud sync maintains same structure in JSON format
 
 ### Data Migration
 
@@ -433,15 +430,15 @@ const { settings, updateSettings } = useSettings(userId, periodId);
 **SyncContext Integration** ([contexts/SyncContext.jsx](src/contexts/SyncContext.jsx)):
 ```javascript
 const {
-  syncBudgetPeriods,          // Sync periods to cloud
-  loadBudgetPeriods,          // Load periods from cloud
+  syncBudgetPeriods,          // Sync periods to Google Drive
+  loadBudgetPeriods,          // Load periods from Google Drive
   immediateSyncBudgetPeriods  // Immediate sync (no debounce)
 } = useSyncContext();
 ```
 
 **Automatic Sync**:
-- Budget period creation/update triggers cloud sync
-- Real-time subscriptions for multi-device updates
+- Budget period creation/update triggers Google Drive sync
+- Polling (30 seconds) for multi-device updates
 - Debounced (1 second delay) to prevent sync spam
 - Offline-first: local changes, sync when online
 
@@ -594,7 +591,13 @@ For schema changes, add columns to `budget_periods` table (not `expenses`) and m
 
 ### Troubleshooting
 
-Common issues: Check RLS policies for sync failures, verify `isReadOnly` prop for archived periods, ensure `calculateEndingBalance()` includes monthlyPayments. All queries automatically filter by `budget_period_id` (indexed). Sync is debounced (1 second) with real-time multi-device updates.
+Common issues:
+- **Sync failures**: Check Google Drive API credentials in `.env`, verify OAuth consent screen configuration
+- **Token expiration**: Sessions expire after 1 hour, user will need to re-authenticate
+- **Archived periods**: Verify `isReadOnly` prop is correctly passed to components
+- **Balance calculations**: Ensure `calculateEndingBalance()` includes monthlyPayments JSONB field
+- **Performance**: All queries automatically filter by `budget_period_id` (indexed in PGlite)
+- **Multi-device sync**: Polling occurs every 30 seconds, not real-time
 
 ## UI Components & Features
 
@@ -761,9 +764,9 @@ Common issues: Check RLS policies for sync failures, verify `isReadOnly` prop fo
 - ✅ Expense distribution charts
 
 **Phase 3 - Enhanced Features** (completed): ✅
-- ✅ Cloud synchronization with Supabase
+- ✅ Cloud synchronization with Google Drive
 - ✅ Google OAuth authentication
-- ✅ Real-time multi-device sync
+- ✅ Multi-device sync with polling
 - ✅ Offline-first architecture
 - ✅ Search and filter expenses
 - ✅ CSV import functionality
@@ -781,7 +784,7 @@ Common issues: Check RLS policies for sync failures, verify `isReadOnly` prop fo
   - Inline field editing
 - ✅ MonthlyView with 12-month breakdown
 - ✅ PGlite integration for local-first architecture
-- ✅ Settings hook with dual persistence (PGlite + Supabase)
+- ✅ Settings hook with dual persistence (PGlite + Google Drive)
 - ✅ Enhanced calculation utilities (8 functions)
 
 **Phase 5 - Performance Optimization** (completed): ✅
@@ -889,11 +892,12 @@ Common issues: Check RLS policies for sync failures, verify `isReadOnly` prop fo
 8. Consider cloud sync implications
 
 ### Adding Cloud Sync to a Feature
-1. Update database schema in [supabase/migrations/](supabase/migrations/)
-2. Add sync methods to [useSupabaseSync](src/hooks/useSupabaseSync.js)
-3. Integrate sync callbacks in component/hook
-4. Test offline behavior
-5. Test multi-device synchronization
+1. Update local PGlite schema in [lib/pglite.js](src/lib/pglite.js)
+2. Add data to unified sync payload in [contexts/SyncContext.jsx](src/contexts/SyncContext.jsx)
+3. Update JSON structure in Google Drive upload/download functions
+4. Integrate sync callbacks in component/hook
+5. Test offline behavior
+6. Test multi-device synchronization (30-second polling)
 
 ### Adding a New Component
 1. Create `ComponentName.jsx` in [src/components/](src/components/)
@@ -906,10 +910,10 @@ Common issues: Check RLS policies for sync failures, verify `isReadOnly` prop fo
 ## Debugging Tips
 
 **Common Issues**:
-1. **Supabase connection**: Check `.env` file and credentials
-2. **Auth not working**: Verify Google OAuth configuration
-3. **Sync failures**: Check browser console and Supabase logs
-4. **RLS errors**: Verify database policies are correct
+1. **Google Drive API**: Check `.env` file has valid `VITE_GOOGLE_CLIENT_ID` and `VITE_GOOGLE_API_KEY`
+2. **Auth not working**: Verify Google Cloud Console OAuth 2.0 configuration and consent screen
+3. **Sync failures**: Check browser console for Google Drive API errors and token expiration
+4. **API quota exceeded**: Monitor Google Cloud Console for Drive API quota usage (1,000 requests/day free tier)
 5. **Filter not working**: Verify filter logic in useExpenseFilters
 
 **Debugging Strategy**:
@@ -942,10 +946,8 @@ Common issues: Check RLS policies for sync failures, verify `isReadOnly` prop fo
 ## Documentation
 
 - **Project Guide**: This file (CLAUDE.md)
-- **Database Schema**: [supabase/migrations/](supabase/migrations/)
-  - [001_initial_schema.sql](supabase/migrations/001_initial_schema.sql) - Initial tables and RLS
-  - [002_monthly_payments.sql](supabase/migrations/002_monthly_payments.sql) - Variable payments feature
-  - [003_budget_periods.sql](supabase/migrations/003_budget_periods.sql) - Multi-year budget periods
-  - [004_budget_templates.sql](supabase/migrations/004_budget_templates.sql) - Budget templates
-- **Environment Setup**: [.env.example](.env.example)
+- **Local Database Schema**: [lib/pglite.js](src/lib/pglite.js) - PGlite table definitions and migrations
+- **Google Drive Integration**: [lib/googleDrive.js](src/lib/googleDrive.js) - Drive API client and sync logic
+- **Cloud Sync**: [contexts/SyncContext.jsx](src/contexts/SyncContext.jsx) - Centralized sync state management
+- **Environment Setup**: [.env.example](.env.example) - Required Google Cloud credentials
 - **Serena Configuration**: [.serena/project.yml](.serena/project.yml) - Project settings for Serena MCP
