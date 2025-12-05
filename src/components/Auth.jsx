@@ -55,8 +55,11 @@ export default function Auth({
     console.log('🖱️ Login button clicked - using direct OAuth redirect');
 
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    // Use just the origin for redirect URI (http://localhost:5173)
-    const redirectUri = window.location.origin;
+    // Use origin + base path for redirect URI
+    // In production (GitHub Pages): https://dukocuk.github.io/budget/
+    // In development: http://localhost:5173/
+    const basePath = import.meta.env.BASE_URL || '/';
+    const redirectUri = window.location.origin + basePath;
     const scope = 'https://www.googleapis.com/auth/drive.file';
 
     console.log('🔧 OAuth Configuration:', {
