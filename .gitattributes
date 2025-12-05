@@ -1,0 +1,2 @@
+# Prevent git from converting line endings in shell scripts
+*.sh text eol=lf
