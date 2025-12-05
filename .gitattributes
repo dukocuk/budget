@@ -1,2 +1,15 @@
-# Prevent git from converting line endings in shell scripts
+# Enforce consistent line endings across all platforms
+* text=auto
+
+# Shell scripts must use LF (Unix line endings) for bash compatibility
 *.sh text eol=lf
+
+# Source files use LF
+*.js text eol=lf
+*.jsx text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
