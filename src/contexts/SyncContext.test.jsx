@@ -97,7 +97,7 @@ describe('SyncContext', () => {
     vi.clearAllMocks();
 
     // Mock PGlite database responses for fetchCompleteLocalData
-    mockPGliteQuery.mockImplementation(async (query, params) => {
+    mockPGliteQuery.mockImplementation(async (query, _params) => {
       if (query.includes('SELECT * FROM expenses')) {
         return {
           rows: mockExpenses.map(e => ({
