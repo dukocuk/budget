@@ -36,28 +36,20 @@ let folderCreationPromise = null;
  */
 export async function initGoogleDrive(accessToken) {
   try {
-    logger.log('Initializing Google Drive API...');
-    console.log('🔍 Checking gapi availability...');
-    console.log('window.gapi exists?', !!window.gapi);
+    logger.log('⏳ Initializing Google Drive API...');
 
     // Wait for gapi to be available (with 10 second timeout)
     await Promise.race([
       new Promise(resolve => {
         if (window.gapi) {
-          console.log('✅ gapi already available');
           resolve(true);
         } else {
-          console.log('⏳ Polling for gapi...');
           let attempts = 0;
           const checkGapi = setInterval(() => {
             attempts++;
-            console.log(`Polling attempt ${attempts}...`, {
-              gapi: !!window.gapi,
-            });
 
             if (window.gapi) {
               clearInterval(checkGapi);
-              console.log(`✅ gapi available after ${attempts} attempts`);
               resolve(true);
             }
           }, 100);
@@ -75,22 +67,16 @@ export async function initGoogleDrive(accessToken) {
     ]);
 
     // Load the client library (this creates gapi.client)
-    console.log('📥 Loading gapi client library...');
     await new Promise(resolve => window.gapi.load('client', resolve));
-    console.log('✅ gapi.client library loaded');
 
     // Initialize gapi client with API key and discovery docs
-    console.log('⚙️ Initializing gapi client with API key...');
     await window.gapi.client.init({
       apiKey: import.meta.env.VITE_GOOGLE_API_KEY,
       discoveryDocs: DISCOVERY_DOCS,
     });
-    console.log('✅ gapi.client initialized');
 
     // Set access token
-    console.log('🔑 Setting access token...');
     window.gapi.client.setToken({ access_token: accessToken });
-    console.log('✅ Access token set');
 
     logger.log('✅ Google Drive API initialized successfully');
     return true;

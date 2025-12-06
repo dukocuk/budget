@@ -33,6 +33,26 @@ export const MonthlyOverview = ({ expenses, totalAnnual }) => {
     });
   }, [expenses, sortConfig]);
 
+  // Memoize monthly amounts calculation (prevents 240+ recalculations per render)
+  const monthlyAmounts = useMemo(() => {
+    return sortedExpenses.map(expense => ({
+      id: expense.id,
+      name: expense.name,
+      amounts: MONTHS.map((_, index) => getMonthlyAmount(expense, index + 1)),
+      total: calculateAnnualAmount(expense),
+    }));
+  }, [sortedExpenses]);
+
+  // Memoize column totals
+  const columnTotals = useMemo(() => {
+    return MONTHS.map((_, monthIndex) =>
+      monthlyAmounts.reduce(
+        (sum, expense) => sum + expense.amounts[monthIndex],
+        0
+      )
+    );
+  }, [monthlyAmounts]);
+
   // Handle column sort
   const handleSort = key => {
     setSortConfig({
@@ -69,37 +89,24 @@ export const MonthlyOverview = ({ expenses, totalAnnual }) => {
             </tr>
           </thead>
           <tbody>
-            {sortedExpenses.map(expense => {
-              let total = 0;
-              return (
-                <tr key={expense.id}>
-                  <td className="expense-name">{expense.name}</td>
-                  {MONTHS.map((_, index) => {
-                    const amount = getMonthlyAmount(expense, index + 1);
-                    total += amount;
-                    return (
-                      <td key={index}>
-                        {amount > 0 ? amount.toLocaleString('da-DK') : '-'}
-                      </td>
-                    );
-                  })}
-                  <td className="total-cell">
-                    {total.toLocaleString('da-DK')}
+            {monthlyAmounts.map(expense => (
+              <tr key={expense.id}>
+                <td className="expense-name">{expense.name}</td>
+                {expense.amounts.map((amount, index) => (
+                  <td key={index}>
+                    {amount > 0 ? amount.toLocaleString('da-DK') : '-'}
                   </td>
-                </tr>
-              );
-            })}
+                ))}
+                <td className="total-cell">
+                  {expense.total.toLocaleString('da-DK')}
+                </td>
+              </tr>
+            ))}
             <tr className="total-row">
               <td className="expense-name">TOTAL</td>
-              {MONTHS.map((_, index) => {
-                let monthTotal = 0;
-                expenses.forEach(expense => {
-                  monthTotal += getMonthlyAmount(expense, index + 1);
-                });
-                return (
-                  <td key={index}>{monthTotal.toLocaleString('da-DK')}</td>
-                );
-              })}
+              {columnTotals.map((monthTotal, index) => (
+                <td key={index}>{monthTotal.toLocaleString('da-DK')}</td>
+              ))}
               <td className="total-cell">
                 {totalAnnual.toLocaleString('da-DK')}
               </td>

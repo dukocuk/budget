@@ -9,33 +9,16 @@ export default function Auth({
   signOut,
   retryAuth,
 }) {
-  console.log(
-    '🔧 Auth component rendering, user:',
-    user,
-    'loading:',
-    loadingState.isLoading,
-    'stage:',
-    loadingState.stage
-  );
-
   // Initialize Google Identity Services (GIS) directly
   useEffect(() => {
     // Check if we're returning from OAuth redirect with token
     const hash = window.location.hash;
     if (hash && hash.includes('access_token=')) {
-      console.log('🔍 Detected OAuth redirect with token in URL hash');
-
       // Parse token from URL hash
       const params = new URLSearchParams(hash.substring(1));
       const accessToken = params.get('access_token');
       const expiresIn = params.get('expires_in');
       const scope = params.get('scope');
-
-      console.log('📝 Parsed OAuth response:', {
-        hasToken: !!accessToken,
-        expiresIn,
-        scope,
-      });
 
       if (accessToken) {
         // Clean up URL
@@ -52,8 +35,6 @@ export default function Auth({
   }, [handleGoogleSignIn]);
 
   const login = () => {
-    console.log('🖱️ Login button clicked - using direct OAuth redirect');
-
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     // Use origin + base path for redirect URI
     // In production (GitHub Pages): https://dukocuk.github.io/budget/
@@ -61,13 +42,6 @@ export default function Auth({
     const basePath = import.meta.env.BASE_URL || '/';
     const redirectUri = window.location.origin + basePath;
     const scope = 'https://www.googleapis.com/auth/drive.file';
-
-    console.log('🔧 OAuth Configuration:', {
-      clientId,
-      redirectUri,
-      scope,
-      currentUrl: window.location.href,
-    });
 
     // Build OAuth URL manually for implicit flow
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
@@ -86,7 +60,6 @@ export default function Auth({
 
   // If user is authenticated, don't render anything (let App wrapper handle it)
   if (user && !loadingState.isLoading) {
-    console.log('✅ User authenticated, Auth component returning null');
     return null;
   }
 
@@ -204,7 +177,6 @@ export default function Auth({
         <div className="google-login-wrapper">
           <button
             onClick={() => {
-              console.log('🖱️ Login button clicked');
               login();
             }}
             className="google-login-button"

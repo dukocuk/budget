@@ -199,13 +199,6 @@ function AppContent() {
 
   // Load data from cloud when user logs in (OPTIMIZED: batched updates prevent multiple re-renders)
   useEffect(() => {
-    console.log('📊 Data loading check:', {
-      hasUser: !!user,
-      hasActivePeriod: !!activePeriod,
-      isInitialized,
-      willLoad: user && activePeriod && !isInitialized,
-    });
-
     if (user && activePeriod && !isInitialized) {
       const loadData = async () => {
         logger.info('🔄 Starting data initialization...');
@@ -841,8 +834,6 @@ function App() {
     signOut,
     retryAuth,
   } = useAuth();
-
-  console.log('🔐 App wrapper render:', { hasUser: !!user, authLoading });
 
   // Show auth screen if not logged in
   if (authLoading) {

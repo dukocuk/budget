@@ -153,9 +153,6 @@ export function useAuth() {
    * @param {string} tokenResponse.access_token - OAuth access token for Drive API
    */
   const handleGoogleSignIn = async tokenResponse => {
-    // CRITICAL DEBUG: Log immediately to verify callback is invoked
-    console.log('🚀 handleGoogleSignIn CALLED with:', tokenResponse);
-
     try {
       setError(null);
       setLoadingState({
@@ -168,9 +165,7 @@ export function useAuth() {
 
       logger.log('Processing Google Sign-In...');
 
-      console.log('📝 Token response structure:', Object.keys(tokenResponse));
       const accessToken = tokenResponse.access_token;
-      console.log('🔑 Access token exists?', !!accessToken);
 
       if (!accessToken) {
         throw new Error('No access token received from Google');
@@ -192,7 +187,6 @@ export function useAuth() {
 
       const userData = await userInfoResponse.json();
 
-      console.log('✅ User data received:', userData);
       logger.log('User authenticated:', {
         email: userData.email,
         name: userData.name,
@@ -213,10 +207,8 @@ export function useAuth() {
       };
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-      console.log('💾 Session saved to localStorage');
 
       setUser(session.user);
-      console.log('👤 User state set:', session.user);
 
       // Initialize Google Drive API
       console.log('☁️ Attempting Google Drive initialization...');

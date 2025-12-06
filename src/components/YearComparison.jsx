@@ -3,7 +3,7 @@
  * Comprehensive multi-year budget comparison with charts and insights
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { YearComparisonCharts } from './YearComparisonCharts';
 import {
   comparePeriods,
@@ -20,21 +20,26 @@ export default function YearComparison({ periods, getExpensesForPeriod }) {
   const [period1Data, setPeriod1Data] = useState(null);
   const [period2Data, setPeriod2Data] = useState(null);
   const [loading, setLoading] = useState(false);
+  const hasAutoSelected = useRef(false);
 
   // Sort periods by year descending for dropdown
   const sortedPeriods = useMemo(() => {
     return [...periods].sort((a, b) => b.year - a.year);
   }, [periods]);
 
-  // Auto-select the two most recent years
+  // Auto-select the two most recent years (only once, prevents circular dependency)
   useEffect(() => {
-    if (sortedPeriods.length >= 2 && !selectedYear1 && !selectedYear2) {
+    if (hasAutoSelected.current) return;
+
+    if (sortedPeriods.length >= 2) {
       setSelectedYear1(sortedPeriods[0].id); // Most recent
       setSelectedYear2(sortedPeriods[1].id); // Second most recent
-    } else if (sortedPeriods.length === 1 && !selectedYear1) {
+      hasAutoSelected.current = true;
+    } else if (sortedPeriods.length === 1) {
       setSelectedYear1(sortedPeriods[0].id);
+      hasAutoSelected.current = true;
     }
-  }, [sortedPeriods, selectedYear1, selectedYear2]);
+  }, [sortedPeriods]);
 
   // Load expenses for selected periods
   useEffect(() => {
