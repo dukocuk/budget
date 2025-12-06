@@ -11,6 +11,7 @@
  */
 
 import { logger } from '../utils/logger';
+import { validateDownloadedData } from '../utils/validators';
 
 const FOLDER_NAME = 'BudgetTracker';
 const FILE_NAME = 'budget-data.json';
@@ -260,6 +261,18 @@ export async function downloadBudgetData() {
       periodsCount: data.budgetPeriods?.length || 0,
       lastModified: metadata.lastModified,
     });
+
+    // Validate downloaded data before returning
+    const validation = validateDownloadedData(data);
+    if (!validation.valid) {
+      logger.error('❌ Downloaded data validation failed:', validation.errors);
+      validation.errors.forEach(error => logger.warn(error));
+
+      // Return data anyway but log warnings (allow app to handle gracefully)
+      logger.warn(
+        '⚠️ Proceeding with potentially invalid data - check console for details'
+      );
+    }
 
     return {
       ...data,

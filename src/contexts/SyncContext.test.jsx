@@ -34,7 +34,22 @@ vi.mock('../utils/logger', () => ({
   logger: {
     log: vi.fn(),
     error: vi.fn(),
+    warn: vi.fn(),
   },
+}));
+
+// Mock PGlite database
+const mockPGliteQuery = vi.fn();
+vi.mock('../lib/pglite', () => ({
+  localDB: {
+    query: (...args) => mockPGliteQuery(...args),
+  },
+}));
+
+// Mock validators
+vi.mock('../utils/validators', () => ({
+  validateCloudData: vi.fn().mockReturnValue({ valid: true, warnings: [] }),
+  validateDownloadedData: vi.fn().mockReturnValue({ valid: true, errors: [] }),
 }));
 
 // Test fixtures
@@ -80,6 +95,43 @@ const useSyncContext = () => {
 describe('SyncContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Mock PGlite database responses for fetchCompleteLocalData
+    mockPGliteQuery.mockImplementation(async (query, params) => {
+      if (query.includes('SELECT * FROM expenses')) {
+        return {
+          rows: mockExpenses.map(e => ({
+            id: e.id,
+            name: e.name,
+            amount: e.amount,
+            frequency: e.frequency,
+            start_month: 1,
+            end_month: 12,
+            budget_period_id: 'period-2025',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })),
+        };
+      } else if (query.includes('SELECT * FROM budget_periods')) {
+        return {
+          rows: mockBudgetPeriods.map(p => ({
+            id: p.id,
+            user_id: 'user-123',
+            year: p.year,
+            monthly_payment: p.monthlyPayment,
+            previous_balance: p.previousBalance,
+            monthly_payments: null,
+            status: 'active',
+            is_template: 0,
+            template_name: null,
+            template_description: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })),
+        };
+      }
+      return { rows: [] };
+    });
 
     // Default successful responses
     mockUploadBudgetData.mockResolvedValue({
@@ -145,7 +197,7 @@ describe('SyncContext', () => {
   });
 
   describe('Sync Operations', () => {
-    it('should sync expenses successfully', async () => {
+    it('should sync expenses successfully with complete data', async () => {
       const { result } = renderHook(() => useSyncContext(), {
         wrapper: wrapper(),
       });
@@ -154,15 +206,26 @@ describe('SyncContext', () => {
         await result.current.immediateSyncExpenses(mockExpenses);
       });
 
-      expect(mockUploadBudgetData).toHaveBeenCalledWith({
-        expenses: mockExpenses,
-        budgetPeriods: [],
-        settings: {},
-      });
+      // CRITICAL FIX: Now syncs complete data, not partial
+      expect(mockUploadBudgetData).toHaveBeenCalled();
+      const uploadedData = mockUploadBudgetData.mock.calls[0][0];
+
+      // Verify expenses were synced
+      expect(uploadedData.expenses).toBeDefined();
+      expect(uploadedData.expenses.length).toBeGreaterThan(0);
+
+      // CRITICAL: Verify budget periods are included (not empty)
+      expect(uploadedData.budgetPeriods).toBeDefined();
+      expect(uploadedData.budgetPeriods.length).toBeGreaterThan(0);
+
+      // Verify settings are included
+      expect(uploadedData.settings).toBeDefined();
+      expect(uploadedData.settings.monthlyPayment).toBe(5700);
+
       expect(result.current.syncStatus).toBe('synced');
     });
 
-    it('should sync budget periods successfully', async () => {
+    it('should sync budget periods successfully with complete data', async () => {
       const { result } = renderHook(() => useSyncContext(), {
         wrapper: wrapper(),
       });
@@ -171,14 +234,23 @@ describe('SyncContext', () => {
         await result.current.immediateSyncBudgetPeriods(mockBudgetPeriods);
       });
 
-      expect(mockUploadBudgetData).toHaveBeenCalledWith({
-        expenses: [],
-        budgetPeriods: mockBudgetPeriods,
-        settings: {},
-      });
+      // CRITICAL FIX: Now syncs complete data, not partial
+      expect(mockUploadBudgetData).toHaveBeenCalled();
+      const uploadedData = mockUploadBudgetData.mock.calls[0][0];
+
+      // Verify budget periods were synced
+      expect(uploadedData.budgetPeriods).toBeDefined();
+      expect(uploadedData.budgetPeriods.length).toBeGreaterThan(0);
+
+      // CRITICAL: Verify expenses are included (not empty)
+      expect(uploadedData.expenses).toBeDefined();
+      expect(uploadedData.expenses.length).toBeGreaterThan(0);
+
+      // Verify settings are included
+      expect(uploadedData.settings).toBeDefined();
     });
 
-    it('should sync settings successfully', async () => {
+    it('should sync settings successfully with complete data', async () => {
       const { result } = renderHook(() => useSyncContext(), {
         wrapper: wrapper(),
       });
@@ -187,15 +259,20 @@ describe('SyncContext', () => {
         await result.current.immediateSyncSettings(5700, 4831, null);
       });
 
-      expect(mockUploadBudgetData).toHaveBeenCalledWith({
-        expenses: [],
-        budgetPeriods: [],
-        settings: {
-          monthlyPayment: 5700,
-          previousBalance: 4831,
-          monthlyPayments: null,
-        },
-      });
+      // CRITICAL FIX: Now syncs complete data, not partial
+      expect(mockUploadBudgetData).toHaveBeenCalled();
+      const uploadedData = mockUploadBudgetData.mock.calls[0][0];
+
+      // Verify settings were synced
+      expect(uploadedData.settings).toBeDefined();
+      expect(uploadedData.settings.monthlyPayment).toBe(5700);
+      expect(uploadedData.settings.previousBalance).toBe(4831);
+
+      // CRITICAL: Verify expenses and periods are included (not empty)
+      expect(uploadedData.expenses).toBeDefined();
+      expect(uploadedData.expenses.length).toBeGreaterThan(0);
+      expect(uploadedData.budgetPeriods).toBeDefined();
+      expect(uploadedData.budgetPeriods.length).toBeGreaterThan(0);
     });
 
     it('should update lastSyncTime after successful sync', async () => {

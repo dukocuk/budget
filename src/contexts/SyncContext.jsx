@@ -16,6 +16,8 @@ import {
   uploadBudgetData,
   checkForUpdates,
 } from '../lib/googleDrive';
+import { localDB } from '../lib/pglite';
+import { validateCloudData } from '../utils/validators';
 import { logger } from '../utils/logger';
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -49,6 +51,82 @@ export const SyncProvider = ({ user, children }) => {
 
   // Track last synced timestamp for conflict detection
   const lastRemoteModifiedRef = useRef(null);
+
+  /**
+   * Fetch complete local data from PGlite database
+   * This ensures we always sync the COMPLETE dataset, not partial updates
+   * @param {string} userId - User ID for filtering
+   * @returns {Promise<{expenses: Array, budgetPeriods: Array, settings: Object}>}
+   */
+  const fetchCompleteLocalData = useCallback(async userId => {
+    if (!userId) {
+      return { expenses: [], budgetPeriods: [], settings: {} };
+    }
+
+    try {
+      // Fetch ALL expenses for this user (across all periods)
+      const expensesResult = await localDB.query(
+        'SELECT * FROM expenses WHERE user_id = $1 ORDER BY id DESC',
+        [userId]
+      );
+
+      const expenses = expensesResult.rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        amount: row.amount,
+        frequency: row.frequency,
+        startMonth: row.start_month,
+        endMonth: row.end_month,
+        budgetPeriodId: row.budget_period_id,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+
+      // Fetch ALL budget periods for this user
+      const periodsResult = await localDB.query(
+        'SELECT * FROM budget_periods WHERE user_id = $1 ORDER BY year DESC',
+        [userId]
+      );
+
+      const budgetPeriods = periodsResult.rows.map(row => ({
+        id: row.id,
+        userId: row.user_id,
+        year: row.year,
+        monthlyPayment: row.monthly_payment,
+        previousBalance: row.previous_balance,
+        monthlyPayments: row.monthly_payments
+          ? JSON.parse(row.monthly_payments)
+          : null,
+        status: row.status,
+        isTemplate: row.is_template === 1,
+        templateName: row.template_name,
+        templateDescription: row.template_description,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      }));
+
+      // Settings are deprecated - extract from active period if needed
+      const activePeriod = budgetPeriods.find(p => p.status === 'active');
+      const settings = activePeriod
+        ? {
+            monthlyPayment: activePeriod.monthlyPayment,
+            previousBalance: activePeriod.previousBalance,
+            monthlyPayments: activePeriod.monthlyPayments,
+          }
+        : {};
+
+      logger.log('📦 Fetched complete local data:', {
+        expenses: expenses.length,
+        periods: budgetPeriods.length,
+        hasSettings: !!activePeriod,
+      });
+
+      return { expenses, budgetPeriods, settings };
+    } catch (error) {
+      logger.error('❌ Error fetching complete local data:', error);
+      return { expenses: [], budgetPeriods: [], settings: {} };
+    }
+  }, []);
 
   /**
    * Update sync status - updates both ref and UI state
@@ -92,7 +170,8 @@ export const SyncProvider = ({ user, children }) => {
   }, [updateSyncStatus]);
 
   /**
-   * Unified sync function - uploads all data to Google Drive
+   * Unified sync function - uploads COMPLETE dataset to Google Drive
+   * CRITICAL FIX: Now validates and ensures complete data upload
    * @param {Array} expenses - Expense array
    * @param {Array} budgetPeriods - Budget periods array
    * @param {Object} settings - Settings object (optional, for backward compatibility)
@@ -121,6 +200,24 @@ export const SyncProvider = ({ user, children }) => {
           budgetPeriods: budgetPeriods || [],
           settings: settings || {},
         };
+
+        // CRITICAL: Validate data before upload to prevent data loss
+        const validation = validateCloudData(dataToUpload);
+        if (!validation.valid) {
+          logger.error('❌ Cloud data validation failed:', validation.warnings);
+          validation.warnings.forEach(warning => logger.warn(warning));
+
+          // Reject upload if critical issues detected
+          if (
+            validation.warnings.some(w => w.includes('KRITISK')) ||
+            (dataToUpload.budgetPeriods.length === 0 &&
+              dataToUpload.expenses.length > 0)
+          ) {
+            throw new Error(
+              'Afviser synkronisering: Data ville slette budgetperioder i skyen. Kontakt support.'
+            );
+          }
+        }
 
         // Upload to Google Drive
         const result = await uploadBudgetData(dataToUpload);
@@ -262,6 +359,7 @@ export const SyncProvider = ({ user, children }) => {
 
   /**
    * Debounced sync for expenses
+   * CRITICAL FIX: Now fetches complete local data before syncing
    */
   const syncExpenses = useCallback(
     expenses => {
@@ -272,18 +370,21 @@ export const SyncProvider = ({ user, children }) => {
         clearTimeout(syncTimeoutRef.current);
       }
 
-      // Debounce sync
-      syncTimeoutRef.current = setTimeout(() => {
-        // Note: We need periods and settings for complete sync
-        // These will be loaded from PGlite when we implement full sync
-        syncToCloud(expenses, [], {});
+      // Debounce sync with fetch-merge-upload pattern
+      syncTimeoutRef.current = setTimeout(async () => {
+        logger.log('🔄 Fetching complete local data for expense sync...');
+        const localData = await fetchCompleteLocalData(user.id);
+
+        // Use local expenses (just changed) and complete periods/settings from DB
+        syncToCloud(expenses, localData.budgetPeriods, localData.settings);
       }, SYNC_DEBOUNCE_DELAY);
     },
-    [user, isOnline, syncToCloud]
+    [user, isOnline, syncToCloud, fetchCompleteLocalData]
   );
 
   /**
    * Debounced sync for budget periods
+   * CRITICAL FIX: Now fetches complete local data before syncing
    */
   const syncBudgetPeriods = useCallback(
     periods => {
@@ -293,15 +394,20 @@ export const SyncProvider = ({ user, children }) => {
         clearTimeout(syncTimeoutRef.current);
       }
 
-      syncTimeoutRef.current = setTimeout(() => {
-        syncToCloud([], periods, {});
+      syncTimeoutRef.current = setTimeout(async () => {
+        logger.log('🔄 Fetching complete local data for period sync...');
+        const localData = await fetchCompleteLocalData(user.id);
+
+        // Use local periods (just changed) and complete expenses/settings from DB
+        syncToCloud(localData.expenses, periods, localData.settings);
       }, SYNC_DEBOUNCE_DELAY);
     },
-    [user, isOnline, syncToCloud]
+    [user, isOnline, syncToCloud, fetchCompleteLocalData]
   );
 
   /**
    * Debounced sync for settings
+   * CRITICAL FIX: Now fetches complete local data before syncing
    */
   const syncSettings = useCallback(
     (monthlyPayment, previousBalance, monthlyPayments) => {
@@ -311,16 +417,21 @@ export const SyncProvider = ({ user, children }) => {
         clearTimeout(syncTimeoutRef.current);
       }
 
-      syncTimeoutRef.current = setTimeout(() => {
+      syncTimeoutRef.current = setTimeout(async () => {
+        logger.log('🔄 Fetching complete local data for settings sync...');
+        const localData = await fetchCompleteLocalData(user.id);
+
         const settings = {
           monthlyPayment,
           previousBalance,
           monthlyPayments,
         };
-        syncToCloud([], [], settings);
+
+        // Use complete expenses/periods from DB and new settings
+        syncToCloud(localData.expenses, localData.budgetPeriods, settings);
       }, SYNC_DEBOUNCE_DELAY);
     },
-    [user, isOnline, syncToCloud]
+    [user, isOnline, syncToCloud, fetchCompleteLocalData]
   );
 
   /**
@@ -358,15 +469,20 @@ export const SyncProvider = ({ user, children }) => {
 
   /**
    * Immediate sync (bypasses debounce) - for critical operations
+   * CRITICAL FIX: Now fetches complete local data before syncing
    */
   const immediateSyncExpenses = useCallback(
     async expenses => {
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }
-      await syncToCloud(expenses, [], {});
+      if (!user) return;
+
+      logger.log('⚡ Immediate expense sync - fetching complete local data...');
+      const localData = await fetchCompleteLocalData(user.id);
+      await syncToCloud(expenses, localData.budgetPeriods, localData.settings);
     },
-    [syncToCloud]
+    [syncToCloud, fetchCompleteLocalData, user]
   );
 
   const immediateSyncBudgetPeriods = useCallback(
@@ -374,9 +490,13 @@ export const SyncProvider = ({ user, children }) => {
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }
-      await syncToCloud([], periods, {});
+      if (!user) return;
+
+      logger.log('⚡ Immediate period sync - fetching complete local data...');
+      const localData = await fetchCompleteLocalData(user.id);
+      await syncToCloud(localData.expenses, periods, localData.settings);
     },
-    [syncToCloud]
+    [syncToCloud, fetchCompleteLocalData, user]
   );
 
   const immediateSyncSettings = useCallback(
@@ -384,10 +504,16 @@ export const SyncProvider = ({ user, children }) => {
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }
+      if (!user) return;
+
+      logger.log(
+        '⚡ Immediate settings sync - fetching complete local data...'
+      );
+      const localData = await fetchCompleteLocalData(user.id);
       const settings = { monthlyPayment, previousBalance, monthlyPayments };
-      await syncToCloud([], [], settings);
+      await syncToCloud(localData.expenses, localData.budgetPeriods, settings);
     },
-    [syncToCloud]
+    [syncToCloud, fetchCompleteLocalData, user]
   );
 
   // Context value

@@ -89,3 +89,107 @@ export const sanitizeExpense = expense => {
     endMonth: range.endMonth,
   };
 };
+
+/**
+ * Validate cloud data structure before upload
+ * @param {Object} data - Cloud data object
+ * @param {Array} data.expenses - Expenses array
+ * @param {Array} data.budgetPeriods - Budget periods array
+ * @param {Object} data.settings - Settings object
+ * @returns {Object} Validation result with {valid: boolean, warnings: string[]}
+ */
+export const validateCloudData = data => {
+  const warnings = [];
+
+  if (!data) {
+    return { valid: false, warnings: ['Data objekt mangler'] };
+  }
+
+  // Check for empty arrays
+  if (!Array.isArray(data.expenses)) {
+    warnings.push('Udgifter er ikke et array');
+  }
+
+  if (!Array.isArray(data.budgetPeriods)) {
+    warnings.push('Budgetperioder er ikke et array');
+  } else if (data.budgetPeriods.length === 0 && data.expenses?.length > 0) {
+    warnings.push(
+      `⚠️ KRITISK: Forsøger at synkronisere ${data.expenses.length} udgifter uden budgetperioder - dette vil slette alle perioder i skyen!`
+    );
+  }
+
+  // Validate foreign key integrity (expenses must reference valid budget periods)
+  if (
+    Array.isArray(data.expenses) &&
+    data.expenses.length > 0 &&
+    Array.isArray(data.budgetPeriods) &&
+    data.budgetPeriods.length > 0
+  ) {
+    const validPeriodIds = new Set(data.budgetPeriods.map(p => p.id));
+    const orphanedExpenses = data.expenses.filter(
+      e => e.budgetPeriodId && !validPeriodIds.has(e.budgetPeriodId)
+    );
+
+    if (orphanedExpenses.length > 0) {
+      warnings.push(
+        `⚠️ ${orphanedExpenses.length} udgifter refererer til ugyldige budgetperioder`
+      );
+    }
+  }
+
+  // Check settings structure
+  if (typeof data.settings !== 'object' || data.settings === null) {
+    warnings.push('Indstillinger er ikke et objekt');
+  }
+
+  return {
+    valid: warnings.length === 0,
+    warnings,
+  };
+};
+
+/**
+ * Validate cloud data after download
+ * Ensures downloaded data won't corrupt local database
+ * @param {Object} data - Downloaded cloud data
+ * @returns {Object} Validation result with {valid: boolean, errors: string[]}
+ */
+export const validateDownloadedData = data => {
+  const errors = [];
+
+  if (!data) {
+    return { valid: false, errors: ['Ingen data modtaget fra skyen'] };
+  }
+
+  // Ensure arrays exist
+  if (!Array.isArray(data.expenses)) {
+    errors.push('Udgifter mangler eller er ikke et array');
+  }
+
+  if (!Array.isArray(data.budgetPeriods)) {
+    errors.push('Budgetperioder mangler eller er ikke et array');
+  }
+
+  // Validate foreign key integrity before applying to local DB
+  if (
+    Array.isArray(data.expenses) &&
+    data.expenses.length > 0 &&
+    Array.isArray(data.budgetPeriods)
+  ) {
+    const validPeriodIds = new Set(data.budgetPeriods.map(p => p.id));
+    const orphanedExpenses = data.expenses.filter(
+      e => e.budgetPeriodId && !validPeriodIds.has(e.budgetPeriodId)
+    );
+
+    if (orphanedExpenses.length > 0) {
+      errors.push(
+        `${orphanedExpenses.length} udgifter ville blive forældreløse (ugyldige period IDs)`
+      );
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+};

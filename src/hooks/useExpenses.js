@@ -218,6 +218,7 @@ export const useExpenses = (userId, periodId) => {
 
   /**
    * Debounced cloud sync - only sync after user stops making changes
+   * CRITICAL FIX: Now syncs ALL expenses across all periods
    */
   const debouncedCloudSync = useCallback(() => {
     if (syncTimeoutRef.current) {
@@ -225,13 +226,12 @@ export const useExpenses = (userId, periodId) => {
     }
 
     syncTimeoutRef.current = setTimeout(() => {
-      if (needsSyncRef.current && periodId) {
-        // Get current expenses for this period and sync to cloud
+      if (needsSyncRef.current && userId) {
+        // Get ALL expenses for this user (across all periods) for complete sync
         localDB
-          .query(
-            'SELECT * FROM expenses WHERE user_id = $1 AND budget_period_id = $2',
-            [userId, periodId]
-          )
+          .query('SELECT * FROM expenses WHERE user_id = $1 ORDER BY id DESC', [
+            userId,
+          ])
           .then(result => {
             const expensesToSync = result.rows.map(row => ({
               id: row.id,
@@ -241,7 +241,10 @@ export const useExpenses = (userId, periodId) => {
               startMonth: row.start_month,
               endMonth: row.end_month,
               budgetPeriodId: row.budget_period_id,
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
             }));
+            // SyncContext will fetch complete periods/settings automatically
             syncExpenses(expensesToSync);
             needsSyncRef.current = false;
           })
@@ -250,7 +253,7 @@ export const useExpenses = (userId, periodId) => {
           });
       }
     }, 1000); // Sync 1 second after last change
-  }, [userId, periodId, syncExpenses]);
+  }, [userId, syncExpenses]);
 
   /**
    * Initial load on mount
