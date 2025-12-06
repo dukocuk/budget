@@ -208,6 +208,12 @@ describe('useAuth', () => {
         await result.current.handleGoogleSignIn({});
       });
 
+      // Wait for loading to complete (finally block has run)
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Now check error state
       await waitFor(() => {
         expect(result.current.error).toBe(
           'No access token received from Google'
@@ -231,6 +237,12 @@ describe('useAuth', () => {
         await result.current.handleGoogleSignIn({ access_token: 'bad-token' });
       });
 
+      // Wait for loading to complete (finally block has run)
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false);
+      });
+
+      // Now check error state
       await waitFor(() => {
         expect(result.current.error).toBe('Failed to fetch user info');
       });
