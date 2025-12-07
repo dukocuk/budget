@@ -44,10 +44,7 @@ export async function initGoogleDrive(accessToken) {
         if (window.gapi) {
           resolve(true);
         } else {
-          let attempts = 0;
           const checkGapi = setInterval(() => {
-            attempts++;
-
             if (window.gapi) {
               clearInterval(checkGapi);
               resolve(true);
