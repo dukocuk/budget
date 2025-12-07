@@ -1,24 +1,51 @@
+/* Desktop: Bottom-right positioning (traditional) */
 .alert {
   position: fixed;
-  top: 20px;
+  bottom: 20px;
   right: 20px;
   padding: 15px 20px;
   border-radius: 8px;
   color: white;
   font-weight: 600;
-  animation: slideIn 0.3s ease-out;
+  animation: slideInBottom 0.3s ease-out;
   z-index: 1000;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
 }
 
-@keyframes slideIn {
+@keyframes slideInBottom {
   from {
-    transform: translateX(100%);
+    transform: translateY(100%);
     opacity: 0;
   }
   to {
-    transform: translateX(0);
+    transform: translateY(0);
     opacity: 1;
+  }
+}
+
+/* Mobile: Top-center positioning (doesn't block header or content) */
+@media (max-width: 768px) {
+  .alert {
+    top: 20px;
+    bottom: auto;
+    right: 16px;
+    left: 16px;
+    max-width: none;
+    animation: slideInTop 0.3s ease-out;
+    /* Safe area for notched devices */
+    top: max(20px, env(safe-area-inset-top));
+  }
+
+  @keyframes slideInTop {
+    from {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
   }
 }
 

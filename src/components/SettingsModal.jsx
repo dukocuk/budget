@@ -4,6 +4,8 @@
  */
 
 import Modal from 'react-modal';
+import BottomSheet from './BottomSheet';
+import { useViewportSize } from '../hooks/useViewportSize';
 import { Settings } from './Settings';
 import './SettingsModal.css';
 
@@ -33,6 +35,42 @@ export const SettingsModal = ({
   onArchivePeriod,
   onOpenTemplateManager,
 }) => {
+  const { isMobile } = useViewportSize();
+
+  // Shared settings content for both modal types
+  const settingsContent = (
+    <Settings
+      monthlyPayment={monthlyPayment}
+      previousBalance={previousBalance}
+      monthlyPayments={monthlyPayments}
+      useVariablePayments={useVariablePayments}
+      onMonthlyPaymentChange={onMonthlyPaymentChange}
+      onPreviousBalanceChange={onPreviousBalanceChange}
+      onMonthlyPaymentsChange={onMonthlyPaymentsChange}
+      onTogglePaymentMode={onTogglePaymentMode}
+      onExport={onExport}
+      onImport={onImport}
+      activePeriod={activePeriod}
+      onArchivePeriod={onArchivePeriod}
+      onOpenTemplateManager={onOpenTemplateManager}
+    />
+  );
+
+  // Mobile: Use BottomSheet
+  if (isMobile) {
+    return (
+      <BottomSheet
+        isOpen={isOpen}
+        onClose={onClose}
+        title="⚙️ Indstillinger"
+        size="lg"
+      >
+        {settingsContent}
+      </BottomSheet>
+    );
+  }
+
+  // Desktop: Use traditional Modal
   return (
     <Modal
       isOpen={isOpen}
@@ -54,23 +92,7 @@ export const SettingsModal = ({
         </button>
       </div>
 
-      <div className="modal-body">
-        <Settings
-          monthlyPayment={monthlyPayment}
-          previousBalance={previousBalance}
-          monthlyPayments={monthlyPayments}
-          useVariablePayments={useVariablePayments}
-          onMonthlyPaymentChange={onMonthlyPaymentChange}
-          onPreviousBalanceChange={onPreviousBalanceChange}
-          onMonthlyPaymentsChange={onMonthlyPaymentsChange}
-          onTogglePaymentMode={onTogglePaymentMode}
-          onExport={onExport}
-          onImport={onImport}
-          activePeriod={activePeriod}
-          onArchivePeriod={onArchivePeriod}
-          onOpenTemplateManager={onOpenTemplateManager}
-        />
-      </div>
+      <div className="modal-body">{settingsContent}</div>
     </Modal>
   );
 };

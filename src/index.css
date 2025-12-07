@@ -1,4 +1,4 @@
-/* CSS Custom Properties (Light Theme) */
+/* CSS Custom Properties (Light Theme) - Mobile-First Architecture */
 :root {
   /* Primary colors */
   --color-primary: #667eea;
@@ -51,6 +51,25 @@
   --transition-normal: 0.25s ease;
   --transition-slow: 0.35s ease;
 
+  /* Mobile-First Touch Targets & Spacing */
+  --touch-target-min: 44px;
+  --spacing-base: 16px;
+  --spacing-compact: 12px;
+  --spacing-cozy: 20px;
+
+  /* Mobile-First Font Sizes */
+  --font-xs: 14px;
+  --font-sm: 15px;
+  --font-base: 16px;
+  --font-lg: 18px;
+  --font-xl: 20px;
+
+  /* Safe Area Insets for Notched Phones (iPhone X+) */
+  --safe-area-top: max(20px, env(safe-area-inset-top));
+  --safe-area-bottom: max(20px, env(safe-area-inset-bottom));
+  --safe-area-left: max(0px, env(safe-area-inset-left));
+  --safe-area-right: max(0px, env(safe-area-inset-right));
+
   /* Typography */
   font-family:
     system-ui,
@@ -60,7 +79,7 @@
     'Helvetica Neue',
     Arial,
     sans-serif;
-  line-height: 1.5;
+  line-height: 1.6; /* Better readability on mobile */
   font-weight: 400;
 
   /* Rendering optimizations */
@@ -68,6 +87,26 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tablet and up: Enhanced spacing and font sizes */
+@media (min-width: 768px) {
+  :root {
+    --spacing-base: 20px;
+    --spacing-compact: 16px;
+    --spacing-cozy: 24px;
+    --font-base: 17px;
+    --font-lg: 20px;
+    --font-xl: 24px;
+  }
+}
+
+/* Desktop and up: Maximum spacing */
+@media (min-width: 1024px) {
+  :root {
+    --spacing-base: 24px;
+    --font-base: 18px;
+  }
 }
 
 * {
@@ -82,6 +121,10 @@ body {
   min-height: 100vh;
   background: var(--color-background);
   color: var(--color-text);
+  font-size: var(--font-base);
+  line-height: 1.6; /* Better readability on mobile */
+  -webkit-overflow-scrolling: touch; /* Smooth iOS scrolling */
+  -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1); /* Touch feedback */
 }
 
 a {
@@ -118,4 +161,22 @@ button {
   font-family: inherit;
   cursor: pointer;
   transition: all var(--transition-fast);
+  min-height: var(--touch-target-min); /* 44px minimum for touch */
+  min-width: var(--touch-target-min); /* 44px minimum for touch */
+}
+
+/* Mobile-First: All interactive elements get proper touch targets */
+a,
+input[type='checkbox'],
+input[type='radio'],
+select {
+  min-height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
+}
+
+/* Prevent iOS zoom on focus */
+input,
+select,
+textarea {
+  font-size: max(16px, var(--font-base)); /* Prevents zoom on iOS */
 }

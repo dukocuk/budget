@@ -5,10 +5,17 @@
 import { useState, useMemo } from 'react';
 import { MONTHS } from '../utils/constants';
 import { getMonthlyAmount, calculateAnnualAmount } from '../utils/calculations';
+import { useViewportSize } from '../hooks/useViewportSize';
+import MonthlyCard from './MonthlyCard';
 import './MonthlyOverview.css';
 
 export const MonthlyOverview = ({ expenses, totalAnnual }) => {
+  // Viewport detection for responsive layout
+  const { isMobile } = useViewportSize();
+
+  // State management
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [expandedMonths, setExpandedMonths] = useState({});
 
   // Sort expenses
   const sortedExpenses = useMemo(() => {
@@ -70,50 +77,86 @@ export const MonthlyOverview = ({ expenses, totalAnnual }) => {
     return sortConfig.direction === 'asc' ? ' ↑' : ' ↓';
   };
 
+  // Toggle month expansion (mobile only)
+  const toggleMonthExpansion = monthIndex => {
+    setExpandedMonths(prev => ({
+      ...prev,
+      [monthIndex]: !prev[monthIndex],
+    }));
+  };
+
   return (
-    <section className="monthly-view">
+    <section
+      className={`monthly-view ${isMobile ? 'mobile-view' : 'desktop-view'}`}
+    >
       <h2>📅 Månedlig oversigt</h2>
-      <div className="table-container">
-        <table className="monthly-table">
-          <thead>
-            <tr>
-              <th className="sortable" onClick={() => handleSort('name')}>
-                Udgift{getSortIndicator('name')}
-              </th>
-              {MONTHS.map(month => (
-                <th key={month}>{month}</th>
-              ))}
-              <th className="sortable" onClick={() => handleSort('total')}>
-                Total{getSortIndicator('total')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {monthlyAmounts.map(expense => (
-              <tr key={expense.id}>
-                <td className="expense-name">{expense.name}</td>
-                {expense.amounts.map((amount, index) => (
-                  <td key={index}>
-                    {amount > 0 ? amount.toLocaleString('da-DK') : '-'}
+
+      {/* Mobile Card View */}
+      {isMobile ? (
+        <div className="monthly-cards-container">
+          {MONTHS.map((month, monthIndex) => (
+            <MonthlyCard
+              key={month}
+              month={month}
+              monthIndex={monthIndex}
+              expenses={expenses}
+              total={columnTotals[monthIndex]}
+              isExpanded={expandedMonths[monthIndex] || false}
+              onToggle={() => toggleMonthExpansion(monthIndex)}
+            />
+          ))}
+          {/* Annual total card */}
+          <div className="annual-total-card">
+            <div className="annual-total-label">Årlig total</div>
+            <div className="annual-total-amount">
+              {totalAnnual.toLocaleString('da-DK')} kr.
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Desktop Table View */
+        <div className="table-container">
+          <table className="monthly-table">
+            <thead>
+              <tr>
+                <th className="sortable" onClick={() => handleSort('name')}>
+                  Udgift{getSortIndicator('name')}
+                </th>
+                {MONTHS.map(month => (
+                  <th key={month}>{month}</th>
+                ))}
+                <th className="sortable" onClick={() => handleSort('total')}>
+                  Total{getSortIndicator('total')}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {monthlyAmounts.map(expense => (
+                <tr key={expense.id}>
+                  <td className="expense-name">{expense.name}</td>
+                  {expense.amounts.map((amount, index) => (
+                    <td key={index}>
+                      {amount > 0 ? amount.toLocaleString('da-DK') : '-'}
+                    </td>
+                  ))}
+                  <td className="total-cell">
+                    {expense.total.toLocaleString('da-DK')}
                   </td>
+                </tr>
+              ))}
+              <tr className="total-row">
+                <td className="expense-name">TOTAL</td>
+                {columnTotals.map((monthTotal, index) => (
+                  <td key={index}>{monthTotal.toLocaleString('da-DK')}</td>
                 ))}
                 <td className="total-cell">
-                  {expense.total.toLocaleString('da-DK')}
+                  {totalAnnual.toLocaleString('da-DK')}
                 </td>
               </tr>
-            ))}
-            <tr className="total-row">
-              <td className="expense-name">TOTAL</td>
-              {columnTotals.map((monthTotal, index) => (
-                <td key={index}>{monthTotal.toLocaleString('da-DK')}</td>
-              ))}
-              <td className="total-cell">
-                {totalAnnual.toLocaleString('da-DK')}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 };

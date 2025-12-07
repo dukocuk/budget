@@ -4,6 +4,8 @@
 
 import { useState, useEffect } from 'react';
 import Modal from 'react-modal';
+import BottomSheet from './BottomSheet';
+import { useViewportSize } from '../hooks/useViewportSize';
 import {
   MONTHS,
   FREQUENCY_LABELS,
@@ -24,6 +26,8 @@ if (typeof document !== 'undefined' && document.querySelector('#root')) {
  * @param {function} onAdd - Add expense callback
  */
 export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
+  const { isMobile } = useViewportSize();
+
   const [formData, setFormData] = useState({
     name: DEFAULT_EXPENSE.name,
     amount: DEFAULT_EXPENSE.amount,
@@ -154,29 +158,10 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
     }
   };
 
-  return (
-    <Modal
-      isOpen={isOpen}
-      onRequestClose={handleCancel}
-      className="expense-modal"
-      overlayClassName="expense-modal-overlay"
-      closeTimeoutMS={200}
-      shouldCloseOnOverlayClick={true}
-      shouldCloseOnEsc={true}
-    >
-      <div className="modal-header">
-        <h2>➕ Tilføj ny udgift</h2>
-        <button
-          className="modal-close-btn"
-          onClick={handleCancel}
-          aria-label="Luk modal"
-        >
-          ✕
-        </button>
-      </div>
-
-      <form onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
-        <div className="modal-body">
+  // Shared form content for both modal types
+  const formContent = (
+    <form onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
+      <div className="modal-body">
           <div className="form-group">
             <label htmlFor="expense-name">
               Udgiftsnavn <span className="required">*</span>
@@ -303,6 +288,46 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
           </button>
         </div>
       </form>
+    </div>
+  );
+
+  // Mobile: Use BottomSheet
+  if (isMobile) {
+    return (
+      <BottomSheet
+        isOpen={isOpen}
+        onClose={handleCancel}
+        title="➕ Tilføj ny udgift"
+        size="md"
+      >
+        {formContent}
+      </BottomSheet>
+    );
+  }
+
+  // Desktop: Use traditional Modal
+  return (
+    <Modal
+      isOpen={isOpen}
+      onRequestClose={handleCancel}
+      className="expense-modal"
+      overlayClassName="expense-modal-overlay"
+      closeTimeoutMS={200}
+      shouldCloseOnOverlayClick={true}
+      shouldCloseOnEsc={true}
+    >
+      <div className="modal-header">
+        <h2>➕ Tilføj ny udgift</h2>
+        <button
+          className="modal-close-btn"
+          onClick={handleCancel}
+          aria-label="Luk modal"
+        >
+          ✕
+        </button>
+      </div>
+
+      {formContent}
     </Modal>
   );
 };

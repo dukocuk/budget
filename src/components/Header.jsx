@@ -5,11 +5,14 @@
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useSyncContext } from '../hooks/useSyncContext';
+import { useViewportSize } from '../hooks/useViewportSize';
 import './Header.css';
 
 export const Header = ({ user, onOpenSettings }) => {
   const { signOut } = useAuth();
+  const { isMobile } = useViewportSize();
   const [imageError, setImageError] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Get sync status from isolated context (won't trigger parent re-renders)
   const { syncStatus, isOnline } = useSyncContext();
@@ -49,57 +52,151 @@ export const Header = ({ user, onOpenSettings }) => {
   };
 
   return (
-    <header className="header">
+    <header
+      className={`header ${isMobile ? 'mobile' : 'desktop'} ${isExpanded ? 'expanded' : 'collapsed'}`}
+    >
       <div className="header-content">
-        <div className="header-title">
-          <h1>💰 Budget Tracker</h1>
-          <p>Administrer dine faste udgifter i DKK</p>
-        </div>
+        {/* Mobile: Compact header with expand toggle */}
+        {isMobile ? (
+          <>
+            <div className="header-mobile-compact">
+              <div className="header-title-compact">
+                <h1>💰 Budget Tracker</h1>
+              </div>
 
-        {user && (
-          <div className="header-user">
-            <div className={`connection-status ${connectionStatus.className}`}>
-              <span className="status-icon">{connectionStatus.icon}</span>
-              <span className="status-text">{connectionStatus.text}</span>
-            </div>
+              {user && (
+                <div className="header-mobile-actions">
+                  <div
+                    className={`connection-status-compact ${connectionStatus.className}`}
+                  >
+                    <span className="status-icon">{connectionStatus.icon}</span>
+                  </div>
 
-            <div className="user-info">
-              {user.user_metadata?.avatar_url && !imageError ? (
-                <img
-                  src={user.user_metadata.avatar_url}
-                  alt={user.user_metadata?.full_name || user.email}
-                  className="user-avatar"
-                  crossOrigin="anonymous"
-                  referrerPolicy="no-referrer"
-                  loading="lazy"
-                  onError={handleImageError}
-                />
-              ) : (
-                <div className="user-avatar user-avatar-fallback">
-                  {(user.user_metadata?.full_name || user.email)
-                    .charAt(0)
-                    .toUpperCase()}
+                  <button
+                    className="header-expand-toggle"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    aria-expanded={isExpanded}
+                    aria-label={isExpanded ? 'Skjul header' : 'Vis header'}
+                  >
+                    {isExpanded ? '▲' : '▼'}
+                  </button>
                 </div>
               )}
-              <div className="user-details">
-                <span className="user-name">
-                  {user.user_metadata?.full_name || user.email}
-                </span>
-              </div>
             </div>
 
-            <button
-              onClick={onOpenSettings}
-              className="btn-settings"
-              title="Indstillinger"
-            >
-              ⚙️
-            </button>
+            {/* Mobile: Expanded user info (collapsible) */}
+            {isExpanded && user && (
+              <div className="header-mobile-expanded">
+                <div className="user-info">
+                  {user.user_metadata?.avatar_url && !imageError ? (
+                    <img
+                      src={user.user_metadata.avatar_url}
+                      alt={user.user_metadata?.full_name || user.email}
+                      className="user-avatar"
+                      crossOrigin="anonymous"
+                      referrerPolicy="no-referrer"
+                      loading="lazy"
+                      onError={handleImageError}
+                    />
+                  ) : (
+                    <div className="user-avatar user-avatar-fallback">
+                      {(user.user_metadata?.full_name || user.email)
+                        .charAt(0)
+                        .toUpperCase()}
+                    </div>
+                  )}
+                  <div className="user-details">
+                    <span className="user-name">
+                      {user.user_metadata?.full_name || user.email}
+                    </span>
+                  </div>
+                </div>
 
-            <button onClick={signOut} className="btn-logout" title="Log ud">
-              ↪️ Log ud
-            </button>
-          </div>
+                <div
+                  className={`connection-status ${connectionStatus.className}`}
+                >
+                  <span className="status-icon">{connectionStatus.icon}</span>
+                  <span className="status-text">{connectionStatus.text}</span>
+                </div>
+
+                <div className="header-mobile-buttons">
+                  <button
+                    onClick={onOpenSettings}
+                    className="btn-settings"
+                    title="Indstillinger"
+                  >
+                    <span className="btn-icon">⚙️</span>
+                    <span>Indstillinger</span>
+                  </button>
+
+                  <button
+                    onClick={signOut}
+                    className="btn-logout"
+                    title="Log ud"
+                  >
+                    <span className="btn-icon">↪️</span>
+                    <span>Log ud</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          /* Desktop: Full header (non-collapsible) */
+          <>
+            <div className="header-title">
+              <h1>💰 Budget Tracker</h1>
+              <p>Administrer dine faste udgifter i DKK</p>
+            </div>
+
+            {user && (
+              <div className="header-user">
+                <div
+                  className={`connection-status ${connectionStatus.className}`}
+                >
+                  <span className="status-icon">{connectionStatus.icon}</span>
+                  <span className="status-text">{connectionStatus.text}</span>
+                </div>
+
+                <div className="user-info">
+                  {user.user_metadata?.avatar_url && !imageError ? (
+                    <img
+                      src={user.user_metadata.avatar_url}
+                      alt={user.user_metadata?.full_name || user.email}
+                      className="user-avatar"
+                      crossOrigin="anonymous"
+                      referrerPolicy="no-referrer"
+                      loading="lazy"
+                      onError={handleImageError}
+                    />
+                  ) : (
+                    <div className="user-avatar user-avatar-fallback">
+                      {(user.user_metadata?.full_name || user.email)
+                        .charAt(0)
+                        .toUpperCase()}
+                    </div>
+                  )}
+                  <div className="user-details">
+                    <span className="user-name">
+                      {user.user_metadata?.full_name || user.email}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={onOpenSettings}
+                  className="btn-settings"
+                  title="Indstillinger"
+                >
+                  ⚙️
+                </button>
+
+                <button onClick={signOut} className="btn-logout" title="Log ud">
+                  ↪️ Log ud
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </header>

@@ -18,6 +18,7 @@ import {
   calculateMonthlyBreakdownByFrequency,
   groupExpensesByFrequency,
 } from '../utils/calculations';
+import { useViewportSize } from '../hooks/useViewportSize';
 import './ExpenseDistribution.css';
 
 const COLORS = {
@@ -33,6 +34,8 @@ const LABELS = {
 };
 
 export const ExpenseDistribution = React.memo(({ expenses }) => {
+  const { isMobile } = useViewportSize();
+
   // Memoize expensive calculations to prevent re-renders
   const monthlyBreakdown = React.useMemo(
     () => calculateMonthlyBreakdownByFrequency(expenses),
@@ -89,26 +92,34 @@ export const ExpenseDistribution = React.memo(({ expenses }) => {
         betalingsfrekvens
       </p>
 
-      <ResponsiveContainer width="100%" height={350}>
+      <ResponsiveContainer width="100%" height={isMobile ? 280 : 350}>
         <BarChart
           data={monthlyBreakdown}
-          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+          margin={
+            isMobile
+              ? { top: 10, right: 10, left: 0, bottom: 10 }
+              : { top: 20, right: 30, left: 20, bottom: 20 }
+          }
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
           <XAxis
             dataKey="month"
             stroke="#6b7280"
-            style={{ fontSize: '14px', fontWeight: '500' }}
+            style={{ fontSize: isMobile ? '12px' : '14px', fontWeight: '500' }}
+            tick={{ angle: isMobile ? -45 : 0 }}
+            height={isMobile ? 60 : 30}
           />
           <YAxis
             stroke="#6b7280"
-            style={{ fontSize: '14px' }}
+            style={{ fontSize: isMobile ? '11px' : '14px' }}
             tickFormatter={value => `${(value / 1000).toFixed(0)}k`}
+            width={isMobile ? 40 : 60}
           />
           <Tooltip content={<CustomTooltip />} />
           <Legend
-            wrapperStyle={{ paddingTop: '20px' }}
+            wrapperStyle={{ paddingTop: isMobile ? '10px' : '20px' }}
             iconType="rect"
+            iconSize={isMobile ? 12 : 14}
             formatter={value => LABELS[value] || value}
           />
 

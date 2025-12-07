@@ -75,6 +75,57 @@
   background: #f9fafb;
 }
 
+/* Mobile Card View Container */
+.monthly-cards-container {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Annual Total Card (mobile) */
+.annual-total-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 8px;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  text-align: center;
+}
+
+.annual-total-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.annual-total-amount {
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+}
+
+/* Hide cards on desktop, show table */
+.monthly-view.desktop-view .monthly-cards-container {
+  display: none;
+}
+
+.monthly-view.desktop-view .table-container {
+  display: block;
+}
+
+/* Hide table on mobile, show cards */
+.monthly-view.mobile-view .table-container {
+  display: none;
+}
+
+.monthly-view.mobile-view .monthly-cards-container {
+  display: flex;
+}
+
 @media (max-width: 768px) {
   .monthly-table {
     font-size: 14px;
@@ -83,5 +134,17 @@
   .monthly-table td,
   .monthly-table th {
     padding: 8px;
+  }
+
+  .monthly-view h2 {
+    margin-bottom: 16px;
+    font-size: 20px;
+  }
+}
+
+/* Desktop: Cards should not show */
+@media (min-width: 768px) {
+  .monthly-cards-container {
+    display: none;
   }
 }

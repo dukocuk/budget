@@ -4,14 +4,28 @@
  */
 
 import { useState, memo } from 'react';
+import { useViewportSize } from '../hooks/useViewportSize';
 import './TabView.css';
 
 const TabViewComponent = ({ tabs, activeTab = 0, onTabChange }) => {
   const [dropdownOpen, setDropdownOpen] = useState(null);
   const [selectedDropdownItems, setSelectedDropdownItems] = useState({});
+  const { isMobile } = useViewportSize();
 
-  const handleTabClick = index => {
+  const handleTabClick = (index, hasDropdown) => {
     const tab = tabs[index];
+
+    if (hasDropdown && isMobile) {
+      // Toggle dropdown on mobile (click-based)
+      setDropdownOpen(dropdownOpen === index ? null : index);
+    } else if (!hasDropdown) {
+      // Regular tab without dropdown
+      onTabChange(index);
+      setDropdownOpen(null);
+    } else {
+      // Desktop: Just switch tab (hover handles dropdown)
+      onTabChange(index);
+    }
 
     // If tab has dropdown, select first item by default
     if (tab.dropdownItems && !selectedDropdownItems[index]) {
@@ -20,8 +34,6 @@ const TabViewComponent = ({ tabs, activeTab = 0, onTabChange }) => {
         [index]: 0,
       });
     }
-
-    onTabChange(index);
   };
 
   const handleDropdownItemClick = (tabIndex, itemIndex) => {
@@ -30,6 +42,19 @@ const TabViewComponent = ({ tabs, activeTab = 0, onTabChange }) => {
       [tabIndex]: itemIndex,
     });
     setDropdownOpen(null);
+  };
+
+  // Desktop hover behavior (only for non-mobile)
+  const handleMouseEnter = (index, hasDropdown) => {
+    if (!isMobile && hasDropdown) {
+      setDropdownOpen(index);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (!isMobile) {
+      setDropdownOpen(null);
+    }
   };
 
   const getTabContent = (tab, tabIndex) => {
@@ -48,20 +73,26 @@ const TabViewComponent = ({ tabs, activeTab = 0, onTabChange }) => {
           <div
             key={index}
             className="tab-wrapper"
-            onMouseEnter={() => tab.dropdownItems && setDropdownOpen(index)}
-            onMouseLeave={() => setDropdownOpen(null)}
+            onMouseEnter={() => handleMouseEnter(index, tab.dropdownItems)}
+            onMouseLeave={handleMouseLeave}
           >
             <button
               className={`tab-button ${activeTab === index ? 'active' : ''}`}
-              onClick={() => handleTabClick(index)}
+              onClick={() => handleTabClick(index, tab.dropdownItems)}
               aria-label={tab.label}
               aria-selected={activeTab === index}
+              aria-expanded={
+                tab.dropdownItems ? dropdownOpen === index : undefined
+              }
+              aria-haspopup={tab.dropdownItems ? 'menu' : undefined}
               role="tab"
             >
               <span className="tab-icon">{tab.icon}</span>
               <span className="tab-label">{tab.label}</span>
               {tab.dropdownItems && (
-                <span className="tab-dropdown-arrow">▼</span>
+                <span className="dropdown-arrow" aria-hidden="true">
+                  {dropdownOpen === index ? '▲' : '▼'}
+                </span>
               )}
             </button>
 

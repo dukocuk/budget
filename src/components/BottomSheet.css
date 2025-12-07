@@ -1,0 +1,231 @@
+/* Bottom Sheet Modal - Mobile-First Design */
+
+/* Backdrop overlay */
+.bottom-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  animation: backdropFadeIn 0.3s ease;
+}
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Mobile: Bottom sheet slides up from bottom */
+.bottom-sheet.mobile {
+  background: white;
+  border-radius: 20px 20px 0 0;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Safe area for notched devices */
+  padding-bottom: var(--safe-area-bottom, 20px);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Desktop: Centered modal */
+.bottom-sheet-backdrop.desktop {
+  align-items: center;
+  justify-content: center;
+}
+
+.bottom-sheet.desktop {
+  background: white;
+  border-radius: 16px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalFadeIn 0.3s ease;
+  margin: 20px;
+}
+
+/* Desktop size variants */
+.bottom-sheet.desktop.size-sm {
+  width: 400px;
+  max-width: 90vw;
+}
+
+.bottom-sheet.desktop.size-md {
+  width: 600px;
+  max-width: 90vw;
+}
+
+.bottom-sheet.desktop.size-lg {
+  width: 800px;
+  max-width: 90vw;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Drag handle (mobile only) */
+.drag-handle-container {
+  padding: 12px 0 8px 0;
+  display: flex;
+  justify-content: center;
+  cursor: grab;
+}
+
+.drag-handle-container:active {
+  cursor: grabbing;
+}
+
+.drag-handle {
+  width: 40px;
+  height: 5px;
+  background: #d1d5db;
+  border-radius: 3px;
+  transition: background 0.2s ease;
+}
+
+.drag-handle-container:hover .drag-handle,
+.drag-handle-container:active .drag-handle {
+  background: #9ca3af;
+}
+
+/* Header */
+.bottom-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.bottom-sheet-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+  flex: 1;
+}
+
+/* Close button */
+.bottom-sheet-close {
+  width: 36px;
+  height: 36px;
+  min-width: 44px; /* Touch target */
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 24px;
+  font-weight: 400;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+
+.bottom-sheet-close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.bottom-sheet-close:active {
+  background: #e5e7eb;
+  transform: scale(0.95);
+}
+
+/* Content */
+.bottom-sheet-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom scrollbar */
+.bottom-sheet-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.bottom-sheet-content::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 8px 0;
+}
+
+.bottom-sheet-content::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
+}
+
+.bottom-sheet-content::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Firefox scrollbar */
+.bottom-sheet-content {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+/* Desktop adjustments */
+@media (min-width: 768px) {
+  .bottom-sheet-header {
+    padding: 20px 24px;
+  }
+
+  .bottom-sheet-title {
+    font-size: 22px;
+  }
+
+  .bottom-sheet-content {
+    padding: 24px;
+  }
+
+  /* Hide drag handle on desktop */
+  .drag-handle-container {
+    display: none;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .bottom-sheet.desktop {
+    width: 90vw;
+    max-width: 600px;
+  }
+}
+
+/* Accessibility: Focus visible styles */
+.bottom-sheet-close:focus-visible {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}

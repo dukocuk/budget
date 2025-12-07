@@ -148,10 +148,62 @@
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
+/* Mobile-first: Touch-friendly checkbox sizing (28x28px) */
 .expenses-table input[type='checkbox'] {
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
   cursor: pointer;
+
+  /* Custom checkbox appearance for better visibility */
+  appearance: none;
+  -webkit-appearance: none;
+  border: 2px solid #d1d5db;
+  border-radius: 6px;
+  background-color: white;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.expenses-table input[type='checkbox']:checked {
+  background-color: #667eea;
+  border-color: #667eea;
+}
+
+/* Checkmark */
+.expenses-table input[type='checkbox']:checked::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 4px;
+  width: 8px;
+  height: 14px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Touch feedback */
+.expenses-table input[type='checkbox']:active {
+  transform: scale(0.9);
+}
+
+/* Desktop: Smaller is okay (22x22px) */
+@media (min-width: 768px) {
+  .expenses-table input[type='checkbox'] {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    min-height: 22px;
+  }
+
+  .expenses-table input[type='checkbox']:checked::after {
+    left: 6px;
+    top: 2px;
+    width: 6px;
+    height: 12px;
+  }
 }
 
 .annual-total {
@@ -477,35 +529,50 @@
   align-items: center;
 }
 
+/* Mobile-first: Touch-friendly button sizing (44x44px minimum) */
+.btn-clone,
+.btn-delete {
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  /* Mobile: 44x44px minimum touch targets */
+  min-height: 44px;
+  min-width: 44px;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
 .btn-clone {
   background: #3b82f6;
   color: white;
-  border: none;
-  padding: 6px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: all 0.2s;
 }
 
 .btn-clone:hover {
   background: #2563eb;
-  transform: scale(1.1);
+}
+
+/* Visual feedback on touch */
+.btn-clone:active {
+  transform: scale(0.95);
+  opacity: 0.8;
 }
 
 .btn-delete {
   background: #ef4444;
   color: white;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background 0.3s;
 }
 
 .btn-delete:hover {
   background: #dc2626;
+}
+
+/* Visual feedback on touch */
+.btn-delete:active {
+  transform: scale(0.95);
+  opacity: 0.8;
 }
 
 @media (max-width: 768px) {
@@ -541,10 +608,62 @@
     gap: 4px;
   }
 
+  /* Mobile buttons remain 44x44px for touch */
   .btn-clone,
   .btn-delete {
-    font-size: 12px;
-    padding: 4px 8px;
+    font-size: 13px;
+    padding: 12px 14px;
+  }
+}
+
+/* Mobile Card View Container */
+.expense-cards-container {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.empty-state p {
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  color: #6b7280;
+}
+
+/* Hide table on mobile, show cards */
+.mobile-view .expenses-table {
+  display: none;
+}
+
+.mobile-view .expense-cards-container {
+  display: flex;
+}
+
+/* Hide cards on desktop, show table */
+.desktop-view .expenses-table {
+  display: table;
+}
+
+.desktop-view .expense-cards-container {
+  display: none;
+}
+
+/* Desktop: Can be smaller with mouse precision */
+@media (min-width: 768px) {
+  .btn-clone,
+  .btn-delete {
+    min-height: 36px;
+    min-width: auto;
+    padding: 8px 12px;
+    font-size: 13px;
   }
 
   .inline-actions {
@@ -578,5 +697,10 @@
   .filter-status {
     width: 100%;
     text-align: center;
+  }
+
+  /* Desktop: Cards should not show */
+  .expense-cards-container {
+    display: none;
   }
 }

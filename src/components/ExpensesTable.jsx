@@ -6,6 +6,8 @@ import { useState, useEffect, useMemo, useRef, memo, useCallback } from 'react';
 import { MONTHS, FREQUENCY_LABELS, FREQUENCY_TYPES } from '../utils/constants';
 import { calculateAnnualAmount } from '../utils/calculations';
 import { useExpenseFilters } from '../hooks/useExpenseFilters';
+import { useViewportSize } from '../hooks/useViewportSize';
+import ExpenseCard from './ExpenseCard';
 import './ExpensesTable.css';
 
 /**
@@ -204,6 +206,9 @@ export const ExpensesTable = ({
   onAdd,
   readOnly = false,
 }) => {
+  // Viewport detection for responsive layout
+  const { isMobile } = useViewportSize();
+
   // Use expense filters hook
   const {
     filteredExpenses,
@@ -357,7 +362,9 @@ export const ExpensesTable = ({
   };
 
   return (
-    <div className="table-container">
+    <div
+      className={`table-container ${isMobile ? 'mobile-view' : 'desktop-view'}`}
+    >
       {/* Search and Filter Controls */}
       <div className="filter-controls">
         <div className="filter-group">
@@ -432,172 +439,214 @@ export const ExpensesTable = ({
           </div>
         )}
       </div>
-      <table className="expenses-table">
-        <thead>
-          <tr>
-            <th className="no-sort">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={e => onToggleSelectAll(e.target.checked)}
-                aria-label="Vælg alle udgifter"
-              />
-            </th>
-            <th className="sortable" onClick={() => handleSort('name')}>
-              Udgift{getSortIndicator('name')}
-            </th>
-            <th className="sortable" onClick={() => handleSort('amount')}>
-              Beløb (kr.){getSortIndicator('amount')}
-            </th>
-            <th>Frekvens</th>
-            <th>Start måned</th>
-            <th>Slut måned</th>
-            <th className="sortable" onClick={() => handleSort('annualTotal')}>
-              Årlig total{getSortIndicator('annualTotal')}
-            </th>
-            <th className="no-sort">Handling</th>
-          </tr>
-        </thead>
-        <tbody>
-          {showInlineAdd && (
-            <tr className="inline-add-row" ref={inlineRowRef}>
-              <td>
-                <div className="inline-add-indicator">✨</div>
-              </td>
-              <td>
-                <div className="input-wrapper">
-                  <input
-                    type="text"
-                    value={inlineData.name}
-                    onChange={e => handleInlineChange('name', e.target.value)}
-                    onKeyDown={handleInlineKeyDown}
-                    placeholder="F.eks. Netflix"
-                    autoFocus
-                    aria-label="Udgiftsnavn"
-                    className={inlineData.name.trim() ? 'valid' : ''}
-                  />
-                  {inlineData.name.trim() && (
-                    <span className="validation-check">✓</span>
-                  )}
-                </div>
-              </td>
-              <td>
-                <div className="input-wrapper">
-                  <input
-                    type="number"
-                    value={inlineData.amount}
-                    onChange={e =>
-                      handleInlineChange(
-                        'amount',
-                        parseFloat(e.target.value) || 0
-                      )
-                    }
-                    onKeyDown={handleInlineKeyDown}
-                    min="0"
-                    aria-label="Beløb"
-                    className="valid"
-                  />
-                  <span className="validation-check">✓</span>
-                </div>
-              </td>
-              <td>
-                <select
-                  value={inlineData.frequency}
-                  onChange={e =>
-                    handleInlineChange('frequency', e.target.value)
-                  }
-                  onKeyDown={handleInlineKeyDown}
-                  aria-label="Frekvens"
-                  className="valid"
-                >
-                  <option value={FREQUENCY_TYPES.MONTHLY}>
-                    {FREQUENCY_LABELS[FREQUENCY_TYPES.MONTHLY]}
-                  </option>
-                  <option value={FREQUENCY_TYPES.QUARTERLY}>
-                    {FREQUENCY_LABELS[FREQUENCY_TYPES.QUARTERLY]}
-                  </option>
-                  <option value={FREQUENCY_TYPES.YEARLY}>
-                    {FREQUENCY_LABELS[FREQUENCY_TYPES.YEARLY]}
-                  </option>
-                </select>
-              </td>
-              <td>
-                <select
-                  value={inlineData.startMonth}
-                  onChange={e =>
-                    handleInlineChange('startMonth', parseInt(e.target.value))
-                  }
-                  onKeyDown={handleInlineKeyDown}
-                  aria-label="Start måned"
-                  className="valid"
-                >
-                  {MONTHS.map((month, index) => (
-                    <option key={index} value={index + 1}>
-                      {month}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <select
-                  value={inlineData.endMonth}
-                  onChange={e =>
-                    handleInlineChange('endMonth', parseInt(e.target.value))
-                  }
-                  onKeyDown={handleInlineKeyDown}
-                  aria-label="Slut måned"
-                  className="valid"
-                >
-                  {MONTHS.map((month, index) => (
-                    <option key={index} value={index + 1}>
-                      {month}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <span className="inline-preview-label">Forhåndsvisning</span>
-              </td>
-              <td>
-                <div className="inline-actions">
-                  <button
-                    className="btn-inline-save"
-                    onClick={handleInlineSave}
-                    disabled={!inlineData.name.trim()}
-                    aria-label="Gem udgift"
-                    title="Gem (Enter)"
-                  >
-                    ✓
-                  </button>
-                  <button
-                    className="btn-inline-cancel"
-                    onClick={handleInlineCancel}
-                    aria-label="Annuller"
-                    title="Annuller (Esc)"
-                  >
-                    ✗
-                  </button>
-                </div>
-                <div className="inline-shortcuts-hint">
-                  <kbd>Enter</kbd> = Gem · <kbd>Esc</kbd> = Annuller
-                </div>
-              </td>
-            </tr>
-          )}
+
+      {/* Mobile Card View */}
+      {isMobile ? (
+        <div className="expense-cards-container">
           {sortedExpenses.map(expense => (
-            <ExpenseRow
+            <ExpenseCard
               key={expense.id}
               expense={expense}
               isSelected={selectedExpenses.includes(expense.id)}
-              onToggleSelection={onToggleSelection}
-              onUpdate={onUpdate}
+              onSelect={onToggleSelection}
+              onEdit={expense => {
+                // Convert to inline edit mode
+                setInlineData({
+                  name: expense.name,
+                  amount: expense.amount,
+                  frequency: expense.frequency,
+                  startMonth: expense.startMonth,
+                  endMonth: expense.endMonth,
+                });
+                setShowInlineAdd(true);
+              }}
               onDelete={onDelete}
               onClone={handleClone}
-              readOnly={readOnly}
             />
           ))}
-        </tbody>
-      </table>
+          {sortedExpenses.length === 0 && (
+            <div className="empty-state">
+              <p>Ingen udgifter at vise</p>
+              {hasActiveFilters && (
+                <button className="btn btn-secondary" onClick={clearFilters}>
+                  Ryd filtre
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Desktop Table View */
+        <table className="expenses-table">
+          <thead>
+            <tr>
+              <th className="no-sort">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={e => onToggleSelectAll(e.target.checked)}
+                  aria-label="Vælg alle udgifter"
+                />
+              </th>
+              <th className="sortable" onClick={() => handleSort('name')}>
+                Udgift{getSortIndicator('name')}
+              </th>
+              <th className="sortable" onClick={() => handleSort('amount')}>
+                Beløb (kr.){getSortIndicator('amount')}
+              </th>
+              <th>Frekvens</th>
+              <th>Start måned</th>
+              <th>Slut måned</th>
+              <th
+                className="sortable"
+                onClick={() => handleSort('annualTotal')}
+              >
+                Årlig total{getSortIndicator('annualTotal')}
+              </th>
+              <th className="no-sort">Handling</th>
+            </tr>
+          </thead>
+          <tbody>
+            {showInlineAdd && (
+              <tr className="inline-add-row" ref={inlineRowRef}>
+                <td>
+                  <div className="inline-add-indicator">✨</div>
+                </td>
+                <td>
+                  <div className="input-wrapper">
+                    <input
+                      type="text"
+                      value={inlineData.name}
+                      onChange={e => handleInlineChange('name', e.target.value)}
+                      onKeyDown={handleInlineKeyDown}
+                      placeholder="F.eks. Netflix"
+                      autoFocus
+                      aria-label="Udgiftsnavn"
+                      className={inlineData.name.trim() ? 'valid' : ''}
+                    />
+                    {inlineData.name.trim() && (
+                      <span className="validation-check">✓</span>
+                    )}
+                  </div>
+                </td>
+                <td>
+                  <div className="input-wrapper">
+                    <input
+                      type="number"
+                      value={inlineData.amount}
+                      onChange={e =>
+                        handleInlineChange(
+                          'amount',
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
+                      onKeyDown={handleInlineKeyDown}
+                      min="0"
+                      aria-label="Beløb"
+                      className="valid"
+                    />
+                    <span className="validation-check">✓</span>
+                  </div>
+                </td>
+                <td>
+                  <select
+                    value={inlineData.frequency}
+                    onChange={e =>
+                      handleInlineChange('frequency', e.target.value)
+                    }
+                    onKeyDown={handleInlineKeyDown}
+                    aria-label="Frekvens"
+                    className="valid"
+                  >
+                    <option value={FREQUENCY_TYPES.MONTHLY}>
+                      {FREQUENCY_LABELS[FREQUENCY_TYPES.MONTHLY]}
+                    </option>
+                    <option value={FREQUENCY_TYPES.QUARTERLY}>
+                      {FREQUENCY_LABELS[FREQUENCY_TYPES.QUARTERLY]}
+                    </option>
+                    <option value={FREQUENCY_TYPES.YEARLY}>
+                      {FREQUENCY_LABELS[FREQUENCY_TYPES.YEARLY]}
+                    </option>
+                  </select>
+                </td>
+                <td>
+                  <select
+                    value={inlineData.startMonth}
+                    onChange={e =>
+                      handleInlineChange('startMonth', parseInt(e.target.value))
+                    }
+                    onKeyDown={handleInlineKeyDown}
+                    aria-label="Start måned"
+                    className="valid"
+                  >
+                    {MONTHS.map((month, index) => (
+                      <option key={index} value={index + 1}>
+                        {month}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <select
+                    value={inlineData.endMonth}
+                    onChange={e =>
+                      handleInlineChange('endMonth', parseInt(e.target.value))
+                    }
+                    onKeyDown={handleInlineKeyDown}
+                    aria-label="Slut måned"
+                    className="valid"
+                  >
+                    {MONTHS.map((month, index) => (
+                      <option key={index} value={index + 1}>
+                        {month}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <span className="inline-preview-label">Forhåndsvisning</span>
+                </td>
+                <td>
+                  <div className="inline-actions">
+                    <button
+                      className="btn-inline-save"
+                      onClick={handleInlineSave}
+                      disabled={!inlineData.name.trim()}
+                      aria-label="Gem udgift"
+                      title="Gem (Enter)"
+                    >
+                      ✓
+                    </button>
+                    <button
+                      className="btn-inline-cancel"
+                      onClick={handleInlineCancel}
+                      aria-label="Annuller"
+                      title="Annuller (Esc)"
+                    >
+                      ✗
+                    </button>
+                  </div>
+                  <div className="inline-shortcuts-hint">
+                    <kbd>Enter</kbd> = Gem · <kbd>Esc</kbd> = Annuller
+                  </div>
+                </td>
+              </tr>
+            )}
+            {sortedExpenses.map(expense => (
+              <ExpenseRow
+                key={expense.id}
+                expense={expense}
+                isSelected={selectedExpenses.includes(expense.id)}
+                onToggleSelection={onToggleSelection}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+                onClone={handleClone}
+                readOnly={readOnly}
+              />
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 };
