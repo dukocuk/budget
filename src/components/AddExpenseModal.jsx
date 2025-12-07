@@ -162,133 +162,128 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd }) => {
   const formContent = (
     <form onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
       <div className="modal-body">
-          <div className="form-group">
-            <label htmlFor="expense-name">
-              Udgiftsnavn <span className="required">*</span>
-            </label>
-            <input
-              id="expense-name"
-              type="text"
-              value={formData.name}
-              onChange={e => handleChange('name', e.target.value)}
-              placeholder="F.eks. Netflix abonnement"
-              autoFocus
-              aria-required="true"
-              aria-invalid={!!errors.name}
-              aria-describedby={errors.name ? 'name-error' : undefined}
-            />
-            {errors.name && (
-              <span id="name-error" className="error-message" role="alert">
-                {errors.name}
-              </span>
-            )}
-          </div>
+        <div className="form-group">
+          <label htmlFor="expense-name">
+            Udgiftsnavn <span className="required">*</span>
+          </label>
+          <input
+            id="expense-name"
+            type="text"
+            value={formData.name}
+            onChange={e => handleChange('name', e.target.value)}
+            placeholder="F.eks. Netflix abonnement"
+            autoFocus
+            aria-required="true"
+            aria-invalid={!!errors.name}
+            aria-describedby={errors.name ? 'name-error' : undefined}
+          />
+          {errors.name && (
+            <span id="name-error" className="error-message" role="alert">
+              {errors.name}
+            </span>
+          )}
+        </div>
 
-          <div className="form-group">
-            <label htmlFor="expense-amount">
-              Beløb (kr.) <span className="required">*</span>
-            </label>
-            <input
-              id="expense-amount"
-              type="number"
-              value={formData.amount}
-              onChange={e => handleChange('amount', e.target.value)}
-              min="0"
-              step="1"
-              aria-required="true"
-              aria-invalid={!!errors.amount}
-              aria-describedby={errors.amount ? 'amount-error' : undefined}
-            />
-            {errors.amount && (
-              <span id="amount-error" className="error-message" role="alert">
-                {errors.amount}
-              </span>
-            )}
-          </div>
+        <div className="form-group">
+          <label htmlFor="expense-amount">
+            Beløb (kr.) <span className="required">*</span>
+          </label>
+          <input
+            id="expense-amount"
+            type="number"
+            value={formData.amount}
+            onChange={e => handleChange('amount', e.target.value)}
+            min="0"
+            step="1"
+            aria-required="true"
+            aria-invalid={!!errors.amount}
+            aria-describedby={errors.amount ? 'amount-error' : undefined}
+          />
+          {errors.amount && (
+            <span id="amount-error" className="error-message" role="alert">
+              {errors.amount}
+            </span>
+          )}
+        </div>
 
+        <div className="form-group">
+          <label htmlFor="expense-frequency">
+            Frekvens <span className="required">*</span>
+          </label>
+          <select
+            id="expense-frequency"
+            value={formData.frequency}
+            onChange={e => handleChange('frequency', e.target.value)}
+            aria-required="true"
+          >
+            <option value={FREQUENCY_TYPES.MONTHLY}>
+              {FREQUENCY_LABELS[FREQUENCY_TYPES.MONTHLY]}
+            </option>
+            <option value={FREQUENCY_TYPES.QUARTERLY}>
+              {FREQUENCY_LABELS[FREQUENCY_TYPES.QUARTERLY]}
+            </option>
+            <option value={FREQUENCY_TYPES.YEARLY}>
+              {FREQUENCY_LABELS[FREQUENCY_TYPES.YEARLY]}
+            </option>
+          </select>
+        </div>
+
+        <div className="form-row">
           <div className="form-group">
-            <label htmlFor="expense-frequency">
-              Frekvens <span className="required">*</span>
+            <label htmlFor="expense-start-month">
+              Start måned <span className="required">*</span>
             </label>
             <select
-              id="expense-frequency"
-              value={formData.frequency}
-              onChange={e => handleChange('frequency', e.target.value)}
+              id="expense-start-month"
+              value={formData.startMonth}
+              onChange={e => handleChange('startMonth', e.target.value)}
               aria-required="true"
             >
-              <option value={FREQUENCY_TYPES.MONTHLY}>
-                {FREQUENCY_LABELS[FREQUENCY_TYPES.MONTHLY]}
-              </option>
-              <option value={FREQUENCY_TYPES.QUARTERLY}>
-                {FREQUENCY_LABELS[FREQUENCY_TYPES.QUARTERLY]}
-              </option>
-              <option value={FREQUENCY_TYPES.YEARLY}>
-                {FREQUENCY_LABELS[FREQUENCY_TYPES.YEARLY]}
-              </option>
+              {MONTHS.map((month, index) => (
+                <option key={index} value={index + 1}>
+                  {month}
+                </option>
+              ))}
             </select>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="expense-start-month">
-                Start måned <span className="required">*</span>
-              </label>
-              <select
-                id="expense-start-month"
-                value={formData.startMonth}
-                onChange={e => handleChange('startMonth', e.target.value)}
-                aria-required="true"
-              >
-                {MONTHS.map((month, index) => (
-                  <option key={index} value={index + 1}>
-                    {month}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="expense-end-month">
-                Slut måned <span className="required">*</span>
-              </label>
-              <select
-                id="expense-end-month"
-                value={formData.endMonth}
-                onChange={e => handleChange('endMonth', e.target.value)}
-                aria-required="true"
-              >
-                {MONTHS.map((month, index) => (
-                  <option key={index} value={index + 1}>
-                    {month}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="form-group">
+            <label htmlFor="expense-end-month">
+              Slut måned <span className="required">*</span>
+            </label>
+            <select
+              id="expense-end-month"
+              value={formData.endMonth}
+              onChange={e => handleChange('endMonth', e.target.value)}
+              aria-required="true"
+            >
+              {MONTHS.map((month, index) => (
+                <option key={index} value={index + 1}>
+                  {month}
+                </option>
+              ))}
+            </select>
           </div>
-
-          <p className="form-hint">
-            <span className="required">*</span> = Påkrævet felt
-          </p>
         </div>
 
-        <div className="modal-footer">
-          <button
-            type="button"
-            className="btn btn-cancel"
-            onClick={handleCancel}
-          >
-            Annuller
-          </button>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={Object.keys(errors).length > 0}
-          >
-            ➕ Tilføj udgift
-          </button>
-        </div>
-      </form>
-    </div>
+        <p className="form-hint">
+          <span className="required">*</span> = Påkrævet felt
+        </p>
+      </div>
+
+      <div className="modal-footer">
+        <button type="button" className="btn btn-cancel" onClick={handleCancel}>
+          Annuller
+        </button>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={Object.keys(errors).length > 0}
+        >
+          ➕ Tilføj udgift
+        </button>
+      </div>
+    </form>
   );
 
   // Mobile: Use BottomSheet
