@@ -19,8 +19,8 @@ const BottomTabBar = ({ activeTab, onTabChange }) => {
   const tabs = [
     { icon: '📊', label: 'Over', fullLabel: 'Oversigt' },
     { icon: '📝', label: 'Udgif', fullLabel: 'Udgifter' },
-    { icon: '📅', label: 'Måned', fullLabel: 'Månedlig' },
-    { icon: '⚙️', label: 'Indst', fullLabel: 'Indstillinger' },
+    { icon: '📅', label: 'Måned', fullLabel: 'Månedlig oversigt' },
+    { icon: '📈', label: 'Samml', fullLabel: 'Sammenligning' },
   ];
 
   return (

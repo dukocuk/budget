@@ -255,3 +255,23 @@
     font-size: 15px;
   }
 }
+
+/* Desktop (769px+): Enhanced spacing and sizing */
+@media (min-width: 769px) {
+  .tab-button {
+    padding: 16px 36px; /* More spacious (was 14px 28px) */
+  }
+
+  .tab-label {
+    max-width: 200px; /* Generous width (was 100px) */
+    font-size: 16px;
+  }
+
+  .tab-icon {
+    font-size: 22px; /* Slightly larger */
+  }
+
+  .tab-header {
+    gap: 8px; /* More breathing room (was 4px) */
+  }
+}
