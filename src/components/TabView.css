@@ -6,6 +6,13 @@
   margin-top: 0;
 }
 
+/* Hide top TabView on mobile (< 768px) - use BottomTabBar instead */
+@media (max-width: 767px) {
+  .tab-view {
+    display: none;
+  }
+}
+
 .tab-header {
   display: flex;
   gap: 4px;

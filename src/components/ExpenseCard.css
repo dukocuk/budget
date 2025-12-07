@@ -1,18 +1,22 @@
 /* Mobile-First Expense Card Styling */
 
 .expense-card {
-  display: flex;
-  align-items: center;
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   gap: 12px;
-  padding: 16px;
+  padding: 14px;
   background: white;
   border: 2px solid #e5e7eb;
   border-radius: 12px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  transition: all 0.2s ease;
-  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   -webkit-tap-highlight-color: transparent;
   margin-bottom: 12px;
+  align-items: center;
+  overflow: hidden;
 }
 
 /* Touch feedback */
@@ -28,38 +32,17 @@
   box-shadow: 0 4px 8px rgba(102, 126, 234, 0.15);
 }
 
-/* Selection indicator */
-.card-selection-indicator {
+/* Checkbox */
+.card-checkbox {
+  width: 22px;
+  height: 22px;
   flex-shrink: 0;
-}
-
-.selection-checkbox {
-  width: 28px;
-  height: 28px;
-  border: 2px solid #d1d5db;
-  border-radius: 6px;
-  background-color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.expense-card.selected .selection-checkbox {
-  background-color: #667eea;
-  border-color: #667eea;
-}
-
-.checkmark {
-  color: white;
-  font-size: 16px;
-  font-weight: bold;
-  line-height: 1;
+  cursor: pointer;
+  accent-color: #667eea;
 }
 
 /* Main content area */
-.card-content {
-  flex: 1;
+.card-main {
   min-width: 0; /* Allow text truncation */
 }
 
@@ -68,22 +51,22 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
-.card-title {
-  font-size: 16px;
-  font-weight: 600;
+.card-name {
+  font-size: 15px;
+  font-weight: 500;
   color: #1f2937;
-  margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
 }
 
 .card-amount {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 600;
   color: #667eea;
   white-space: nowrap;
   flex-shrink: 0;
@@ -134,106 +117,145 @@
   white-space: nowrap;
 }
 
-/* Action buttons */
-.card-actions {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.card-action-btn {
-  min-width: 44px;
-  min-height: 44px;
-  width: 44px;
-  height: 44px;
-  border: 2px solid #e5e7eb;
-  border-radius: 10px;
-  background: white;
-  cursor: pointer;
+/* Kebab menu button */
+.card-menu-btn {
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-  -webkit-tap-highlight-color: transparent;
+  font-size: 20px;
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  transition: background 0.2s;
 }
 
-.card-action-btn:active {
-  transform: scale(0.9);
+.card-menu-btn:active {
+  background: #f3f4f6;
 }
 
-/* Button variants */
-.btn-edit {
-  border-color: #3b82f6;
-  color: #3b82f6;
+/* Swipe actions (iOS Mail pattern) */
+.card-swipe-actions {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  gap: 0;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
 }
 
-.btn-edit:active {
-  background-color: #3b82f6;
+.expense-card.swiped .card-swipe-actions {
+  transform: translateX(0);
 }
 
-.btn-edit:active .btn-icon {
-  filter: brightness(0) invert(1);
+.swipe-action {
+  width: 56px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
 
-.btn-clone {
-  border-color: #10b981;
-  color: #10b981;
+.swipe-action:active {
+  opacity: 0.8;
 }
 
-.btn-clone:active {
-  background-color: #10b981;
+.swipe-action.edit {
+  background: #667eea;
+  color: white;
 }
 
-.btn-clone:active .btn-icon {
-  filter: brightness(0) invert(1);
+.swipe-action.delete {
+  background: #ef4444;
+  color: white;
 }
 
-.btn-delete {
-  border-color: #ef4444;
+/* Bottom sheet action menu */
+.action-sheet {
+  padding: 8px;
+}
+
+.action-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: white;
+  border: none;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  font-size: 17px;
+  cursor: pointer;
+  transition: background 0.2s;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.05);
+  text-align: left;
+}
+
+.action-item:active {
+  background: #f5f5f5;
+}
+
+.action-item.danger {
   color: #ef4444;
 }
 
-.btn-delete:active {
-  background-color: #ef4444;
+.action-item.cancel {
+  background: #f5f5f5;
+  font-weight: 600;
+  margin-top: 8px;
 }
 
-.btn-delete:active .btn-icon {
-  filter: brightness(0) invert(1);
+.action-icon {
+  font-size: 24px;
+  width: 32px;
+  text-align: center;
+  flex-shrink: 0;
 }
 
-.btn-icon {
-  font-size: 18px;
-  line-height: 1;
+.action-label {
+  flex: 1;
 }
 
-/* Tablet and up: Slightly different layout */
+/* Tablet/Desktop: Hide swipe actions, show desktop patterns */
 @media (min-width: 768px) {
   .expense-card {
-    padding: 14px 18px;
+    padding: 12px 16px;
     margin-bottom: 10px;
   }
 
-  .card-title {
-    font-size: 15px;
+  .card-name {
+    font-size: 14px;
   }
 
   .card-amount {
-    font-size: 17px;
+    font-size: 15px;
   }
 
   .card-meta {
     font-size: 13px;
   }
 
-  .card-action-btn {
-    min-width: 36px;
-    min-height: 36px;
-    width: 36px;
-    height: 36px;
+  /* Hide mobile-only features on desktop */
+  .card-swipe-actions {
+    display: none;
   }
 
-  .btn-icon {
-    font-size: 16px;
+  .card-menu-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 18px;
   }
 
   /* Hover states for desktop */
@@ -242,34 +264,7 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   }
 
-  .card-action-btn:hover {
-    transform: scale(1.05);
-  }
-
-  .btn-edit:hover {
-    background-color: #3b82f6;
-    color: white;
-  }
-
-  .btn-edit:hover .btn-icon {
-    filter: brightness(0) invert(1);
-  }
-
-  .btn-clone:hover {
-    background-color: #10b981;
-    color: white;
-  }
-
-  .btn-clone:hover .btn-icon {
-    filter: brightness(0) invert(1);
-  }
-
-  .btn-delete:hover {
-    background-color: #ef4444;
-    color: white;
-  }
-
-  .btn-delete:hover .btn-icon {
-    filter: brightness(0) invert(1);
+  .card-menu-btn:hover {
+    background: #f3f4f6;
   }
 }

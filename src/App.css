@@ -698,6 +698,14 @@ h2 {
   overflow: hidden;
 }
 
+/* Mobile: Add bottom padding for BottomTabBar */
+@media (max-width: 767px) {
+  .container {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    max-height: calc(100vh - 120px - 72px - env(safe-area-inset-bottom));
+  }
+}
+
 /* Tab-specific adjustments */
 @media (max-width: 768px) {
   .charts-container {
@@ -765,10 +773,23 @@ h2 {
 
 @media (max-width: 768px) {
   .fab {
-    bottom: 20px;
     right: 20px;
     width: 56px;
     height: 56px;
     font-size: 24px;
+  }
+}
+
+/* Mobile: Position FAB above BottomTabBar */
+@media (max-width: 767px) {
+  .fab {
+    bottom: calc(72px + env(safe-area-inset-bottom) + 16px);
+  }
+}
+
+/* Desktop/Tablet: Normal FAB position */
+@media (min-width: 768px) {
+  .fab {
+    bottom: 30px;
   }
 }

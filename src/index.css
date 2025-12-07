@@ -180,3 +180,150 @@ select,
 textarea {
   font-size: max(16px, var(--font-base)); /* Prevents zoom on iOS */
 }
+
+/* =================================
+   Multi-Breakpoint System
+   ================================= */
+
+/* 1. Extra Small Phones (320px-374px) - iPhone SE, old Android */
+@media (max-width: 374px) {
+  :root {
+    --spacing-base: 12px;
+    --spacing-compact: 8px;
+    --spacing-cozy: 16px;
+    --font-xs: 12px;
+    --font-sm: 13px;
+    --font-base: 14px;
+    --font-lg: 16px;
+  }
+
+  button {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+}
+
+/* 2. Small Phones (375px-479px) - iPhone 12 Mini, small Android */
+@media (min-width: 375px) and (max-width: 479px) {
+  button {
+    padding: 12px 20px;
+    font-size: 15px;
+  }
+}
+
+/* 3. Large Phones (480px-767px) - Most modern phones */
+@media (min-width: 480px) and (max-width: 767px) {
+  button {
+    padding: 14px 24px;
+    font-size: 15px;
+  }
+}
+
+/* 4. Tablets (768px-1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  button {
+    padding: 14px 28px;
+  }
+}
+
+/* =================================
+   Touch Feedback System
+   ================================= */
+
+/* Global touch feedback for all interactive elements */
+button,
+.card,
+.clickable,
+[role='button'] {
+  -webkit-tap-highlight-color: rgba(102, 126, 234, 0.1);
+  touch-action: manipulation; /* Disable double-tap zoom */
+}
+
+/* Active state for all interactive elements (mobile) */
+@media (hover: none) and (pointer: coarse) {
+  button:active,
+  .card:active,
+  .clickable:active,
+  [role='button']:active {
+    transform: scale(0.98);
+    transition: transform 0.1s;
+  }
+}
+
+/* Ripple effect base (optional enhancement) */
+.btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  transform: translate(-50%, -50%);
+  transition:
+    width 0.6s,
+    height 0.6s;
+  pointer-events: none;
+}
+
+.btn:active::after {
+  width: 300px;
+  height: 300px;
+}
+
+/* =================================
+   Safe Area Integration
+   ================================= */
+
+/* Alert positioning (respect notch) */
+.alert-container {
+  top: var(--safe-area-top);
+  right: var(--safe-area-right);
+}
+
+/* Bottom sheet safe area */
+.bottom-sheet-content {
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+
+/* Header safe area */
+.header {
+  padding-top: calc(12px + env(safe-area-inset-top));
+}
+
+/* Bottom tab bar safe area (for Phase 2) */
+.bottom-tab-bar {
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+
+/* =================================
+   Archived Period Banner Mobile
+   ================================= */
+
+.archived-banner {
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+  background: #fff3cd;
+  border-bottom: 2px solid #ffc107;
+}
+
+@media (max-width: 374px) {
+  .archived-banner {
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+}
+
+.archived-banner-text {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}

@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
+import BottomSheet from './BottomSheet';
 import './ExpenseCard.css';
 
 /**
  * Mobile-optimized card component for displaying individual expenses
  *
- * Displays expense information in a touch-friendly card format
- * optimized for mobile screens (< 768px).
+ * Features:
+ * - Swipe-to-reveal actions (iOS Mail pattern)
+ * - Kebab menu for all actions (progressive disclosure)
+ * - Touch-friendly 44px+ targets
+ * - Full expense name visibility (no button overflow)
  *
  * @param {Object} props - Component props
  * @param {Object} props.expense - Expense object
@@ -29,6 +33,10 @@ const ExpenseCard = ({
   onDelete,
   onClone,
 }) => {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isSwiped, setIsSwiped] = useState(false);
+  const swipeStartX = useRef(0);
+  const swipeCurrentX = useRef(0);
   const { id, name, amount, frequency, startMonth, endMonth } = expense;
 
   // Format amount for display (Danish locale)
@@ -67,73 +75,154 @@ const ExpenseCard = ({
       ? monthNames[startMonth - 1]
       : `${monthNames[startMonth - 1]} - ${monthNames[endMonth - 1]}`;
 
+  // Swipe gesture handlers
+  const handleTouchStart = e => {
+    swipeStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchMove = e => {
+    swipeCurrentX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    const swipeDistance = swipeStartX.current - swipeCurrentX.current;
+
+    // Swipe left > 50px: reveal actions
+    if (swipeDistance > 50) {
+      setIsSwiped(true);
+    }
+    // Swipe right > 50px: hide actions
+    else if (swipeDistance < -50) {
+      setIsSwiped(false);
+    }
+
+    swipeStartX.current = 0;
+    swipeCurrentX.current = 0;
+  };
+
+  // Action handlers
+  const handleMenuOpen = e => {
+    e.stopPropagation();
+    setMenuOpen(true);
+  };
+
+  const handleMenuClose = () => {
+    setMenuOpen(false);
+  };
+
+  const handleEdit = () => {
+    setMenuOpen(false);
+    setIsSwiped(false);
+    onEdit(expense);
+  };
+
+  const handleClone = () => {
+    setMenuOpen(false);
+    setIsSwiped(false);
+    onClone(expense);
+  };
+
+  const handleDelete = () => {
+    setMenuOpen(false);
+    setIsSwiped(false);
+    onDelete(id);
+  };
+
   return (
-    <div
-      className={`expense-card ${isSelected ? 'selected' : ''}`}
-      onClick={() => onSelect(id)}
-      role="article"
-      aria-selected={isSelected}
-    >
-      {/* Selection indicator */}
-      <div className="card-selection-indicator" aria-hidden="true">
-        <div className="selection-checkbox">
-          {isSelected && <span className="checkmark">✓</span>}
+    <>
+      <div
+        className={`expense-card ${isSelected ? 'selected' : ''} ${isSwiped ? 'swiped' : ''}`}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        role="article"
+        aria-selected={isSelected}
+      >
+        {/* Selection checkbox */}
+        <input
+          type="checkbox"
+          className="card-checkbox"
+          checked={isSelected}
+          onChange={e => {
+            e.stopPropagation();
+            onSelect(id);
+          }}
+          aria-label={`Vælg ${name}`}
+          onClick={e => e.stopPropagation()}
+        />
+
+        {/* Main content */}
+        <div className="card-main">
+          <div className="card-header">
+            <span className="card-name">{name}</span>
+            <span className="card-amount">{formattedAmount}</span>
+          </div>
+
+          <div className="card-meta">
+            <span className={`card-frequency frequency-${frequency}`}>
+              {frequencyLabel}
+            </span>
+            <span className="card-divider">•</span>
+            <span className="card-months">{monthRange}</span>
+          </div>
+        </div>
+
+        {/* Kebab menu button */}
+        <button
+          className="card-menu-btn"
+          onClick={handleMenuOpen}
+          aria-label="Handlinger"
+        >
+          ⋮
+        </button>
+
+        {/* Swipe reveal actions (hidden by default) */}
+        <div className="card-swipe-actions">
+          <button
+            className="swipe-action edit"
+            onClick={e => {
+              e.stopPropagation();
+              handleEdit();
+            }}
+            aria-label={`Rediger ${name}`}
+          >
+            ✏️
+          </button>
+          <button
+            className="swipe-action delete"
+            onClick={e => {
+              e.stopPropagation();
+              handleDelete();
+            }}
+            aria-label={`Slet ${name}`}
+          >
+            🗑️
+          </button>
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="card-content">
-        <div className="card-header">
-          <h3 className="card-title">{name}</h3>
-          <div className="card-amount">{formattedAmount}</div>
+      {/* Bottom sheet menu */}
+      <BottomSheet isOpen={menuOpen} onClose={handleMenuClose} title={name}>
+        <div className="action-sheet">
+          <button className="action-item" onClick={handleEdit}>
+            <span className="action-icon">✏️</span>
+            <span className="action-label">Rediger</span>
+          </button>
+          <button className="action-item" onClick={handleClone}>
+            <span className="action-icon">📋</span>
+            <span className="action-label">Duplikér</span>
+          </button>
+          <button className="action-item danger" onClick={handleDelete}>
+            <span className="action-icon">🗑️</span>
+            <span className="action-label">Slet</span>
+          </button>
+          <button className="action-item cancel" onClick={handleMenuClose}>
+            <span className="action-icon">❌</span>
+            <span className="action-label">Annuller</span>
+          </button>
         </div>
-
-        <div className="card-meta">
-          <span className={`card-frequency frequency-${frequency}`}>
-            {frequencyLabel}
-          </span>
-          <span className="card-divider">•</span>
-          <span className="card-months">{monthRange}</span>
-        </div>
-      </div>
-
-      {/* Action buttons */}
-      <div className="card-actions">
-        <button
-          className="card-action-btn btn-edit"
-          onClick={e => {
-            e.stopPropagation();
-            onEdit(expense);
-          }}
-          aria-label={`Rediger ${name}`}
-          title="Rediger"
-        >
-          <span className="btn-icon">✏️</span>
-        </button>
-        <button
-          className="card-action-btn btn-clone"
-          onClick={e => {
-            e.stopPropagation();
-            onClone(expense);
-          }}
-          aria-label={`Klon ${name}`}
-          title="Klon"
-        >
-          <span className="btn-icon">📋</span>
-        </button>
-        <button
-          className="card-action-btn btn-delete"
-          onClick={e => {
-            e.stopPropagation();
-            onDelete(id);
-          }}
-          aria-label={`Slet ${name}`}
-          title="Slet"
-        >
-          <span className="btn-icon">🗑️</span>
-        </button>
-      </div>
-    </div>
+      </BottomSheet>
+    </>
   );
 };
 

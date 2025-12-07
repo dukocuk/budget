@@ -18,6 +18,7 @@ import { SummaryCards } from './components/SummaryCards';
 import { ExpensesTable } from './components/ExpensesTable';
 import { MonthlyOverview } from './components/MonthlyOverview';
 import { TabView } from './components/TabView';
+import BottomTabBar from './components/BottomTabBar';
 import { BalanceChart } from './components/BalanceChart';
 import { ExpenseDistribution } from './components/ExpenseDistribution';
 import { AddExpenseModal } from './components/AddExpenseModal';
@@ -816,6 +817,9 @@ function AppContent() {
         >
           ➕
         </button>
+
+        {/* Bottom Tab Bar (Mobile < 768px) */}
+        <BottomTabBar activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
     </ErrorBoundary>
   );
