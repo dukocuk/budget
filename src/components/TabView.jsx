@@ -3,10 +3,10 @@
  * Provides tab-based interface with dropdown menu support
  */
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import './TabView.css';
 
-export const TabView = ({ tabs, activeTab = 0, onTabChange }) => {
+const TabViewComponent = ({ tabs, activeTab = 0, onTabChange }) => {
   const [dropdownOpen, setDropdownOpen] = useState(null);
   const [selectedDropdownItems, setSelectedDropdownItems] = useState({});
 
@@ -89,3 +89,11 @@ export const TabView = ({ tabs, activeTab = 0, onTabChange }) => {
     </div>
   );
 };
+
+// Custom comparison function - only re-render if activeTab changes
+const areEqual = (prevProps, nextProps) => {
+  return prevProps.activeTab === nextProps.activeTab;
+};
+
+// Export memoized component to prevent unnecessary re-renders
+export const TabView = memo(TabViewComponent, areEqual);
