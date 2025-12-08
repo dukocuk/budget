@@ -15,7 +15,7 @@
 
 .tab-header {
   display: flex;
-  gap: 12px; /* Increased from 4px for better spacing */
+  gap: 20px; /* Increased from 12px for better spacing */
   border-bottom: 2px solid #e5e7eb;
   margin-bottom: 0;
   padding: 8px 16px 0 16px; /* Increased horizontal padding */
@@ -35,7 +35,7 @@
 .tab-button {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px; /* Increased from 10px for better spacing between icon and label */
   padding: 14px 28px;
   border: none;
   background: transparent;
@@ -103,7 +103,8 @@
   z-index: 100;
   animation: dropdownFadeIn 0.2s ease;
   overflow: hidden;
-  margin-top: 4px;
+  margin-top: 0; /* Changed from 4px to 0 to eliminate hover gap */
+  padding-top: 4px; /* Add padding inside dropdown for spacing */
 }
 
 @keyframes dropdownFadeIn {
@@ -167,7 +168,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100px; /* Prevent overflow on mobile */
+  /* max-width removed - applied per media query below */
 }
 
 /* Dropdown arrow indicator */
@@ -235,7 +236,7 @@
 
   .tab-label {
     font-size: 13px; /* Smaller but still visible */
-    max-width: 80px; /* Narrower on mobile */
+    max-width: 80px; /* Restrict width on mobile to prevent overflow */
   }
 
   .dropdown-arrow {
@@ -259,11 +260,11 @@
 /* Desktop (769px+): Enhanced spacing and sizing */
 @media (min-width: 769px) {
   .tab-button {
-    padding: 16px 40px; /* More spacious horizontal padding */
+    padding: 16px 32px; /* Comfortable horizontal padding */
   }
 
   .tab-label {
-    max-width: 200px; /* Generous width (was 100px) */
+    max-width: none; /* No width restriction on desktop - show full labels */
     font-size: 16px;
   }
 
@@ -272,7 +273,7 @@
   }
 
   .tab-header {
-    gap: 16px; /* More breathing room between tabs */
+    gap: 24px; /* Increased spacing between tabs for better separation */
     padding: 8px 20px 0 20px; /* More horizontal padding on desktop */
   }
 }
