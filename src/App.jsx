@@ -614,7 +614,9 @@ function AppContent() {
   const isReadOnly = activePeriod?.status === 'archived';
 
   // Tab content components
-  const OverviewTab = () => <Dashboard userId={user?.id} />;
+  const OverviewTab = () => (
+    <Dashboard userId={user?.id} periodId={activePeriod?.id} />
+  );
 
   const ExpensesTab = () => (
     <div className="tab-content-wrapper">
