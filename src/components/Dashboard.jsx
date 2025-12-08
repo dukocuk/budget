@@ -26,9 +26,9 @@ import {
 import { CHART_COLORS, MONTHS } from '../utils/constants';
 import './Dashboard.css';
 
-export default function Dashboard({ userId }) {
-  const { expenses, loading: expensesLoading } = useExpenses(userId);
-  const { settings, loading: settingsLoading } = useSettings(userId);
+export default function Dashboard({ userId, periodId }) {
+  const { expenses, loading: expensesLoading } = useExpenses(userId, periodId);
+  const { settings, loading: settingsLoading } = useSettings(userId, periodId);
   const { width } = useViewportSize();
   const isMobile = width < 768;
 
@@ -284,7 +284,7 @@ export default function Dashboard({ userId }) {
           className="chart-toggle"
           onClick={() => toggleSection('quickStats')}
         >
-          {expandedSections.quickStats ? '🔽' : '▶️'} Udgiftsoversigt
+          {expandedSections.quickStats ? '🔽' : '▶️'} Statistik
         </button>
       )}
       {(!isMobile || expandedSections.quickStats) && (
