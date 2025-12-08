@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useExpenses } from '../hooks/useExpenses';
 import { useSettings } from '../hooks/useSettings';
+import { useViewportSize } from '../hooks/useViewportSize';
 import {
   calculateSummary,
   calculateMonthlyTotals,
@@ -28,9 +29,40 @@ import './Dashboard.css';
 export default function Dashboard({ userId }) {
   const { expenses, loading: expensesLoading } = useExpenses(userId);
   const { settings, loading: settingsLoading } = useSettings(userId);
+  const { width } = useViewportSize();
+  const isMobile = width < 768;
 
   // Use monthlyPayments array if available, otherwise fallback to single monthlyPayment
   const paymentValue = settings.monthlyPayments || settings.monthlyPayment;
+
+  // Collapsible sections state with localStorage persistence
+  const [expandedSections, setExpandedSections] = useState(() => {
+    const saved = localStorage.getItem('dashboardChartVisibility');
+    return saved
+      ? JSON.parse(saved)
+      : {
+          summary: true, // Summary cards - visible by default
+          pieChart: false, // Udgiftsfordeling - collapsed by default
+          barChart: false, // Månedlig sammenligning - collapsed by default
+          lineChart: false, // Balance udvikling - collapsed by default
+          quickStats: false, // Udgiftsoversigt - collapsed by default
+        };
+  });
+
+  // Persist state to localStorage
+  useEffect(() => {
+    localStorage.setItem(
+      'dashboardChartVisibility',
+      JSON.stringify(expandedSections)
+    );
+  }, [expandedSections]);
+
+  const toggleSection = section => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
 
   // Memoize expensive calculations
   const summary = React.useMemo(
@@ -92,144 +124,198 @@ export default function Dashboard({ userId }) {
 
   return (
     <div className="dashboard">
-      {/* Summary Cards */}
-      <div className="summary-grid">
-        <div className="summary-card">
-          <h3>Årlige udgifter</h3>
-          <div className="value">
-            {summary.totalAnnual.toLocaleString('da-DK')} kr.
+      {/* Summary Cards - Collapsible on Mobile */}
+      {isMobile && (
+        <button
+          className="chart-toggle"
+          onClick={() => toggleSection('summary')}
+        >
+          {expandedSections.summary ? '🔽' : '▶️'} Oversigt
+        </button>
+      )}
+      {(!isMobile || expandedSections.summary) && (
+        <div className="summary-grid">
+          <div className="summary-card">
+            <h3>Årlige udgifter</h3>
+            <div className="value">
+              {summary.totalAnnual.toLocaleString('da-DK')} kr.
+            </div>
+          </div>
+          <div className="summary-card">
+            <h3>Gennemsnitlig månedlig udgift</h3>
+            <div className="value">
+              {summary.avgMonthly.toLocaleString('da-DK')} kr.
+            </div>
+          </div>
+          <div className="summary-card">
+            <h3>Månedlig balance</h3>
+            <div
+              className={`value ${summary.monthlyBalance >= 0 ? 'positive' : 'negative'}`}
+            >
+              {summary.monthlyBalance >= 0 ? '+' : ''}
+              {summary.monthlyBalance.toLocaleString('da-DK')} kr.
+            </div>
+          </div>
+          <div className="summary-card">
+            <h3>Årlig reserve</h3>
+            <div
+              className={`value ${summary.annualReserve >= 0 ? 'positive' : 'negative'}`}
+            >
+              {summary.annualReserve.toLocaleString('da-DK')} kr.
+            </div>
           </div>
         </div>
-        <div className="summary-card">
-          <h3>Gennemsnitlig månedlig udgift</h3>
-          <div className="value">
-            {summary.avgMonthly.toLocaleString('da-DK')} kr.
-          </div>
-        </div>
-        <div className="summary-card">
-          <h3>Månedlig balance</h3>
-          <div
-            className={`value ${summary.monthlyBalance >= 0 ? 'positive' : 'negative'}`}
-          >
-            {summary.monthlyBalance >= 0 ? '+' : ''}
-            {summary.monthlyBalance.toLocaleString('da-DK')} kr.
-          </div>
-        </div>
-        <div className="summary-card">
-          <h3>Årlig reserve</h3>
-          <div
-            className={`value ${summary.annualReserve >= 0 ? 'positive' : 'negative'}`}
-          >
-            {summary.annualReserve.toLocaleString('da-DK')} kr.
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Charts */}
       <div className="charts-grid">
-        {/* Expense Distribution Pie Chart */}
+        {/* Expense Distribution Pie Chart - Collapsible on Mobile */}
         {expensesByFrequency.length > 0 && (
-          <div className="chart-card">
-            <h3>Udgifter efter frekvens</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={expensesByFrequency}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) =>
-                    `${name}: ${(percent * 100).toFixed(0)}%`
-                  }
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {expensesByFrequency.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={CHART_COLORS[index % CHART_COLORS.length]}
+          <>
+            {isMobile && (
+              <button
+                className="chart-toggle"
+                onClick={() => toggleSection('pieChart')}
+              >
+                {expandedSections.pieChart ? '🔽' : '▶️'} Udgiftsfordeling
+              </button>
+            )}
+            {(!isMobile || expandedSections.pieChart) && (
+              <div className="chart-card">
+                <h3>Udgifter efter frekvens</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={expensesByFrequency}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) =>
+                        `${name}: ${(percent * 100).toFixed(0)}%`
+                      }
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {expensesByFrequency.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={CHART_COLORS[index % CHART_COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={value =>
+                        `${value.toLocaleString('da-DK')} kr.`
+                      }
                     />
-                  ))}
-                </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Monthly Spending Bar Chart - Collapsible on Mobile */}
+        {isMobile && (
+          <button
+            className="chart-toggle"
+            onClick={() => toggleSection('barChart')}
+          >
+            {expandedSections.barChart ? '🔽' : '▶️'} Månedlig sammenligning
+          </button>
+        )}
+        {(!isMobile || expandedSections.barChart) && (
+          <div className="chart-card">
+            <h3>Månedlige udgifter vs. indbetaling</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
                 <Tooltip
                   formatter={value => `${value.toLocaleString('da-DK')} kr.`}
                 />
-              </PieChart>
+                <Legend />
+                <Bar dataKey="udgifter" fill="#ef4444" name="Udgifter" />
+                <Bar dataKey="indbetaling" fill="#10b981" name="Indbetaling" />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         )}
 
-        {/* Monthly Spending Bar Chart */}
-        <div className="chart-card">
-          <h3>Månedlige udgifter vs. indbetaling</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip
-                formatter={value => `${value.toLocaleString('da-DK')} kr.`}
-              />
-              <Legend />
-              <Bar dataKey="udgifter" fill="#ef4444" name="Udgifter" />
-              <Bar dataKey="indbetaling" fill="#10b981" name="Indbetaling" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Balance Projection Line Chart */}
-        <div className="chart-card chart-full-width">
-          <h3>Balance prognose over året</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={balanceData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip
-                formatter={value => `${value.toLocaleString('da-DK')} kr.`}
-              />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="balance"
-                stroke="#667eea"
-                strokeWidth={2}
-                name="Balance"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {/* Balance Projection Line Chart - Collapsible on Mobile */}
+        {isMobile && (
+          <button
+            className="chart-toggle"
+            onClick={() => toggleSection('lineChart')}
+          >
+            {expandedSections.lineChart ? '🔽' : '▶️'} Balance udvikling
+          </button>
+        )}
+        {(!isMobile || expandedSections.lineChart) && (
+          <div className="chart-card chart-full-width">
+            <h3>Balance prognose over året</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={balanceData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip
+                  formatter={value => `${value.toLocaleString('da-DK')} kr.`}
+                />
+                <Legend />
+                <Line
+                  type="monotone"
+                  dataKey="balance"
+                  stroke="#667eea"
+                  strokeWidth={2}
+                  name="Balance"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
-      {/* Quick Stats */}
-      <div className="quick-stats">
-        <h3>Hurtig statistik</h3>
-        <div className="stats-grid">
-          <div className="stat-item">
-            <span className="stat-label">Antal udgifter</span>
-            <span className="stat-value">{expenses.length}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Månedlige udgifter</span>
-            <span className="stat-value">
-              {expenses.filter(e => e.frequency === 'monthly').length}
-            </span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Kvartalsvise udgifter</span>
-            <span className="stat-value">
-              {expenses.filter(e => e.frequency === 'quarterly').length}
-            </span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Årlige udgifter</span>
-            <span className="stat-value">
-              {expenses.filter(e => e.frequency === 'yearly').length}
-            </span>
+      {/* Quick Stats - Collapsible on Mobile */}
+      {isMobile && (
+        <button
+          className="chart-toggle"
+          onClick={() => toggleSection('quickStats')}
+        >
+          {expandedSections.quickStats ? '🔽' : '▶️'} Udgiftsoversigt
+        </button>
+      )}
+      {(!isMobile || expandedSections.quickStats) && (
+        <div className="quick-stats">
+          <h3>Hurtig statistik</h3>
+          <div className="stats-grid">
+            <div className="stat-item">
+              <span className="stat-label">Antal udgifter</span>
+              <span className="stat-value">{expenses.length}</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">Månedlige udgifter</span>
+              <span className="stat-value">
+                {expenses.filter(e => e.frequency === 'monthly').length}
+              </span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">Kvartalsvise udgifter</span>
+              <span className="stat-value">
+                {expenses.filter(e => e.frequency === 'quarterly').length}
+              </span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">Årlige udgifter</span>
+              <span className="stat-value">
+                {expenses.filter(e => e.frequency === 'yearly').length}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

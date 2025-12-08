@@ -20,7 +20,6 @@ import { MonthlyOverview } from './components/MonthlyOverview';
 import { TabView } from './components/TabView';
 import BottomTabBar from './components/BottomTabBar';
 import { BalanceChart } from './components/BalanceChart';
-import { ExpenseDistribution } from './components/ExpenseDistribution';
 import { AddExpenseModal } from './components/AddExpenseModal';
 import { SettingsModal } from './components/SettingsModal';
 import { TemplateManagerModal } from './components/TemplateManagerModal';
@@ -729,22 +728,7 @@ function AppContent() {
                 {
                   icon: '📊',
                   label: 'Oversigt',
-                  dropdownItems: [
-                    {
-                      icon: '📈',
-                      label: 'Saldo udvikling',
-                      content: <OverviewTab />,
-                    },
-                    {
-                      icon: '🥧',
-                      label: 'Udgiftsfordeling',
-                      content: (
-                        <div className="tab-content-wrapper">
-                          <ExpenseDistribution expenses={expenses} />
-                        </div>
-                      ),
-                    },
-                  ],
+                  content: <OverviewTab />,
                 },
                 {
                   icon: '📝',
