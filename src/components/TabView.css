@@ -15,10 +15,10 @@
 
 .tab-header {
   display: flex;
-  gap: 4px;
+  gap: 12px; /* Increased from 4px for better spacing */
   border-bottom: 2px solid #e5e7eb;
   margin-bottom: 0;
-  padding: 8px 12px 0 12px;
+  padding: 8px 16px 0 16px; /* Increased horizontal padding */
   background: linear-gradient(
     to bottom,
     rgba(249, 250, 251, 0.8),
@@ -259,7 +259,7 @@
 /* Desktop (769px+): Enhanced spacing and sizing */
 @media (min-width: 769px) {
   .tab-button {
-    padding: 16px 36px; /* More spacious (was 14px 28px) */
+    padding: 16px 40px; /* More spacious horizontal padding */
   }
 
   .tab-label {
@@ -272,6 +272,7 @@
   }
 
   .tab-header {
-    gap: 8px; /* More breathing room (was 4px) */
+    gap: 16px; /* More breathing room between tabs */
+    padding: 8px 20px 0 20px; /* More horizontal padding on desktop */
   }
 }
