@@ -793,3 +793,19 @@ h2 {
     bottom: 30px;
   }
 }
+
+/* Mobile Content Area (replaces TabView on mobile) */
+.mobile-content {
+  width: 100%;
+  padding: 16px;
+  padding-bottom: calc(
+    72px + env(safe-area-inset-bottom) + 16px
+  ); /* Space for BottomTabBar */
+  min-height: calc(100vh - 200px);
+}
+
+@media (max-width: 480px) {
+  .mobile-content {
+    padding: 12px;
+  }
+}

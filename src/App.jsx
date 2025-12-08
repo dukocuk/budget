@@ -33,6 +33,7 @@ import { useExpenses } from './hooks/useExpenses';
 import { useBudgetPeriods } from './hooks/useBudgetPeriods';
 import { useAlert } from './hooks/useAlert';
 import { useAuth } from './hooks/useAuth';
+import { useViewportSize } from './hooks/useViewportSize';
 import { SyncProvider } from './contexts/SyncContext';
 import { useSyncContext } from './hooks/useSyncContext';
 import { calculateSummary } from './utils/calculations';
@@ -167,6 +168,9 @@ function AppContent() {
   } = useSyncContext();
 
   const { alert, showAlert } = useAlert();
+
+  // Viewport detection for responsive rendering
+  const { isMobile } = useViewportSize();
 
   // Memoize expensive calculations to prevent chart re-renders
   // Use monthlyPayments array if available, otherwise fallback to single monthlyPayment
@@ -715,34 +719,47 @@ function AppContent() {
           count={deleteConfirmation.count}
         />
 
-        <div className="container">
-          <TabView
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            tabs={[
-              {
-                icon: '📊',
-                label: 'Oversigt',
-                content: <OverviewTab />,
-              },
-              {
-                icon: '📝',
-                label: 'Udgifter',
-                content: <ExpensesTab />,
-              },
-              {
-                icon: '📅',
-                label: 'Månedlig oversigt',
-                content: <MonthlyTab />,
-              },
-              {
-                icon: '📈',
-                label: 'Sammenligning',
-                content: <ComparisonTab />,
-              },
-            ]}
-          />
-        </div>
+        {/* Desktop TabView (hidden on mobile < 768px) */}
+        {!isMobile && (
+          <div className="container">
+            <TabView
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              tabs={[
+                {
+                  icon: '📊',
+                  label: 'Oversigt',
+                  content: <OverviewTab />,
+                },
+                {
+                  icon: '📝',
+                  label: 'Udgifter',
+                  content: <ExpensesTab />,
+                },
+                {
+                  icon: '📅',
+                  label: 'Månedlig oversigt',
+                  content: <MonthlyTab />,
+                },
+                {
+                  icon: '📈',
+                  label: 'Sammenligning',
+                  content: <ComparisonTab />,
+                },
+              ]}
+            />
+          </div>
+        )}
+
+        {/* Mobile Content Area (visible on mobile < 768px) */}
+        {isMobile && (
+          <div className="mobile-content">
+            {activeTab === 0 && <OverviewTab />}
+            {activeTab === 1 && <ExpensesTab />}
+            {activeTab === 2 && <MonthlyTab />}
+            {activeTab === 3 && <ComparisonTab />}
+          </div>
+        )}
 
         {/* Add Expense Modal */}
         <AddExpenseModal
