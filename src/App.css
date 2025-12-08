@@ -797,15 +797,36 @@ h2 {
 /* Mobile Content Area (replaces TabView on mobile) */
 .mobile-content {
   width: 100%;
-  padding: 16px;
+  padding: 0;
   padding-bottom: calc(
-    72px + env(safe-area-inset-bottom) + 16px
+    72px + env(safe-area-inset-bottom)
   ); /* Space for BottomTabBar */
-  min-height: calc(100vh - 200px);
+  min-height: calc(100vh - 180px);
+  background: #f9fafb;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.mobile-content > * {
+  padding: 16px;
+}
+
+/* Custom scrollbar for mobile content */
+.mobile-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mobile-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mobile-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #667eea, #8b9aff);
+  border-radius: 10px;
 }
 
 @media (max-width: 480px) {
-  .mobile-content {
+  .mobile-content > * {
     padding: 12px;
   }
 }

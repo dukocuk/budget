@@ -729,7 +729,22 @@ function AppContent() {
                 {
                   icon: '📊',
                   label: 'Oversigt',
-                  content: <OverviewTab />,
+                  dropdownItems: [
+                    {
+                      icon: '📈',
+                      label: 'Saldo udvikling',
+                      content: <OverviewTab />,
+                    },
+                    {
+                      icon: '🥧',
+                      label: 'Udgiftsfordeling',
+                      content: (
+                        <div className="tab-content-wrapper">
+                          <ExpenseDistribution expenses={expenses} />
+                        </div>
+                      ),
+                    },
+                  ],
                 },
                 {
                   icon: '📝',
