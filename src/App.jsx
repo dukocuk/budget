@@ -20,6 +20,7 @@ import { MonthlyOverview } from './components/MonthlyOverview';
 import { TabView } from './components/TabView';
 import BottomTabBar from './components/BottomTabBar';
 import { BalanceChart } from './components/BalanceChart';
+import Dashboard from './components/Dashboard';
 import { AddExpenseModal } from './components/AddExpenseModal';
 import { SettingsModal } from './components/SettingsModal';
 import { TemplateManagerModal } from './components/TemplateManagerModal';
@@ -613,21 +614,7 @@ function AppContent() {
   const isReadOnly = activePeriod?.status === 'archived';
 
   // Tab content components
-  const OverviewTab = () => (
-    <div className="tab-content-wrapper">
-      <SummaryCards summary={summary} />
-      <div className="charts-container">
-        <BalanceChart
-          expenses={expenses}
-          monthlyPaymentOrArray={
-            settings.monthlyPayments || settings.monthlyPayment
-          }
-          previousBalance={settings.previousBalance}
-        />
-        <ExpenseDistribution expenses={expenses} />
-      </div>
-    </div>
-  );
+  const OverviewTab = () => <Dashboard userId={user?.id} />;
 
   const ExpensesTab = () => (
     <div className="tab-content-wrapper">
