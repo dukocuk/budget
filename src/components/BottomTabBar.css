@@ -71,18 +71,6 @@
   transform: scale(1.1);
 }
 
-.tab-label {
-  display: none; /* Hide labels on mobile - icons only */
-  font-size: 11px;
-  font-weight: 500;
-  text-align: center;
-  line-height: 1.2;
-}
-
-.tab-button.active .tab-label {
-  font-weight: 600;
-}
-
 /* Extra small phones (320px) - Adjust icon size */
 @media (max-width: 374px) {
   .tab-icon {

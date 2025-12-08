@@ -651,6 +651,7 @@ function AppContent() {
         onToggleSelectAll={isReadOnly ? () => {} : toggleSelectAll}
         onUpdate={isReadOnly ? () => {} : updateExpense}
         onDelete={isReadOnly ? () => {} : handleDeleteExpense}
+        onAdd={isReadOnly ? () => {} : addExpense}
         readOnly={isReadOnly}
       />
 

@@ -40,7 +40,7 @@ export default function Auth({
     // In production (GitHub Pages): https://dukocuk.github.io/budget/
     // In development: http://localhost:5173/
     const basePath = import.meta.env.BASE_URL || '/';
-    const redirectUri = window.location.origin + basePath;
+    const redirectUri = window.location.origin + basePath.replace(/\/$/, ''); // Remove trailing slash
     const scope = 'https://www.googleapis.com/auth/drive.file';
 
     // Build OAuth URL manually for implicit flow

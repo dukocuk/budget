@@ -265,7 +265,7 @@
 /* Desktop (769px+): Enhanced spacing and sizing */
 @media (min-width: 769px) {
   .tab-button {
-    padding: 16px 32px; /* Comfortable horizontal padding */
+    padding: 16px 48px; /* Increased horizontal padding for wider tabs */
   }
 
   .tab-label {
@@ -278,7 +278,7 @@
   }
 
   .tab-header {
-    gap: 24px; /* Increased spacing between tabs for better separation */
+    gap: 28px; /* Increased spacing between tabs for better separation */
     padding: 8px 20px 0 20px; /* More horizontal padding on desktop */
   }
 }

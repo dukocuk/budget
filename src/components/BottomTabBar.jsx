@@ -6,10 +6,11 @@ import './BottomTabBar.css';
  *
  * Features:
  * - Fixed bottom positioning
- * - Icon + abbreviated label
+ * - Icon-only display (no text labels)
  * - Touch-friendly 56px height
  * - Safe area support (iPhone notch)
  * - Active state indicator
+ * - Accessibility via aria-label
  *
  * @param {Object} props - Component props
  * @param {number} props.activeTab - Current active tab index (0-3)
@@ -17,10 +18,10 @@ import './BottomTabBar.css';
  */
 const BottomTabBar = ({ activeTab, onTabChange }) => {
   const tabs = [
-    { icon: '📊', label: 'Over', fullLabel: 'Oversigt' },
-    { icon: '📝', label: 'Udgif', fullLabel: 'Udgifter' },
-    { icon: '📅', label: 'Måned', fullLabel: 'Månedlig oversigt' },
-    { icon: '📈', label: 'Samml', fullLabel: 'Sammenligning' },
+    { icon: '📊', ariaLabel: 'Oversigt' },
+    { icon: '📝', ariaLabel: 'Udgifter' },
+    { icon: '📅', ariaLabel: 'Månedlig oversigt' },
+    { icon: '📈', ariaLabel: 'Sammenligning' },
   ];
 
   return (
@@ -32,10 +33,9 @@ const BottomTabBar = ({ activeTab, onTabChange }) => {
           onClick={() => onTabChange(index)}
           role="tab"
           aria-selected={activeTab === index}
-          aria-label={tab.fullLabel}
+          aria-label={tab.ariaLabel}
         >
           <span className="tab-icon">{tab.icon}</span>
-          <span className="tab-label">{tab.label}</span>
         </button>
       ))}
     </nav>
