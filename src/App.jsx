@@ -10,6 +10,7 @@ import {
   useReducer,
   useRef,
   startTransition,
+  memo,
 } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Header } from './components/Header';
@@ -82,6 +83,89 @@ const settingsReducer = (state, action) => {
       return state;
   }
 };
+
+/**
+ * Tab content components - defined outside AppContent to prevent recreation
+ * This ensures stable component references across re-renders, preventing chart unmount/remount
+ */
+const OverviewTabContent = memo(({ userId, periodId }) => (
+  <Dashboard userId={userId} periodId={periodId} />
+));
+
+const ExpensesTabContent = memo(
+  ({
+    isReadOnly,
+    expenses,
+    selectedExpenses,
+    toggleExpenseSelection,
+    toggleSelectAll,
+    updateExpense,
+    handleDeleteExpense,
+    addExpense,
+    handleDeleteSelected,
+    setShowAddModal,
+  }) => (
+    <div className="tab-content-wrapper">
+      {isReadOnly && (
+        <div className="read-only-banner">
+          <span className="read-only-icon">📦</span>
+          <span className="read-only-text">
+            Dette er et arkiveret budgetår. Du kan se data, men ikke redigere.
+          </span>
+        </div>
+      )}
+      <div className="expenses-header">
+        <h2>📋 Dine udgifter</h2>
+        <button
+          className="btn btn-primary"
+          onClick={() => setShowAddModal(true)}
+          title={
+            isReadOnly
+              ? 'Kan ikke tilføje udgifter til arkiveret år'
+              : 'Tilføj ny udgift (Ctrl+N)'
+          }
+          disabled={isReadOnly}
+        >
+          ➕ Tilføj udgift
+        </button>
+      </div>
+
+      <ExpensesTable
+        expenses={expenses}
+        selectedExpenses={selectedExpenses}
+        onToggleSelection={isReadOnly ? () => {} : toggleExpenseSelection}
+        onToggleSelectAll={isReadOnly ? () => {} : toggleSelectAll}
+        onUpdate={isReadOnly ? () => {} : updateExpense}
+        onDelete={isReadOnly ? () => {} : handleDeleteExpense}
+        onAdd={isReadOnly ? () => {} : addExpense}
+        readOnly={isReadOnly}
+      />
+
+      <button
+        className="btn btn-danger"
+        onClick={handleDeleteSelected}
+        disabled={isReadOnly || selectedExpenses.length === 0}
+      >
+        🗑️ Slet valgte
+      </button>
+    </div>
+  )
+);
+
+const MonthlyTabContent = memo(({ expenses, totalAnnual }) => (
+  <div className="tab-content-wrapper">
+    <MonthlyOverview expenses={expenses} totalAnnual={totalAnnual} />
+  </div>
+));
+
+const ComparisonTabContent = memo(({ periods, getExpensesForPeriod }) => (
+  <div className="tab-content-wrapper">
+    <YearComparison
+      periods={periods}
+      getExpensesForPeriod={getExpensesForPeriod}
+    />
+  </div>
+));
 
 /**
  * AppContent - The main application logic (wrapped by SyncProvider)
@@ -613,72 +697,54 @@ function AppContent() {
   // Check if current period is archived (read-only mode)
   const isReadOnly = activePeriod?.status === 'archived';
 
-  // Tab content components
-  const OverviewTab = () => (
-    <Dashboard userId={user?.id} periodId={activePeriod?.id} />
-  );
-
-  const ExpensesTab = () => (
-    <div className="tab-content-wrapper">
-      {isReadOnly && (
-        <div className="read-only-banner">
-          <span className="read-only-icon">📦</span>
-          <span className="read-only-text">
-            Dette er et arkiveret budgetår. Du kan se data, men ikke redigere.
-          </span>
-        </div>
-      )}
-      <div className="expenses-header">
-        <h2>📋 Dine udgifter</h2>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowAddModal(true)}
-          title={
-            isReadOnly
-              ? 'Kan ikke tilføje udgifter til arkiveret år'
-              : 'Tilføj ny udgift (Ctrl+N)'
-          }
-          disabled={isReadOnly}
-        >
-          ➕ Tilføj udgift
-        </button>
-      </div>
-
-      <ExpensesTable
-        expenses={expenses}
-        selectedExpenses={selectedExpenses}
-        onToggleSelection={isReadOnly ? () => {} : toggleExpenseSelection}
-        onToggleSelectAll={isReadOnly ? () => {} : toggleSelectAll}
-        onUpdate={isReadOnly ? () => {} : updateExpense}
-        onDelete={isReadOnly ? () => {} : handleDeleteExpense}
-        onAdd={isReadOnly ? () => {} : addExpense}
-        readOnly={isReadOnly}
-      />
-
-      <button
-        className="btn btn-danger"
-        onClick={handleDeleteSelected}
-        disabled={isReadOnly || selectedExpenses.length === 0}
-      >
-        🗑️ Slet valgte
-      </button>
-    </div>
-  );
-
-  const MonthlyTab = () => (
-    <div className="tab-content-wrapper">
-      <MonthlyOverview expenses={expenses} totalAnnual={summary.totalAnnual} />
-    </div>
-  );
-
-  const ComparisonTab = () => (
-    <div className="tab-content-wrapper">
-      <YearComparison
-        periods={periods}
-        getExpensesForPeriod={getExpensesForPeriod}
-      />
-    </div>
-  );
+  // Tab content array - components defined outside to prevent recreation
+  const desktopTabs = [
+    {
+      icon: '📊',
+      label: 'Oversigt',
+      content: (
+        <OverviewTabContent userId={user?.id} periodId={activePeriod?.id} />
+      ),
+    },
+    {
+      icon: '📝',
+      label: 'Udgifter',
+      content: (
+        <ExpensesTabContent
+          isReadOnly={isReadOnly}
+          expenses={expenses}
+          selectedExpenses={selectedExpenses}
+          toggleExpenseSelection={toggleExpenseSelection}
+          toggleSelectAll={toggleSelectAll}
+          updateExpense={updateExpense}
+          handleDeleteExpense={handleDeleteExpense}
+          addExpense={addExpense}
+          handleDeleteSelected={handleDeleteSelected}
+          setShowAddModal={setShowAddModal}
+        />
+      ),
+    },
+    {
+      icon: '📅',
+      label: 'Månedlig oversigt',
+      content: (
+        <MonthlyTabContent
+          expenses={expenses}
+          totalAnnual={summary.totalAnnual}
+        />
+      ),
+    },
+    {
+      icon: '📈',
+      label: 'Sammenligning',
+      content: (
+        <ComparisonTabContent
+          periods={periods}
+          getExpensesForPeriod={getExpensesForPeriod}
+        />
+      ),
+    },
+  ];
 
   return (
     <ErrorBoundary>
@@ -714,28 +780,7 @@ function AppContent() {
             <TabView
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              tabs={[
-                {
-                  icon: '📊',
-                  label: 'Oversigt',
-                  content: <OverviewTab />,
-                },
-                {
-                  icon: '📝',
-                  label: 'Udgifter',
-                  content: <ExpensesTab />,
-                },
-                {
-                  icon: '📅',
-                  label: 'Månedlig oversigt',
-                  content: <MonthlyTab />,
-                },
-                {
-                  icon: '📈',
-                  label: 'Sammenligning',
-                  content: <ComparisonTab />,
-                },
-              ]}
+              tabs={desktopTabs}
             />
           </div>
         )}
@@ -743,10 +788,10 @@ function AppContent() {
         {/* Mobile Content Area (visible on mobile < 768px) */}
         {isMobile && (
           <div className="mobile-content">
-            {activeTab === 0 && <OverviewTab />}
-            {activeTab === 1 && <ExpensesTab />}
-            {activeTab === 2 && <MonthlyTab />}
-            {activeTab === 3 && <ComparisonTab />}
+            {activeTab === 0 && desktopTabs[0].content}
+            {activeTab === 1 && desktopTabs[1].content}
+            {activeTab === 2 && desktopTabs[2].content}
+            {activeTab === 3 && desktopTabs[3].content}
           </div>
         )}
 

@@ -26,7 +26,7 @@ import {
 import { CHART_COLORS, MONTHS } from '../utils/constants';
 import './Dashboard.css';
 
-export default function Dashboard({ userId, periodId }) {
+function Dashboard({ userId, periodId }) {
   const { expenses, loading: expensesLoading } = useExpenses(userId, periodId);
   const { settings, loading: settingsLoading } = useSettings(userId, periodId);
   const { width } = useViewportSize();
@@ -167,6 +167,45 @@ export default function Dashboard({ userId, periodId }) {
         </div>
       )}
 
+      {/* Quick Stats - Collapsible on Mobile */}
+      {isMobile && (
+        <button
+          className="chart-toggle"
+          onClick={() => toggleSection('quickStats')}
+        >
+          {expandedSections.quickStats ? '🔽' : '▶️'} Statistik
+        </button>
+      )}
+      {(!isMobile || expandedSections.quickStats) && (
+        <div className="quick-stats">
+          <h3>Hurtig statistik</h3>
+          <div className="stats-grid">
+            <div className="stat-item">
+              <span className="stat-label">Antal udgifter</span>
+              <span className="stat-value">{expenses.length}</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">Månedlige udgifter</span>
+              <span className="stat-value">
+                {expenses.filter(e => e.frequency === 'monthly').length}
+              </span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">Kvartalsvise udgifter</span>
+              <span className="stat-value">
+                {expenses.filter(e => e.frequency === 'quarterly').length}
+              </span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">Årlige udgifter</span>
+              <span className="stat-value">
+                {expenses.filter(e => e.frequency === 'yearly').length}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Charts */}
       <div className="charts-grid">
         {/* Expense Distribution Pie Chart - Collapsible on Mobile */}
@@ -277,45 +316,15 @@ export default function Dashboard({ userId, periodId }) {
           </div>
         )}
       </div>
-
-      {/* Quick Stats - Collapsible on Mobile */}
-      {isMobile && (
-        <button
-          className="chart-toggle"
-          onClick={() => toggleSection('quickStats')}
-        >
-          {expandedSections.quickStats ? '🔽' : '▶️'} Statistik
-        </button>
-      )}
-      {(!isMobile || expandedSections.quickStats) && (
-        <div className="quick-stats">
-          <h3>Hurtig statistik</h3>
-          <div className="stats-grid">
-            <div className="stat-item">
-              <span className="stat-label">Antal udgifter</span>
-              <span className="stat-value">{expenses.length}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Månedlige udgifter</span>
-              <span className="stat-value">
-                {expenses.filter(e => e.frequency === 'monthly').length}
-              </span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Kvartalsvise udgifter</span>
-              <span className="stat-value">
-                {expenses.filter(e => e.frequency === 'quarterly').length}
-              </span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Årlige udgifter</span>
-              <span className="stat-value">
-                {expenses.filter(e => e.frequency === 'yearly').length}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+
+// Memoize Dashboard to prevent re-renders when props haven't changed
+// This significantly reduces chart re-renders on mobile orientation changes
+export default React.memo(Dashboard, (prevProps, nextProps) => {
+  return (
+    prevProps.userId === nextProps.userId &&
+    prevProps.periodId === nextProps.periodId
+  );
+});

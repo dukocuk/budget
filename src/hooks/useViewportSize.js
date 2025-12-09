@@ -1,4 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+
+/**
+ * Debounce utility function
+ * Delays function execution until after specified wait time has elapsed
+ * since the last time it was invoked
+ *
+ * @param {Function} func - Function to debounce
+ * @param {number} wait - Milliseconds to wait before executing
+ * @returns {Function} Debounced function
+ */
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
 
 /**
  * Custom hook for responsive viewport size detection
@@ -10,6 +31,11 @@ import { useState, useEffect } from 'react';
  * - Mobile: < 768px
  * - Tablet: 768px - 1023px
  * - Desktop: >= 1024px
+ *
+ * Performance Optimizations:
+ * - 300ms debounce on resize events to prevent excessive re-renders
+ * - requestAnimationFrame for smooth updates
+ * - Removed orientationchange listener (resize fires after orientation)
  *
  * @returns {Object} Viewport state and breakpoint helpers
  * @property {number} width - Current window width in pixels
@@ -33,6 +59,9 @@ export const useViewportSize = () => {
     height: typeof window !== 'undefined' ? window.innerHeight : 0,
   });
 
+  // Track previous breakpoint to prevent unnecessary re-renders
+  const prevBreakpointRef = useRef(null);
+
   useEffect(() => {
     // Don't run in SSR environments
     if (typeof window === 'undefined') {
@@ -40,42 +69,58 @@ export const useViewportSize = () => {
     }
 
     /**
-     * Update viewport dimensions on window resize
-     * Debounced via requestAnimationFrame for better performance
+     * Update viewport dimensions
+     * Uses requestAnimationFrame for smooth, batched updates
      */
-    let timeoutId = null;
+    let rafId = null;
 
-    const handleResize = () => {
-      // Cancel any pending updates
-      if (timeoutId) {
-        cancelAnimationFrame(timeoutId);
+    const updateSize = () => {
+      const newWidth = window.innerWidth;
+      const newHeight = window.innerHeight;
+
+      // Calculate new breakpoint
+      const newBreakpoint =
+        newWidth < 768 ? 'mobile' : newWidth < 1024 ? 'tablet' : 'desktop';
+
+      // Only update state if breakpoint changed (prevents unnecessary re-renders)
+      if (prevBreakpointRef.current !== newBreakpoint) {
+        prevBreakpointRef.current = newBreakpoint;
+        setViewportSize({
+          width: newWidth,
+          height: newHeight,
+        });
+      }
+      // If breakpoint didn't change, skip state update → no re-render!
+    };
+
+    /**
+     * Debounced resize handler
+     * Prevents excessive state updates during rapid resize events
+     * 300ms delay ensures smooth orientation changes without flickering
+     */
+    const debouncedResize = debounce(() => {
+      // Cancel any pending animation frame
+      if (rafId) {
+        cancelAnimationFrame(rafId);
       }
 
       // Schedule update on next animation frame
-      timeoutId = requestAnimationFrame(() => {
-        setViewportSize({
-          width: window.innerWidth,
-          height: window.innerHeight,
-        });
-      });
-    };
+      rafId = requestAnimationFrame(updateSize);
+    }, 300);
 
-    // Set initial size
-    handleResize();
+    // Set initial size immediately (no debounce)
+    updateSize();
 
-    // Listen for resize events
-    window.addEventListener('resize', handleResize);
-
-    // Listen for orientation changes (mobile devices)
-    window.addEventListener('orientationchange', handleResize);
+    // Listen for resize events (includes orientation changes)
+    // Note: orientationchange is redundant as resize fires after orientation
+    window.addEventListener('resize', debouncedResize);
 
     // Cleanup
     return () => {
-      if (timeoutId) {
-        cancelAnimationFrame(timeoutId);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
       }
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleResize);
+      window.removeEventListener('resize', debouncedResize);
     };
   }, []);
 
