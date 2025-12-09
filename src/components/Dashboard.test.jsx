@@ -7,11 +7,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import Dashboard from './Dashboard';
 import { useExpenses } from '../hooks/useExpenses';
-import { useSettings } from '../hooks/useSettings';
 
 // Mock the hooks
 vi.mock('../hooks/useExpenses');
-vi.mock('../hooks/useSettings');
+vi.mock('../hooks/useViewportSize', () => ({
+  useViewportSize: () => ({ width: 1024, height: 768 }),
+}));
 
 // Mock Recharts to avoid rendering issues in tests
 vi.mock('recharts', () => ({
@@ -61,7 +62,9 @@ describe('Dashboard', () => {
     },
   ];
 
-  const mockSettings = {
+  const defaultProps = {
+    userId: 'test-user-id',
+    periodId: 'test-period-id',
     monthlyPayment: 5700,
     previousBalance: 4831,
     monthlyPayments: null,
@@ -77,27 +80,8 @@ describe('Dashboard', () => {
         expenses: [],
         loading: true,
       });
-      useSettings.mockReturnValue({
-        settings: mockSettings,
-        loading: false,
-      });
 
-      render(<Dashboard userId="test-user-id" />);
-
-      expect(screen.getByText('Indlæser oversigt...')).toBeInTheDocument();
-    });
-
-    it('should show loading spinner when settings are loading', () => {
-      useExpenses.mockReturnValue({
-        expenses: mockExpenses,
-        loading: false,
-      });
-      useSettings.mockReturnValue({
-        settings: mockSettings,
-        loading: true,
-      });
-
-      render(<Dashboard userId="test-user-id" />);
+      render(<Dashboard {...defaultProps} />);
 
       expect(screen.getByText('Indlæser oversigt...')).toBeInTheDocument();
     });
@@ -109,14 +93,10 @@ describe('Dashboard', () => {
         expenses: mockExpenses,
         loading: false,
       });
-      useSettings.mockReturnValue({
-        settings: mockSettings,
-        loading: false,
-      });
     });
 
     it('should display all four summary cards', () => {
-      render(<Dashboard userId="test-user-id" />);
+      render(<Dashboard {...defaultProps} />);
 
       // Use getAllByText for duplicate text, then check count
       const annualExpenses = screen.getAllByText('Årlige udgifter');
@@ -130,7 +110,7 @@ describe('Dashboard', () => {
     });
 
     it('should calculate and display total annual expenses', () => {
-      render(<Dashboard userId="test-user-id" />);
+      render(<Dashboard {...defaultProps} />);
 
       // Netflix: 79 * 12 = 948
       // Insurance: 500 * 4 = 2000
@@ -146,21 +126,17 @@ describe('Dashboard', () => {
         expenses: mockExpenses,
         loading: false,
       });
-      useSettings.mockReturnValue({
-        settings: mockSettings,
-        loading: false,
-      });
     });
 
     it('should render pie chart for expense distribution', () => {
-      render(<Dashboard userId="test-user-id" />);
+      render(<Dashboard {...defaultProps} />);
 
       expect(screen.getByText('Udgifter efter frekvens')).toBeInTheDocument();
       expect(screen.getByTestId('pie-chart')).toBeInTheDocument();
     });
 
     it('should render bar chart for monthly expenses vs income', () => {
-      render(<Dashboard userId="test-user-id" />);
+      render(<Dashboard {...defaultProps} />);
 
       expect(
         screen.getByText('Månedlige udgifter vs. indbetaling')
@@ -169,7 +145,7 @@ describe('Dashboard', () => {
     });
 
     it('should render line chart for balance projection', () => {
-      render(<Dashboard userId="test-user-id" />);
+      render(<Dashboard {...defaultProps} />);
 
       expect(
         screen.getByText('Balance prognose over året')
@@ -183,7 +159,7 @@ describe('Dashboard', () => {
         loading: false,
       });
 
-      render(<Dashboard userId="test-user-id" />);
+      render(<Dashboard {...defaultProps} />);
 
       expect(
         screen.queryByText('Udgifter efter frekvens')
@@ -197,14 +173,10 @@ describe('Dashboard', () => {
         expenses: mockExpenses,
         loading: false,
       });
-      useSettings.mockReturnValue({
-        settings: mockSettings,
-        loading: false,
-      });
     });
 
     it('should display total expense count', () => {
-      render(<Dashboard userId="test-user-id" />);
+      render(<Dashboard {...defaultProps} />);
 
       expect(screen.getByText('Antal udgifter')).toBeInTheDocument();
       const countElements = screen.getAllByText('3');
@@ -212,20 +184,20 @@ describe('Dashboard', () => {
     });
 
     it('should display count of monthly expenses', () => {
-      render(<Dashboard userId="test-user-id" />);
+      render(<Dashboard {...defaultProps} />);
 
       const monthlyLabels = screen.getAllByText('Månedlige udgifter');
       expect(monthlyLabels.length).toBeGreaterThan(0);
     });
 
     it('should display count of quarterly expenses', () => {
-      render(<Dashboard userId="test-user-id" />);
+      render(<Dashboard {...defaultProps} />);
 
       expect(screen.getByText('Kvartalsvise udgifter')).toBeInTheDocument();
     });
 
     it('should display count of yearly expenses', () => {
-      render(<Dashboard userId="test-user-id" />);
+      render(<Dashboard {...defaultProps} />);
 
       // Use getAllByText since "Årlige udgifter" appears in both summary cards and quick stats
       const yearlyLabels = screen.getAllByText(/Årlige udgifter/i);
@@ -235,9 +207,8 @@ describe('Dashboard', () => {
 
   describe('Variable Monthly Payments', () => {
     it('should handle variable monthly payments array', () => {
-      const variableSettings = {
-        monthlyPayment: 5700,
-        previousBalance: 4831,
+      const variableProps = {
+        ...defaultProps,
         monthlyPayments: [
           5000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700,
           6000,
@@ -248,12 +219,8 @@ describe('Dashboard', () => {
         expenses: mockExpenses,
         loading: false,
       });
-      useSettings.mockReturnValue({
-        settings: variableSettings,
-        loading: false,
-      });
 
-      render(<Dashboard userId="test-user-id" />);
+      render(<Dashboard {...variableProps} />);
 
       // Should render without errors
       expect(
@@ -268,12 +235,8 @@ describe('Dashboard', () => {
         expenses: [],
         loading: false,
       });
-      useSettings.mockReturnValue({
-        settings: mockSettings,
-        loading: false,
-      });
 
-      render(<Dashboard userId="test-user-id" />);
+      render(<Dashboard {...defaultProps} />);
 
       // Should show 0 for all counts
       expect(screen.getByText('Antal udgifter')).toBeInTheDocument();
@@ -282,19 +245,15 @@ describe('Dashboard', () => {
 
   describe('Memoization', () => {
     it('should memoize expensive calculations', () => {
-      const { rerender } = render(<Dashboard userId="test-user-id" />);
-
       useExpenses.mockReturnValue({
         expenses: mockExpenses,
         loading: false,
       });
-      useSettings.mockReturnValue({
-        settings: mockSettings,
-        loading: false,
-      });
+
+      const { rerender } = render(<Dashboard {...defaultProps} />);
 
       // Re-render with same props
-      rerender(<Dashboard userId="test-user-id" />);
+      rerender(<Dashboard {...defaultProps} />);
 
       // Component should not recalculate if props haven't changed
       // Use getAllByText since text appears in multiple locations
