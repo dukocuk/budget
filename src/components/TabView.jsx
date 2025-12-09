@@ -121,10 +121,6 @@ const TabViewComponent = ({ tabs, activeTab = 0, onTabChange }) => {
   );
 };
 
-// Custom comparison function - only re-render if activeTab changes
-const areEqual = (prevProps, nextProps) => {
-  return prevProps.activeTab === nextProps.activeTab;
-};
-
-// Export memoized component to prevent unnecessary re-renders
-export const TabView = memo(TabViewComponent, areEqual);
+// Export memoized component with default comparison (shallow prop equality)
+// This allows the component to re-render when tab content changes
+export const TabView = memo(TabViewComponent);

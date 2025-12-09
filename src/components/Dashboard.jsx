@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useExpenses } from '../hooks/useExpenses';
-import { useSettings } from '../hooks/useSettings';
 import { useViewportSize } from '../hooks/useViewportSize';
 import {
   calculateSummary,
@@ -26,11 +25,24 @@ import {
 import { CHART_COLORS, MONTHS } from '../utils/constants';
 import './Dashboard.css';
 
-function Dashboard({ userId, periodId }) {
+function Dashboard({
+  userId,
+  periodId,
+  monthlyPayment,
+  previousBalance,
+  monthlyPayments,
+}) {
   const { expenses, loading: expensesLoading } = useExpenses(userId, periodId);
-  const { settings, loading: settingsLoading } = useSettings(userId, periodId);
   const { width } = useViewportSize();
   const isMobile = width < 768;
+
+  // Use props directly instead of loading from database
+  const settings = {
+    monthlyPayment,
+    previousBalance,
+    monthlyPayments,
+  };
+  const settingsLoading = false; // No async loading needed
 
   // Use monthlyPayments array if available, otherwise fallback to single monthlyPayment
   const paymentValue = settings.monthlyPayments || settings.monthlyPayment;
@@ -325,6 +337,10 @@ function Dashboard({ userId, periodId }) {
 export default React.memo(Dashboard, (prevProps, nextProps) => {
   return (
     prevProps.userId === nextProps.userId &&
-    prevProps.periodId === nextProps.periodId
+    prevProps.periodId === nextProps.periodId &&
+    prevProps.monthlyPayment === nextProps.monthlyPayment &&
+    prevProps.previousBalance === nextProps.previousBalance &&
+    JSON.stringify(prevProps.monthlyPayments) ===
+      JSON.stringify(nextProps.monthlyPayments)
   );
 });

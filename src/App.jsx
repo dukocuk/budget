@@ -88,8 +88,14 @@ const settingsReducer = (state, action) => {
  * Tab content components - defined outside AppContent to prevent recreation
  * This ensures stable component references across re-renders, preventing chart unmount/remount
  */
-const OverviewTabContent = memo(({ userId, periodId }) => (
-  <Dashboard userId={userId} periodId={periodId} />
+const OverviewTabContent = memo(({ userId, periodId, settings }) => (
+  <Dashboard
+    userId={userId}
+    periodId={periodId}
+    monthlyPayment={settings.monthlyPayment}
+    previousBalance={settings.previousBalance}
+    monthlyPayments={settings.monthlyPayments}
+  />
 ));
 
 const ExpensesTabContent = memo(
@@ -180,6 +186,7 @@ function AppContent() {
     activePeriod,
     loading: periodsLoading,
     createPeriod,
+    updatePeriod,
     createFromTemplate,
     archivePeriod,
     calculateEndingBalance,
@@ -214,6 +221,9 @@ function AppContent() {
 
   // Track if we're in initial data load to prevent sync triggers
   const isInitialLoadRef = useRef(true);
+
+  // Track last loaded period to prevent reloading settings after saves
+  const lastLoadedPeriodIdRef = useRef(null);
 
   // Track last synced values to prevent cascading syncs
   const lastSyncedExpensesRef = useRef(null);
@@ -268,21 +278,29 @@ function AppContent() {
     settings.previousBalance,
   ]);
 
-  // Load settings from active budget period
+  // Load settings from active budget period (only when period changes, not on every update)
   useEffect(() => {
     if (activePeriod && !periodsLoading) {
-      startTransition(() => {
-        dispatchSettings({
-          type: 'SET_ALL',
-          payload: {
-            monthlyPayment:
-              activePeriod.monthlyPayment || DEFAULT_SETTINGS.monthlyPayment,
-            previousBalance:
-              activePeriod.previousBalance || DEFAULT_SETTINGS.previousBalance,
-            monthlyPayments: activePeriod.monthlyPayments || null,
-          },
+      // Only reload settings if we switched to a different period
+      const periodChanged = lastLoadedPeriodIdRef.current !== activePeriod.id;
+
+      if (periodChanged) {
+        lastLoadedPeriodIdRef.current = activePeriod.id;
+
+        startTransition(() => {
+          dispatchSettings({
+            type: 'SET_ALL',
+            payload: {
+              monthlyPayment:
+                activePeriod.monthlyPayment || DEFAULT_SETTINGS.monthlyPayment,
+              previousBalance:
+                activePeriod.previousBalance ||
+                DEFAULT_SETTINGS.previousBalance,
+              monthlyPayments: activePeriod.monthlyPayments || null,
+            },
+          });
         });
-      });
+      }
     }
   }, [activePeriod, periodsLoading]);
 
@@ -439,8 +457,20 @@ function AppContent() {
           lastSyncedSettingsRef.current.previousBalance ||
         monthlyPaymentsChanged;
 
-      if (settingsChanged) {
+      if (settingsChanged && activePeriod) {
         lastSyncedSettingsRef.current = { ...settings };
+
+        // Save to local database first
+        updatePeriod(activePeriod.id, {
+          monthlyPayment: settings.monthlyPayment,
+          previousBalance: settings.previousBalance,
+          monthlyPayments: settings.monthlyPayments,
+        }).catch(err => {
+          logger.error('Error updating period settings:', err);
+          showAlert('Kunne ikke gemme indstillinger', 'error');
+        });
+
+        // Then sync to cloud
         syncSettings(
           settings.monthlyPayment,
           settings.previousBalance,
@@ -457,6 +487,9 @@ function AppContent() {
     isInitialized,
     isLoadingData,
     syncSettings,
+    activePeriod,
+    updatePeriod,
+    showAlert,
   ]);
 
   // Show loading screen while fetching cloud data
@@ -703,7 +736,11 @@ function AppContent() {
       icon: '📊',
       label: 'Oversigt',
       content: (
-        <OverviewTabContent userId={user?.id} periodId={activePeriod?.id} />
+        <OverviewTabContent
+          userId={user?.id}
+          periodId={activePeriod?.id}
+          settings={settings}
+        />
       ),
     },
     {
