@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { parseDanishNumber, formatDanishNumber } from '../utils/localeHelpers';
+import { parseDanishNumber } from '../utils/localeHelpers';
 import './SwitchToFixedModal.css';
 
 export const SwitchToFixedModal = ({ isOpen, onConfirm, onCancel }) => {

@@ -97,7 +97,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd, editingExpense }) => {
       setErrors({});
       setShowMonthlyEditor(false);
     }
-  }, [isOpen]);
+  }, [isOpen, editingExpense]);
 
   // Handle field changes
   const handleChange = (field, value) => {
