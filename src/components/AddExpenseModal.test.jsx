@@ -286,7 +286,7 @@ describe('AddExpenseModal', () => {
     });
 
     it('should reset form when cancelled', () => {
-      render(<AddExpenseModal {...defaultProps} />);
+      const { rerender } = render(<AddExpenseModal {...defaultProps} />);
 
       const nameInput = screen.getByLabelText(/Udgiftsnavn/);
       fireEvent.change(nameInput, { target: { value: 'Custom Name' } });
@@ -294,10 +294,8 @@ describe('AddExpenseModal', () => {
       const cancelButton = screen.getByText('Annuller');
       fireEvent.click(cancelButton);
 
-      // Reopen modal
-      const { rerender } = render(
-        <AddExpenseModal {...defaultProps} isOpen={false} />
-      );
+      // Reopen modal - should reset to defaults
+      rerender(<AddExpenseModal {...defaultProps} isOpen={false} />);
       rerender(<AddExpenseModal {...defaultProps} isOpen={true} />);
 
       expect(screen.getByLabelText(/Udgiftsnavn/)).toHaveValue('Ny udgift');

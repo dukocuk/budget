@@ -2,7 +2,7 @@
  * Modal component for adding new expenses with validation
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Modal from 'react-modal';
 import BottomSheet from './BottomSheet';
 import { useViewportSize } from '../hooks/useViewportSize';
@@ -97,7 +97,8 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd, editingExpense }) => {
       setErrors({});
       setShowMonthlyEditor(false);
     }
-  }, [isOpen, editingExpense]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Handle field changes
   const handleChange = (field, value) => {
