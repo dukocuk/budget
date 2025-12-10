@@ -6,10 +6,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import Dashboard from './Dashboard';
-import { useExpenses } from '../hooks/useExpenses';
 
-// Mock the hooks
-vi.mock('../hooks/useExpenses');
+// useExpenses no longer used - Dashboard receives expenses as prop
 vi.mock('../hooks/useViewportSize', () => ({
   useViewportSize: () => ({ width: 1024, height: 768 }),
 }));
@@ -68,35 +66,25 @@ describe('Dashboard', () => {
     monthlyPayment: 5700,
     previousBalance: 4831,
     monthlyPayments: null,
+    expenses: [],
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('Loading State', () => {
-    it('should show loading spinner when expenses are loading', () => {
-      useExpenses.mockReturnValue({
-        expenses: [],
-        loading: true,
-      });
-
+  describe('Empty State', () => {
+    it('should render with empty expenses', () => {
       render(<Dashboard {...defaultProps} />);
 
-      expect(screen.getByText('Indlæser oversigt...')).toBeInTheDocument();
+      // With empty expenses, charts are rendered but with no expense data
+      expect(screen.getByText('Månedlig balance')).toBeInTheDocument();
     });
   });
 
   describe('Summary Cards', () => {
-    beforeEach(() => {
-      useExpenses.mockReturnValue({
-        expenses: mockExpenses,
-        loading: false,
-      });
-    });
-
     it('should display all four summary cards', () => {
-      render(<Dashboard {...defaultProps} />);
+      render(<Dashboard {...defaultProps} expenses={mockExpenses} />);
 
       // Use getAllByText for duplicate text, then check count
       const annualExpenses = screen.getAllByText('Årlige udgifter');
@@ -110,7 +98,7 @@ describe('Dashboard', () => {
     });
 
     it('should calculate and display total annual expenses', () => {
-      render(<Dashboard {...defaultProps} />);
+      render(<Dashboard {...defaultProps} expenses={mockExpenses} />);
 
       // Netflix: 79 * 12 = 948
       // Insurance: 500 * 4 = 2000
@@ -121,22 +109,15 @@ describe('Dashboard', () => {
   });
 
   describe('Charts', () => {
-    beforeEach(() => {
-      useExpenses.mockReturnValue({
-        expenses: mockExpenses,
-        loading: false,
-      });
-    });
-
     it('should render pie chart for expense distribution', () => {
-      render(<Dashboard {...defaultProps} />);
+      render(<Dashboard {...defaultProps} expenses={mockExpenses} />);
 
       expect(screen.getByText('Udgifter efter frekvens')).toBeInTheDocument();
       expect(screen.getByTestId('pie-chart')).toBeInTheDocument();
     });
 
     it('should render bar chart for monthly expenses vs income', () => {
-      render(<Dashboard {...defaultProps} />);
+      render(<Dashboard {...defaultProps} expenses={mockExpenses} />);
 
       expect(
         screen.getByText('Månedlige udgifter vs. indbetaling')
@@ -145,7 +126,7 @@ describe('Dashboard', () => {
     });
 
     it('should render line chart for balance projection', () => {
-      render(<Dashboard {...defaultProps} />);
+      render(<Dashboard {...defaultProps} expenses={mockExpenses} />);
 
       expect(
         screen.getByText('Balance prognose over året')
@@ -154,12 +135,7 @@ describe('Dashboard', () => {
     });
 
     it('should not render pie chart when no expenses exist', () => {
-      useExpenses.mockReturnValue({
-        expenses: [],
-        loading: false,
-      });
-
-      render(<Dashboard {...defaultProps} />);
+      render(<Dashboard {...defaultProps} expenses={[]} />);
 
       expect(
         screen.queryByText('Udgifter efter frekvens')
@@ -168,15 +144,8 @@ describe('Dashboard', () => {
   });
 
   describe('Quick Stats', () => {
-    beforeEach(() => {
-      useExpenses.mockReturnValue({
-        expenses: mockExpenses,
-        loading: false,
-      });
-    });
-
     it('should display total expense count', () => {
-      render(<Dashboard {...defaultProps} />);
+      render(<Dashboard {...defaultProps} expenses={mockExpenses} />);
 
       expect(screen.getByText('Antal udgifter')).toBeInTheDocument();
       const countElements = screen.getAllByText('3');
@@ -184,20 +153,20 @@ describe('Dashboard', () => {
     });
 
     it('should display count of monthly expenses', () => {
-      render(<Dashboard {...defaultProps} />);
+      render(<Dashboard {...defaultProps} expenses={mockExpenses} />);
 
       const monthlyLabels = screen.getAllByText('Månedlige udgifter');
       expect(monthlyLabels.length).toBeGreaterThan(0);
     });
 
     it('should display count of quarterly expenses', () => {
-      render(<Dashboard {...defaultProps} />);
+      render(<Dashboard {...defaultProps} expenses={mockExpenses} />);
 
       expect(screen.getByText('Kvartalsvise udgifter')).toBeInTheDocument();
     });
 
     it('should display count of yearly expenses', () => {
-      render(<Dashboard {...defaultProps} />);
+      render(<Dashboard {...defaultProps} expenses={mockExpenses} />);
 
       // Use getAllByText since "Årlige udgifter" appears in both summary cards and quick stats
       const yearlyLabels = screen.getAllByText(/Årlige udgifter/i);
@@ -213,12 +182,8 @@ describe('Dashboard', () => {
           5000, 5500, 6000, 5700, 5700, 5700, 5700, 5700, 5700, 5700, 5700,
           6000,
         ],
-      };
-
-      useExpenses.mockReturnValue({
         expenses: mockExpenses,
-        loading: false,
-      });
+      };
 
       render(<Dashboard {...variableProps} />);
 
@@ -229,14 +194,9 @@ describe('Dashboard', () => {
     });
   });
 
-  describe('Empty State', () => {
+  describe('Additional Empty State', () => {
     it('should handle no expenses gracefully', () => {
-      useExpenses.mockReturnValue({
-        expenses: [],
-        loading: false,
-      });
-
-      render(<Dashboard {...defaultProps} />);
+      render(<Dashboard {...defaultProps} expenses={[]} />);
 
       // Should show 0 for all counts
       expect(screen.getByText('Antal udgifter')).toBeInTheDocument();
@@ -245,15 +205,12 @@ describe('Dashboard', () => {
 
   describe('Memoization', () => {
     it('should memoize expensive calculations', () => {
-      useExpenses.mockReturnValue({
-        expenses: mockExpenses,
-        loading: false,
-      });
+      const propsWithExpenses = { ...defaultProps, expenses: mockExpenses };
 
-      const { rerender } = render(<Dashboard {...defaultProps} />);
+      const { rerender } = render(<Dashboard {...propsWithExpenses} />);
 
       // Re-render with same props
-      rerender(<Dashboard {...defaultProps} />);
+      rerender(<Dashboard {...propsWithExpenses} />);
 
       // Component should not recalculate if props haven't changed
       // Use getAllByText since text appears in multiple locations

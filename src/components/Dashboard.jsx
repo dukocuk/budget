@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useExpenses } from '../hooks/useExpenses';
 import { useViewportSize } from '../hooks/useViewportSize';
 import {
   calculateSummary,
@@ -31,8 +30,10 @@ function Dashboard({
   monthlyPayment,
   previousBalance,
   monthlyPayments,
+  expenses = [],
 }) {
-  const { expenses, loading: expensesLoading } = useExpenses(userId, periodId);
+  // Expenses passed as prop from App.jsx - no async loading needed
+  const expensesLoading = false;
   const { width } = useViewportSize();
   const isMobile = width < 768;
 
@@ -340,6 +341,7 @@ export default React.memo(Dashboard, (prevProps, nextProps) => {
     prevProps.periodId === nextProps.periodId &&
     prevProps.monthlyPayment === nextProps.monthlyPayment &&
     prevProps.previousBalance === nextProps.previousBalance &&
+    prevProps.expenses === nextProps.expenses &&
     JSON.stringify(prevProps.monthlyPayments) ===
       JSON.stringify(nextProps.monthlyPayments)
   );

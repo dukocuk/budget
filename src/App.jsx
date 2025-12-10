@@ -88,13 +88,14 @@ const settingsReducer = (state, action) => {
  * Tab content components - defined outside AppContent to prevent recreation
  * This ensures stable component references across re-renders, preventing chart unmount/remount
  */
-const OverviewTabContent = memo(({ userId, periodId, settings }) => (
+const OverviewTabContent = memo(({ userId, periodId, settings, expenses }) => (
   <Dashboard
     userId={userId}
     periodId={periodId}
     monthlyPayment={settings.monthlyPayment}
     previousBalance={settings.previousBalance}
     monthlyPayments={settings.monthlyPayments}
+    expenses={expenses}
   />
 ));
 
@@ -762,6 +763,7 @@ function AppContent() {
           userId={user?.id}
           periodId={activePeriod?.id}
           settings={settings}
+          expenses={expenses}
         />
       ),
     },

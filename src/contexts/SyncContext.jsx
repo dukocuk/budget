@@ -52,6 +52,10 @@ export const SyncProvider = ({ user, children }) => {
   // Track last synced timestamp for conflict detection
   const lastRemoteModifiedRef = useRef(null);
 
+  // Cache to prevent duplicate downloads during initialization
+  const cloudDataCacheRef = useRef(null);
+  const cloudDataPromiseRef = useRef(null);
+
   /**
    * Fetch complete local data from PGlite database
    * This ensures we always sync the COMPLETE dataset, not partial updates
@@ -271,114 +275,171 @@ export const SyncProvider = ({ user, children }) => {
       return { expenses: [], budgetPeriods: [], settings: {} };
     }
 
-    try {
-      logger.log('📥 Loading data from Google Drive...');
+    // Return cached data if available (prevents duplicate downloads during initialization)
+    if (cloudDataCacheRef.current) {
+      logger.log('📦 Using cached cloud data (avoiding duplicate download)');
+      return cloudDataCacheRef.current;
+    }
 
-      const data = await downloadBudgetData();
+    // Return existing promise if download already in progress
+    if (cloudDataPromiseRef.current) {
+      logger.log('⏳ Waiting for ongoing cloud download...');
+      return cloudDataPromiseRef.current;
+    }
 
-      if (data) {
-        lastRemoteModifiedRef.current = data.lastModified;
-        logger.log('✅ Data loaded:', {
-          expenses: data.expenses?.length || 0,
-          periods: data.budgetPeriods?.length || 0,
-          lastModified: data.lastModified,
-        });
+    // Start fresh download and batch insert
+    cloudDataPromiseRef.current = (async () => {
+      try {
+        logger.log('📥 Loading data from Google Drive...');
 
-        // 💾 Save downloaded data to PGlite for persistence
-        try {
-          // 1. Save budget periods to PGlite
-          if (data.budgetPeriods?.length > 0) {
-            for (const period of data.budgetPeriods) {
+        const data = await downloadBudgetData();
+
+        if (data) {
+          lastRemoteModifiedRef.current = data.lastModified;
+          logger.log('✅ Data loaded:', {
+            expenses: data.expenses?.length || 0,
+            periods: data.budgetPeriods?.length || 0,
+            lastModified: data.lastModified,
+          });
+
+          // 💾 Save downloaded data to PGlite for persistence (BATCH INSERT)
+          try {
+            // 1. Batch save budget periods to PGlite
+            if (data.budgetPeriods?.length > 0) {
+              const periods = data.budgetPeriods;
+
+              // Build VALUES clause for multi-row insert
+              const valuesClauses = periods
+                .map((_, idx) => {
+                  const offset = idx * 12;
+                  return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12})`;
+                })
+                .join(',');
+
+              // Flatten all values into single array with proper defaults
+              const allValues = periods.flatMap(period => [
+                period.id,
+                period.user_id || user.sub,
+                period.year || new Date().getFullYear(),
+                typeof period.monthly_payment === 'number'
+                  ? period.monthly_payment
+                  : 5700,
+                typeof period.previous_balance === 'number'
+                  ? period.previous_balance
+                  : 0,
+                period.monthly_payments || null,
+                period.status || 'active',
+                period.is_template || 0,
+                period.template_name || null,
+                period.template_description || null,
+                period.created_at || new Date().toISOString(),
+                period.updated_at || new Date().toISOString(),
+              ]);
+
               await localDB.query(
                 `INSERT INTO budget_periods (id, user_id, year, monthly_payment, previous_balance, monthly_payments, status, is_template, template_name, template_description, created_at, updated_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-                 ON CONFLICT (id) DO UPDATE SET
-                   monthly_payment = EXCLUDED.monthly_payment,
-                   previous_balance = EXCLUDED.previous_balance,
-                   monthly_payments = EXCLUDED.monthly_payments,
-                   status = EXCLUDED.status,
-                   is_template = EXCLUDED.is_template,
-                   template_name = EXCLUDED.template_name,
-                   template_description = EXCLUDED.template_description,
-                   updated_at = EXCLUDED.updated_at`,
-                [
-                  period.id,
-                  period.user_id || user.sub, // Use authenticated user's ID if not in data
-                  period.year || new Date().getFullYear(), // Default to current year if missing
-                  period.monthly_payment ?? 5700, // Default to 5700 if null/undefined
-                  period.previous_balance ?? 0, // Default to 0 if null/undefined
-                  period.monthly_payments || null,
-                  period.status || 'active',
-                  period.is_template || 0,
-                  period.template_name || null,
-                  period.template_description || null,
-                  period.created_at || new Date().toISOString(),
-                  period.updated_at || new Date().toISOString(),
-                ]
+               VALUES ${valuesClauses}
+               ON CONFLICT (id) DO UPDATE SET
+                 monthly_payment = EXCLUDED.monthly_payment,
+                 previous_balance = EXCLUDED.previous_balance,
+                 monthly_payments = EXCLUDED.monthly_payments,
+                 status = EXCLUDED.status,
+                 is_template = EXCLUDED.is_template,
+                 template_name = EXCLUDED.template_name,
+                 template_description = EXCLUDED.template_description,
+                 updated_at = EXCLUDED.updated_at`,
+                allValues
               );
-            }
-            logger.log('💾 Saved budget periods to PGlite:', {
-              count: data.budgetPeriods.length,
-            });
-          }
 
-          // 2. Save expenses to PGlite
-          if (data.expenses?.length > 0) {
-            for (const expense of data.expenses) {
+              logger.log('💾 Batch saved budget periods to PGlite:', {
+                count: periods.length,
+              });
+            }
+
+            // 2. Batch save expenses to PGlite
+            if (data.expenses?.length > 0) {
+              const expenses = data.expenses;
+
+              const valuesClauses = expenses
+                .map((_, idx) => {
+                  const offset = idx * 11;
+                  return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11})`;
+                })
+                .join(',');
+
+              const allValues = expenses.flatMap(expense => [
+                expense.id,
+                expense.user_id || user.sub,
+                expense.name || 'Unknown Expense',
+                typeof expense.amount === 'number' ? expense.amount : 0,
+                expense.frequency || 'monthly',
+                expense.start_month || 1,
+                expense.end_month || 12,
+                expense.budget_period_id,
+                expense.monthly_amounts || null,
+                expense.created_at || new Date().toISOString(),
+                expense.updated_at || new Date().toISOString(),
+              ]);
+
               await localDB.query(
                 `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, budget_period_id, monthly_amounts, created_at, updated_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                 ON CONFLICT (id) DO UPDATE SET
-                   name = EXCLUDED.name,
-                   amount = EXCLUDED.amount,
-                   frequency = EXCLUDED.frequency,
-                   start_month = EXCLUDED.start_month,
-                   end_month = EXCLUDED.end_month,
-                   budget_period_id = EXCLUDED.budget_period_id,
-                   monthly_amounts = EXCLUDED.monthly_amounts,
-                   updated_at = EXCLUDED.updated_at`,
-                [
-                  expense.id,
-                  expense.user_id || user.sub, // Use authenticated user's ID if not in data
-                  expense.name || 'Unknown Expense', // Default name if missing
-                  expense.amount || 0, // Default to 0 if missing (will need user correction)
-                  expense.frequency || 'monthly', // Default to monthly if missing
-                  expense.start_month || 1, // Default to January if missing
-                  expense.end_month || 12, // Default to December if missing
-                  expense.budget_period_id,
-                  expense.monthly_amounts || null,
-                  expense.created_at || new Date().toISOString(),
-                  expense.updated_at || new Date().toISOString(),
-                ]
+               VALUES ${valuesClauses}
+               ON CONFLICT (id) DO UPDATE SET
+                 name = EXCLUDED.name,
+                 amount = EXCLUDED.amount,
+                 frequency = EXCLUDED.frequency,
+                 start_month = EXCLUDED.start_month,
+                 end_month = EXCLUDED.end_month,
+                 budget_period_id = EXCLUDED.budget_period_id,
+                 monthly_amounts = EXCLUDED.monthly_amounts,
+                 updated_at = EXCLUDED.updated_at`,
+                allValues
               );
+
+              logger.log('💾 Batch saved expenses to PGlite:', {
+                count: expenses.length,
+              });
             }
-            logger.log('💾 Saved expenses to PGlite:', {
-              count: data.expenses.length,
-            });
+          } catch (dbError) {
+            // Log error but continue - data will still be in React state for this session
+            logger.error(
+              '⚠️ Failed to save to PGlite (data still in memory):',
+              dbError
+            );
           }
-        } catch (dbError) {
-          // Log error but continue - data will still be in React state for this session
-          logger.error(
-            '⚠️ Failed to save to PGlite (data still in memory):',
-            dbError
-          );
+
+          const result = {
+            expenses: data.expenses || [],
+            budgetPeriods: data.budgetPeriods || [],
+            settings: data.settings || {},
+          };
+
+          // Cache the result for duplicate prevention
+          cloudDataCacheRef.current = result;
+          return result;
         }
 
-        return {
-          expenses: data.expenses || [],
-          budgetPeriods: data.budgetPeriods || [],
-          settings: data.settings || {},
-        };
+        logger.log('ℹ️ No existing data in Google Drive');
+        const emptyResult = { expenses: [], budgetPeriods: [], settings: {} };
+        cloudDataCacheRef.current = emptyResult;
+        return emptyResult;
+      } catch (error) {
+        logger.error('❌ Load error:', error);
+        updateSyncError(error.message);
+        throw error; // Re-throw to be caught by promise wrapper
+      } finally {
+        cloudDataPromiseRef.current = null;
       }
+    })();
 
-      logger.log('ℹ️ No existing data in Google Drive');
-      return { expenses: [], budgetPeriods: [], settings: {} };
-    } catch (error) {
-      logger.error('❌ Load error:', error);
-      updateSyncError(error.message);
-      return { expenses: [], budgetPeriods: [], settings: {} };
-    }
+    return cloudDataPromiseRef.current;
   }, [user, isOnline, updateSyncError]);
+
+  // Clear cache when user changes or goes offline
+  useEffect(() => {
+    cloudDataCacheRef.current = null;
+    cloudDataPromiseRef.current = null;
+  }, [user, isOnline]);
 
   /**
    * Check for updates and download if newer
@@ -401,76 +462,100 @@ export const SyncProvider = ({ user, children }) => {
             periods: data.budgetPeriods?.length || 0,
           });
 
-          // 💾 Save downloaded updates to PGlite for persistence
+          // 💾 Save downloaded updates to PGlite for persistence (BATCH INSERT)
           try {
-            // 1. Save budget periods to PGlite
+            // 1. Batch save budget periods to PGlite
             if (data.budgetPeriods?.length > 0) {
-              for (const period of data.budgetPeriods) {
-                await localDB.query(
-                  `INSERT INTO budget_periods (id, user_id, year, monthly_payment, previous_balance, monthly_payments, status, is_template, template_name, template_description, created_at, updated_at)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-                   ON CONFLICT (id) DO UPDATE SET
-                     monthly_payment = EXCLUDED.monthly_payment,
-                     previous_balance = EXCLUDED.previous_balance,
-                     monthly_payments = EXCLUDED.monthly_payments,
-                     status = EXCLUDED.status,
-                     is_template = EXCLUDED.is_template,
-                     template_name = EXCLUDED.template_name,
-                     template_description = EXCLUDED.template_description,
-                     updated_at = EXCLUDED.updated_at`,
-                  [
-                    period.id,
-                    period.user_id || user.sub, // Use authenticated user's ID if not in data
-                    period.year || new Date().getFullYear(), // Default to current year if missing
-                    period.monthly_payment ?? 5700, // Default to 5700 if null/undefined
-                    period.previous_balance ?? 0, // Default to 0 if null/undefined
-                    period.monthly_payments || null,
-                    period.status || 'active',
-                    period.is_template || 0,
-                    period.template_name || null,
-                    period.template_description || null,
-                    period.created_at || new Date().toISOString(),
-                    period.updated_at || new Date().toISOString(),
-                  ]
-                );
-              }
-              logger.log('💾 Polling: Saved budget periods to PGlite:', {
-                count: data.budgetPeriods.length,
+              const periods = data.budgetPeriods;
+
+              const valuesClauses = periods
+                .map((_, idx) => {
+                  const offset = idx * 12;
+                  return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12})`;
+                })
+                .join(',');
+
+              const allValues = periods.flatMap(period => [
+                period.id,
+                period.user_id || user.sub,
+                period.year || new Date().getFullYear(),
+                typeof period.monthly_payment === 'number'
+                  ? period.monthly_payment
+                  : 5700,
+                typeof period.previous_balance === 'number'
+                  ? period.previous_balance
+                  : 0,
+                period.monthly_payments || null,
+                period.status || 'active',
+                period.is_template || 0,
+                period.template_name || null,
+                period.template_description || null,
+                period.created_at || new Date().toISOString(),
+                period.updated_at || new Date().toISOString(),
+              ]);
+
+              await localDB.query(
+                `INSERT INTO budget_periods (id, user_id, year, monthly_payment, previous_balance, monthly_payments, status, is_template, template_name, template_description, created_at, updated_at)
+                 VALUES ${valuesClauses}
+                 ON CONFLICT (id) DO UPDATE SET
+                   monthly_payment = EXCLUDED.monthly_payment,
+                   previous_balance = EXCLUDED.previous_balance,
+                   monthly_payments = EXCLUDED.monthly_payments,
+                   status = EXCLUDED.status,
+                   is_template = EXCLUDED.is_template,
+                   template_name = EXCLUDED.template_name,
+                   template_description = EXCLUDED.template_description,
+                   updated_at = EXCLUDED.updated_at`,
+                allValues
+              );
+
+              logger.log('💾 Polling: Batch saved budget periods to PGlite:', {
+                count: periods.length,
               });
             }
 
-            // 2. Save expenses to PGlite
+            // 2. Batch save expenses to PGlite
             if (data.expenses?.length > 0) {
-              for (const expense of data.expenses) {
-                await localDB.query(
-                  `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, budget_period_id, monthly_amounts, created_at, updated_at)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                   ON CONFLICT (id) DO UPDATE SET
-                     name = EXCLUDED.name,
-                     amount = EXCLUDED.amount,
-                     frequency = EXCLUDED.frequency,
-                     start_month = EXCLUDED.start_month,
-                     end_month = EXCLUDED.end_month,
-                     budget_period_id = EXCLUDED.budget_period_id,
-                     monthly_amounts = EXCLUDED.monthly_amounts,
-                     updated_at = EXCLUDED.updated_at`,
-                  [
-                    expense.id,
-                    expense.user_id || user.sub, // Use authenticated user's ID if not in data
-                    expense.name || 'Unknown Expense', // Default name if missing
-                    expense.amount || 0, // Default to 0 if missing (will need user correction)
-                    expense.frequency || 'monthly', // Default to monthly if missing
-                    expense.start_month || 1, // Default to January if missing
-                    expense.end_month || 12, // Default to December if missing
-                    expense.budget_period_id,
-                    expense.monthly_amounts || null,
-                    expense.created_at || new Date().toISOString(),
-                    expense.updated_at || new Date().toISOString(),
-                  ]
-                );
-              }
-              logger.log('💾 Polling: Saved expenses to PGlite:', {
-                count: data.expenses.length,
+              const expenses = data.expenses;
+
+              const valuesClauses = expenses
+                .map((_, idx) => {
+                  const offset = idx * 11;
+                  return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11})`;
+                })
+                .join(',');
+
+              const allValues = expenses.flatMap(expense => [
+                expense.id,
+                expense.user_id || user.sub,
+                expense.name || 'Unknown Expense',
+                typeof expense.amount === 'number' ? expense.amount : 0,
+                expense.frequency || 'monthly',
+                expense.start_month || 1,
+                expense.end_month || 12,
+                expense.budget_period_id,
+                expense.monthly_amounts || null,
+                expense.created_at || new Date().toISOString(),
+                expense.updated_at || new Date().toISOString(),
+              ]);
+
+              await localDB.query(
+                `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, budget_period_id, monthly_amounts, created_at, updated_at)
+                 VALUES ${valuesClauses}
+                 ON CONFLICT (id) DO UPDATE SET
+                   name = EXCLUDED.name,
+                   amount = EXCLUDED.amount,
+                   frequency = EXCLUDED.frequency,
+                   start_month = EXCLUDED.start_month,
+                   end_month = EXCLUDED.end_month,
+                   budget_period_id = EXCLUDED.budget_period_id,
+                   monthly_amounts = EXCLUDED.monthly_amounts,
+                   updated_at = EXCLUDED.updated_at`,
+                allValues
+              );
+
+              logger.log('💾 Polling: Batch saved expenses to PGlite:', {
+                count: expenses.length,
               });
             }
           } catch (dbError) {
