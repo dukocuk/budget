@@ -2,7 +2,7 @@
  * Modal component for adding new expenses with validation
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Modal from 'react-modal';
 import BottomSheet from './BottomSheet';
 import { useViewportSize } from '../hooks/useViewportSize';
