@@ -4,6 +4,7 @@
  */
 
 import { validateExpense, sanitizeExpense } from './validators';
+import { parseDanishNumber } from './localeHelpers';
 import { FREQUENCY_TYPES } from './constants';
 
 /**
@@ -123,14 +124,37 @@ function parseExpenseLine(line) {
 
   const [name, amountStr, frequency, monthRange] = fields;
 
+  // Skip variable expenses (cannot be imported via CSV)
+  if (
+    amountStr.toLowerCase() === 'variabel' ||
+    amountStr.toLowerCase() === 'variable'
+  ) {
+    throw new Error(
+      'Variable udgifter kan ikke importeres via CSV. Opret manuelt i appen.'
+    );
+  }
+
   // Validate name
   if (!name || name.trim() === '') {
     throw new Error('Udgiftsnavn er påkrævet');
   }
 
-  // Parse amount
-  const amount = parseFloat(amountStr.replace(/[^\d.-]/g, ''));
-  if (isNaN(amount) || amount < 0) {
+  // Parse amount (supports Danish locale with comma decimal separator)
+  // First clean the string: remove currency symbols and extra spaces
+  const cleanedAmountStr = amountStr
+    .replace(/kr\.?/gi, '') // Remove "kr" or "kr."
+    .replace(/[^\d.,-]/g, '') // Keep only digits, period, comma, minus
+    .trim();
+
+  const amount = parseDanishNumber(cleanedAmountStr);
+
+  // Validate: parseDanishNumber returns 0 for empty/invalid input
+  // Check if original string was actually invalid (not just empty)
+  if (cleanedAmountStr === '' || (amount === 0 && cleanedAmountStr !== '0')) {
+    throw new Error('Ugyldigt beløb');
+  }
+
+  if (amount < 0) {
     throw new Error('Ugyldigt beløb');
   }
 

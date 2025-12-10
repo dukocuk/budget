@@ -33,6 +33,7 @@ export const SettingsModal = ({
   onImport,
   activePeriod,
   onArchivePeriod,
+  onUnarchivePeriod,
   onOpenTemplateManager,
 }) => {
   const { isMobile } = useViewportSize();
@@ -52,6 +53,7 @@ export const SettingsModal = ({
       onImport={onImport}
       activePeriod={activePeriod}
       onArchivePeriod={onArchivePeriod}
+      onUnarchivePeriod={onUnarchivePeriod}
       onOpenTemplateManager={onOpenTemplateManager}
     />
   );

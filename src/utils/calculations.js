@@ -1,7 +1,32 @@
 /**
  * Calculate annual amount for an expense based on frequency
+ * Supports BOTH fixed amounts and variable monthly amounts
+ *
+ * @param {Object} expense - Expense object
+ * @param {number} expense.amount - Base amount (used if monthlyAmounts is null)
+ * @param {Array<number>|null} expense.monthlyAmounts - Array of 12 monthly amounts
+ * @param {string} expense.frequency - 'monthly', 'quarterly', or 'yearly'
+ * @param {number} expense.startMonth - Start month (1-12)
+ * @param {number} expense.endMonth - End month (1-12)
+ * @returns {number} Total annual amount
  */
 export function calculateAnnualAmount(expense) {
+  // Check for variable monthly amounts (NEW)
+  const hasVariableAmounts =
+    expense.monthlyAmounts &&
+    Array.isArray(expense.monthlyAmounts) &&
+    expense.monthlyAmounts.length === 12;
+
+  if (hasVariableAmounts) {
+    // Sum all applicable months based on frequency and date range
+    let total = 0;
+    for (let month = 1; month <= 12; month++) {
+      total += getMonthlyAmount(expense, month);
+    }
+    return total;
+  }
+
+  // Fallback to fixed amount (existing logic)
   if (!expense.amount || expense.amount <= 0) return 0;
 
   if (expense.frequency === 'yearly') {
@@ -32,23 +57,53 @@ export function calculateAnnualAmount(expense) {
 
 /**
  * Get monthly amount for an expense in a specific month
+ * Supports BOTH fixed amounts and variable monthly amounts
+ *
+ * @param {Object} expense - Expense object
+ * @param {number} expense.amount - Base amount (used if monthlyAmounts is null)
+ * @param {Array<number>|null} expense.monthlyAmounts - Array of 12 monthly amounts
+ * @param {string} expense.frequency - 'monthly', 'quarterly', or 'yearly'
+ * @param {number} expense.startMonth - Start month (1-12)
+ * @param {number} expense.endMonth - End month (1-12)
+ * @param {number} month - Month to get amount for (1-12)
+ * @returns {number} Amount for that month (0 if outside range)
  */
 export function getMonthlyAmount(expense, month) {
-  if (!expense.amount || expense.amount <= 0) return 0;
+  if (month < 1 || month > 12) return 0;
 
   const startMonth = expense.start_month || expense.startMonth;
   const endMonth = expense.end_month || expense.endMonth;
 
+  // Outside date range
   if (month < startMonth || month > endMonth) return 0;
+
+  // Check for variable monthly amounts (NEW)
+  const hasVariableAmounts =
+    expense.monthlyAmounts &&
+    Array.isArray(expense.monthlyAmounts) &&
+    expense.monthlyAmounts.length === 12;
+
+  if (hasVariableAmounts) {
+    const monthlyAmount = expense.monthlyAmounts[month - 1] || 0;
+
+    // Apply frequency rules to variable amounts
+    if (expense.frequency === 'yearly') {
+      return month === startMonth ? monthlyAmount : 0;
+    } else if (expense.frequency === 'quarterly') {
+      return [1, 4, 7, 10].includes(month) ? monthlyAmount : 0;
+    }
+    return monthlyAmount; // monthly
+  }
+
+  // Fallback to fixed amount (existing logic)
+  if (!expense.amount || expense.amount <= 0) return 0;
 
   if (expense.frequency === 'yearly') {
     return month === startMonth ? expense.amount : 0;
   } else if (expense.frequency === 'quarterly') {
     return [1, 4, 7, 10].includes(month) ? expense.amount : 0;
-  } else {
-    // monthly
-    return expense.amount;
   }
+  return expense.amount; // monthly
 }
 
 /**

@@ -34,7 +34,8 @@ export const generateCSV = (
 
   expenses.forEach(expense => {
     const annual = calculateAnnualAmount(expense);
-    csv += `"${expense.name}",${expense.amount},"${expense.frequency}",`;
+    const amountDisplay = expense.monthlyAmounts ? 'Variabel' : expense.amount;
+    csv += `"${expense.name}",${amountDisplay},"${expense.frequency}",`;
     csv += `${MONTHS[expense.startMonth - 1]},${MONTHS[expense.endMonth - 1]},${annual}\n`;
   });
 

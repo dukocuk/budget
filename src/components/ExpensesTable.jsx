@@ -22,6 +22,7 @@ const ExpenseRow = memo(
     onUpdate,
     onDelete,
     onClone,
+    onEdit,
     readOnly = false,
   }) => {
     // Local state for controlled inputs to prevent focus loss
@@ -32,20 +33,36 @@ const ExpenseRow = memo(
     // Track previous expense ID to detect row changes
     const prevExpenseIdRef = useRef(expense.id);
 
+    // Track if inputs are currently focused (user is actively editing)
+    const [isNameFocused, setIsNameFocused] = useState(false);
+    const [isAmountFocused, setIsAmountFocused] = useState(false);
+
     // Update local state when expense ID changes (new row from undo/redo)
-    // Also update when expense data changes externally (e.g., from cloud sync)
+    // ONLY update from external changes if user is NOT currently editing
     useEffect(() => {
       if (prevExpenseIdRef.current !== expense.id) {
         // ID changed - definitely a new row
         setLocalName(expense.name);
         setLocalAmount(expense.amount);
         prevExpenseIdRef.current = expense.id;
-      } else if (expense.name !== localName || expense.amount !== localAmount) {
-        // Same ID but data changed externally - update local state
-        setLocalName(expense.name);
-        setLocalAmount(expense.amount);
+      } else {
+        // Same ID - only update if user is not currently editing
+        if (!isNameFocused && expense.name !== localName) {
+          setLocalName(expense.name);
+        }
+        if (!isAmountFocused && expense.amount !== localAmount) {
+          setLocalAmount(expense.amount);
+        }
       }
-    }, [expense.id, expense.name, expense.amount, localName, localAmount]);
+    }, [
+      expense.id,
+      expense.name,
+      expense.amount,
+      localName,
+      localAmount,
+      isNameFocused,
+      isAmountFocused,
+    ]);
 
     // Update handlers - just update local state
     const handleNameChange = useCallback(value => {
@@ -56,14 +73,25 @@ const ExpenseRow = memo(
       setLocalAmount(value);
     }, []);
 
+    // Focus handlers - track when user is actively editing
+    const handleNameFocus = useCallback(() => {
+      setIsNameFocused(true);
+    }, []);
+
+    const handleAmountFocus = useCallback(() => {
+      setIsAmountFocused(true);
+    }, []);
+
     // Update parent on blur - only if value actually changed
     const handleNameBlur = useCallback(() => {
+      setIsNameFocused(false);
       if (localName !== expense.name) {
         onUpdate(expense.id, { name: localName });
       }
     }, [expense.id, expense.name, localName, onUpdate]);
 
     const handleAmountBlur = useCallback(() => {
+      setIsAmountFocused(false);
       if (localAmount !== expense.amount) {
         onUpdate(expense.id, { amount: localAmount });
       }
@@ -85,6 +113,7 @@ const ExpenseRow = memo(
             type="text"
             value={localName}
             onChange={e => handleNameChange(e.target.value)}
+            onFocus={handleNameFocus}
             onBlur={handleNameBlur}
             aria-label="Udgiftsnavn"
             disabled={readOnly}
@@ -95,6 +124,7 @@ const ExpenseRow = memo(
             type="number"
             value={localAmount}
             onChange={e => handleAmountChange(e.target.value)}
+            onFocus={handleAmountFocus}
             onBlur={handleAmountBlur}
             min="0"
             aria-label="Beløb"
@@ -157,6 +187,19 @@ const ExpenseRow = memo(
         <td>
           <div className="row-actions">
             <button
+              className="btn-edit"
+              onClick={() => onEdit(expense)}
+              aria-label={`Rediger ${expense.name}`}
+              title={
+                readOnly
+                  ? 'Kan ikke redigere arkiveret år'
+                  : 'Rediger denne udgift'
+              }
+              disabled={readOnly}
+            >
+              ✏️
+            </button>
+            <button
               className="btn-clone"
               onClick={() => onClone(expense)}
               aria-label={`Kopier ${expense.name}`}
@@ -204,6 +247,7 @@ export const ExpensesTable = ({
   onUpdate,
   onDelete,
   onAdd,
+  onEdit,
   readOnly = false,
 }) => {
   // Viewport detection for responsive layout
@@ -641,6 +685,7 @@ export const ExpensesTable = ({
                 onUpdate={onUpdate}
                 onDelete={onDelete}
                 onClone={handleClone}
+                onEdit={onEdit}
                 readOnly={readOnly}
               />
             ))}

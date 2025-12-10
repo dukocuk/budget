@@ -232,6 +232,133 @@
   box-shadow: none;
 }
 
+/* Payment Mode Toggle */
+.payment-mode-toggle {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid var(--color-border);
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.95em;
+  font-weight: 500;
+  color: #374151;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.mode-btn:hover:not(.active) {
+  border-color: var(--color-primary);
+  background-color: #f3f4f6;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.mode-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: #667eea;
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Checkmark for active button */
+.mode-btn.active::before {
+  content: '✓ ';
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.mode-btn:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.mode-btn:active {
+  transform: scale(0.98);
+}
+
+/* Helper text for payment types */
+.payment-mode-helper {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin-top: 6px;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+/* Edit Monthly Button */
+.edit-monthly-btn {
+  width: 100%;
+  background-color: #ffffff;
+  color: #374151;
+  border: 2px solid #d1d5db;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.edit-monthly-btn:hover {
+  background-color: #f9fafb;
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.edit-monthly-btn:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Variable Mode Hint */
+.variable-mode-hint {
+  background: linear-gradient(
+    135deg,
+    rgba(102, 126, 234, 0.08) 0%,
+    rgba(118, 75, 162, 0.08) 100%
+  );
+  border-left: 4px solid var(--color-primary);
+  padding: 16px;
+  margin: 16px 0;
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.5;
+}
+
+/* Smooth transitions when fields appear/disappear */
+.form-group {
+  animation: formFieldFadeIn 0.2s ease-in-out;
+}
+
+@keyframes formFieldFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .expense-modal {

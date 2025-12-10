@@ -205,6 +205,9 @@ export const useExpenses = (userId, periodId) => {
         startMonth: row.start_month,
         endMonth: row.end_month,
         budgetPeriodId: row.budget_period_id,
+        monthlyAmounts: row.monthly_amounts
+          ? JSON.parse(row.monthly_amounts)
+          : null,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       }));
@@ -293,14 +296,15 @@ export const useExpenses = (userId, periodId) => {
           frequency: expenseData.frequency || 'monthly',
           startMonth: expenseData.startMonth || 1,
           endMonth: expenseData.endMonth || 12,
+          monthlyAmounts: expenseData.monthlyAmounts || null,
         });
 
         const now = new Date().toISOString();
 
         // Insert into local database with client-generated UUID
         await localDB.query(
-          `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, budget_period_id, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, budget_period_id, monthly_amounts, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
           [
             newId,
             userId,
@@ -310,6 +314,9 @@ export const useExpenses = (userId, periodId) => {
             sanitized.startMonth,
             sanitized.endMonth,
             periodId,
+            sanitized.monthlyAmounts
+              ? JSON.stringify(sanitized.monthlyAmounts)
+              : null,
             now,
             now,
           ]
@@ -323,6 +330,7 @@ export const useExpenses = (userId, periodId) => {
           startMonth: sanitized.startMonth,
           endMonth: sanitized.endMonth,
           budgetPeriodId: periodId,
+          monthlyAmounts: sanitized.monthlyAmounts || null,
           createdAt: now,
           updatedAt: now,
         };
@@ -381,6 +389,14 @@ export const useExpenses = (userId, periodId) => {
         if (updates.endMonth !== undefined) {
           updateFields.push(`end_month = $${paramIndex++}`);
           values.push(parseInt(updates.endMonth));
+        }
+        if (updates.monthlyAmounts !== undefined) {
+          updateFields.push(`monthly_amounts = $${paramIndex++}`);
+          values.push(
+            updates.monthlyAmounts
+              ? JSON.stringify(updates.monthlyAmounts)
+              : null
+          );
         }
 
         updateFields.push(`updated_at = $${paramIndex++}`);
@@ -521,8 +537,8 @@ export const useExpenses = (userId, periodId) => {
           const newId = generateUUID();
 
           await localDB.query(
-            `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, budget_period_id, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, budget_period_id, monthly_amounts, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
             [
               newId,
               userId,
@@ -532,6 +548,9 @@ export const useExpenses = (userId, periodId) => {
               sanitized.startMonth,
               sanitized.endMonth,
               periodId,
+              sanitized.monthlyAmounts
+                ? JSON.stringify(sanitized.monthlyAmounts)
+                : null,
               now,
               now,
             ]
@@ -544,6 +563,7 @@ export const useExpenses = (userId, periodId) => {
             frequency: sanitized.frequency,
             startMonth: sanitized.startMonth,
             endMonth: sanitized.endMonth,
+            monthlyAmounts: sanitized.monthlyAmounts || null,
             budgetPeriodId: periodId,
             createdAt: now,
             updatedAt: now,

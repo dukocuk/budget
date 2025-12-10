@@ -109,6 +109,23 @@ export async function initLocalDB() {
       END $$;
     `);
 
+    // Migration: Add variable monthly amounts support (migration 005)
+    await localDB.exec(`
+      DO $$
+      BEGIN
+        -- Add monthly_amounts column to expenses table if it doesn't exist
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'expenses' AND column_name = 'monthly_amounts'
+        ) THEN
+          ALTER TABLE expenses
+          ADD COLUMN monthly_amounts TEXT DEFAULT NULL;
+
+          RAISE NOTICE 'Migration 005: Added monthly_amounts column to expenses';
+        END IF;
+      END $$;
+    `);
+
     // Create indexes for performance
     await localDB.exec(`
       CREATE INDEX IF NOT EXISTS idx_budget_periods_user_year ON budget_periods(user_id, year);
@@ -121,7 +138,7 @@ export async function initLocalDB() {
 
     console.log('✅ Local PGlite database initialized successfully');
     console.log(
-      '  📦 Schema migrations applied: budget_period_id (003), templates (004)'
+      '  📦 Schema migrations applied: budget_period_id (003), templates (004), monthly_amounts (005)'
     );
     return true;
   } catch (error) {

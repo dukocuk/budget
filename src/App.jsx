@@ -107,6 +107,7 @@ const ExpensesTabContent = memo(
     toggleSelectAll,
     updateExpense,
     handleDeleteExpense,
+    handleEditExpense,
     addExpense,
     handleDeleteSelected,
     setShowAddModal,
@@ -116,7 +117,8 @@ const ExpensesTabContent = memo(
         <div className="read-only-banner">
           <span className="read-only-icon">📦</span>
           <span className="read-only-text">
-            Dette er et arkiveret budgetår. Du kan se data, men ikke redigere.
+            Dette år er arkiveret (kun visning). Gå til{' '}
+            <strong>⚙️ Indstillinger</strong> for at genaktivere det.
           </span>
         </div>
       )}
@@ -144,6 +146,7 @@ const ExpensesTabContent = memo(
         onUpdate={isReadOnly ? () => {} : updateExpense}
         onDelete={isReadOnly ? () => {} : handleDeleteExpense}
         onAdd={isReadOnly ? () => {} : addExpense}
+        onEdit={isReadOnly ? () => {} : handleEditExpense}
         readOnly={isReadOnly}
       />
 
@@ -189,6 +192,7 @@ function AppContent() {
     updatePeriod,
     createFromTemplate,
     archivePeriod,
+    unarchivePeriod,
     calculateEndingBalance,
     getExpensesForPeriod,
     fetchPeriodsFromDB,
@@ -206,6 +210,7 @@ function AppContent() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showCreateYearModal, setShowCreateYearModal] = useState(false);
   const [showTemplateManagerModal, setShowTemplateManagerModal] =
@@ -543,8 +548,21 @@ function AppContent() {
 
   // Add expense handler - receives form data from modal
   const handleAddExpense = formData => {
-    addExpense(formData);
-    showAlert('Ny udgift tilføjet!', 'success');
+    if (formData.id) {
+      // Update existing expense
+      updateExpense(formData.id, formData);
+      showAlert('Udgift opdateret!', 'success');
+    } else {
+      // Add new expense
+      addExpense(formData);
+      showAlert('Ny udgift tilføjet!', 'success');
+    }
+  };
+
+  // Open edit modal with pre-filled expense data
+  const handleEditExpense = expense => {
+    setEditingExpense(expense);
+    setShowAddModal(true);
   };
 
   // Open delete confirmation modal for single expense
@@ -576,61 +594,65 @@ function AppContent() {
   };
 
   // Confirm and execute deletion
-  const confirmDelete = async () => {
-    try {
-      if (deleteConfirmation.count > 0) {
-        // Bulk delete
-        const count = deleteConfirmation.count;
-        const result = deleteSelected();
+  const confirmDelete = () => {
+    // 1. Capture deletion context before closing modal
+    const expenseId = deleteConfirmation.expenseId;
+    const count = deleteConfirmation.count;
+    const selectedExpensesCopy = [...selectedExpenses];
 
-        // Immediately sync to cloud (bypass debounce for critical operations)
-        if (user && isOnline && result.success) {
-          const updatedExpenses = expenses.filter(
-            e => !selectedExpenses.includes(e.id)
-          );
-          await immediateSyncExpenses(updatedExpenses);
-        }
+    // 2. Close modal immediately for instant UI feedback
+    setDeleteConfirmation({
+      isOpen: false,
+      expenseId: null,
+      expenseName: null,
+      count: 0,
+    });
 
-        showAlert(`✅ ${count} udgift(er) slettet`, 'success');
-      } else {
-        // Single delete
-        const expense = expenses.find(
-          e => e.id === deleteConfirmation.expenseId
-        );
+    // 3. Perform deletion in background (async)
+    if (count > 0) {
+      // Bulk delete
+      const result = deleteSelected();
 
-        // Calculate updated expenses BEFORE deleting
+      // Immediately sync to cloud (bypass debounce for critical operations)
+      if (user && isOnline && result.success) {
         const updatedExpenses = expenses.filter(
-          e => e.id !== deleteConfirmation.expenseId
+          e => !selectedExpensesCopy.includes(e.id)
         );
+        immediateSyncExpenses(updatedExpenses)
+          .then(() => {
+            showAlert(`✅ ${count} udgift(er) slettet`, 'success');
+          })
+          .catch(error => {
+            showAlert('❌ Fejl ved synkronisering: ' + error.message, 'error');
+          });
+      } else {
+        showAlert(`✅ ${count} udgift(er) slettet`, 'success');
+      }
+    } else {
+      // Single delete
+      const expense = expenses.find(e => e.id === expenseId);
 
-        // Delete from local state
-        deleteExpense(deleteConfirmation.expenseId);
+      // Calculate updated expenses BEFORE deleting
+      const updatedExpenses = expenses.filter(e => e.id !== expenseId);
 
-        // Immediately sync to cloud (bypass debounce for critical operations)
-        if (user && isOnline) {
-          logger.log(
-            `🗑️ Immediately syncing delete: ${updatedExpenses.length} expenses remaining`
-          );
-          await immediateSyncExpenses(updatedExpenses);
-        }
+      // Delete from local state
+      deleteExpense(expenseId);
 
+      // Immediately sync to cloud (bypass debounce for critical operations)
+      if (user && isOnline) {
+        logger.log(
+          `🗑️ Immediately syncing delete: ${updatedExpenses.length} expenses remaining`
+        );
+        immediateSyncExpenses(updatedExpenses)
+          .then(() => {
+            showAlert(`✅ "${expense?.name}" blev slettet`, 'success');
+          })
+          .catch(error => {
+            showAlert('❌ Fejl ved synkronisering: ' + error.message, 'error');
+          });
+      } else {
         showAlert(`✅ "${expense?.name}" blev slettet`, 'success');
       }
-
-      setDeleteConfirmation({
-        isOpen: false,
-        expenseId: null,
-        expenseName: null,
-        count: 0,
-      });
-    } catch (error) {
-      showAlert('❌ Fejl ved sletning: ' + error.message, 'error');
-      setDeleteConfirmation({
-        isOpen: false,
-        expenseId: null,
-        expenseName: null,
-        count: 0,
-      });
     }
   };
 
@@ -755,6 +777,7 @@ function AppContent() {
           toggleSelectAll={toggleSelectAll}
           updateExpense={updateExpense}
           handleDeleteExpense={handleDeleteExpense}
+          handleEditExpense={handleEditExpense}
           addExpense={addExpense}
           handleDeleteSelected={handleDeleteSelected}
           setShowAddModal={setShowAddModal}
@@ -835,8 +858,12 @@ function AppContent() {
         {/* Add Expense Modal */}
         <AddExpenseModal
           isOpen={showAddModal}
-          onClose={() => setShowAddModal(false)}
+          onClose={() => {
+            setShowAddModal(false);
+            setEditingExpense(null);
+          }}
           onAdd={handleAddExpense}
+          editingExpense={editingExpense}
         />
 
         {/* Settings Modal */}
@@ -875,6 +902,21 @@ function AppContent() {
             } catch (error) {
               logger.error('Archive period error:', error);
               showAlert(`❌ Kunne ikke arkivere år: ${error.message}`, 'error');
+            }
+          }}
+          onUnarchivePeriod={async periodId => {
+            try {
+              await unarchivePeriod(periodId);
+              showAlert(
+                `✅ År ${activePeriod.year} er nu genaktiveret og kan redigeres`,
+                'success'
+              );
+            } catch (error) {
+              logger.error('Unarchive period error:', error);
+              showAlert(
+                `❌ Kunne ikke genaktivere år: ${error.message}`,
+                'error'
+              );
             }
           }}
           onOpenTemplateManager={() => setShowTemplateManagerModal(true)}

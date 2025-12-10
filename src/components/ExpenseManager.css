@@ -110,6 +110,36 @@
   color: #1f2937;
 }
 
+.variable-amount-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.variable-badge {
+  background: var(--color-primary);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+.edit-variable-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9em;
+}
+
+.edit-variable-btn:hover {
+  background: var(--color-background-hover);
+  border-color: var(--color-primary);
+}
+
 .btn-delete {
   background: #ef4444;
   color: white;

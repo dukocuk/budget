@@ -78,6 +78,9 @@ export const SyncProvider = ({ user, children }) => {
         startMonth: row.start_month,
         endMonth: row.end_month,
         budgetPeriodId: row.budget_period_id,
+        monthlyAmounts: row.monthly_amounts
+          ? JSON.parse(row.monthly_amounts)
+          : null,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       }));

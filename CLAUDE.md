@@ -745,6 +745,45 @@ Common issues:
 
 **Date Formatting**: `da-DK` locale for `toLocaleDateString()`
 
+### Decimal Value Support
+
+**Locale**: Danish (da-DK)  
+**Decimal Separator**: Comma (,)  
+**Thousands Separator**: Period (.)
+
+**Input Format Examples**:
+- `100,95` → 100.95 kr
+- `1.234,56` → 1234.56 kr
+- `5.700,00` → 5700.00 kr
+- `100` → 100.00 kr
+
+**Implementation** ([src/utils/localeHelpers.js](src/utils/localeHelpers.js)):
+- `parseDanishNumber(value)`: Converts Danish locale strings to JavaScript numbers
+  - Handles comma as decimal separator
+  - Handles period as thousands separator
+  - Smart detection: distinguishes between "1.234" (thousands) and "100.95" (decimal)
+  - Backward compatible: accepts period as decimal separator
+  - Returns 0 for invalid input
+- `formatDanishNumber(value, decimals)`: Formats numbers with Danish locale
+  - Uses `toLocaleString('da-DK')`
+  - Configurable decimal places (default: 2)
+- `isValidDanishNumber(value)`: Validates Danish number format
+  - Accepts valid patterns: "100", "100,95", "1.234,56"
+  - Rejects invalid characters
+
+**Usage**:
+- All amount inputs accept comma as decimal separator
+- Input type changed from `number` to `text` with `pattern="[0-9.,]+"`
+- Mobile-optimized with `inputMode="decimal"`
+- Internal storage and calculations use JavaScript numbers
+- Display formatting uses `toLocaleString('da-DK')`
+
+**Components Updated**:
+- AddExpenseModal.jsx: Expense amount input
+- ExpenseManager.jsx: Inline editing
+- Settings.jsx: Monthly payment and previous balance inputs
+- CSV import: Handles Danish locale numbers with currency symbols
+
 ## Recent Improvements
 
 **Phase 1 - Modular Refactoring** (completed):

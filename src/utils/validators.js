@@ -2,13 +2,22 @@
  * Validation utilities for budget data
  */
 
+import { parseDanishNumber } from './localeHelpers';
+
 /**
  * Validate and sanitize amount input
- * @param {string|number} value - Input value
+ * Supports Danish locale (comma decimal separator)
+ * @param {string|number} value - Input value (e.g., "100,95" or 100.95)
  * @returns {number} Sanitized amount (minimum 0)
+ *
+ * @example
+ * validateAmount("100,95")  // → 100.95
+ * validateAmount("1.234,56") // → 1234.56
+ * validateAmount(-50)        // → 0 (negatives become 0)
  */
 export const validateAmount = value => {
-  return Math.max(0, parseFloat(value) || 0);
+  const parsed = parseDanishNumber(value);
+  return Math.max(0, parsed);
 };
 
 /**
@@ -22,6 +31,45 @@ export const validateMonthRange = (startMonth, endMonth) => {
   const end = Math.max(start, Math.min(12, parseInt(endMonth) || 12));
 
   return { startMonth: start, endMonth: end };
+};
+
+/**
+ * Validate monthly amounts array
+ * @param {Array<number>|null} monthlyAmounts - Array of 12 monthly amounts
+ * @returns {Object} Validation result with {valid: boolean, errors: string[]}
+ */
+export const validateMonthlyAmounts = monthlyAmounts => {
+  const errors = [];
+
+  // null is valid (indicates fixed amount)
+  if (monthlyAmounts === null) {
+    return { valid: true, errors };
+  }
+
+  // Must be array
+  if (!Array.isArray(monthlyAmounts)) {
+    errors.push('Månedlige beløb skal være en array');
+    return { valid: false, errors };
+  }
+
+  // Must have exactly 12 values
+  if (monthlyAmounts.length !== 12) {
+    errors.push('Månedlige beløb skal have præcis 12 værdier');
+  }
+
+  // All values must be non-negative numbers
+  monthlyAmounts.forEach((amount, index) => {
+    if (typeof amount !== 'number' || isNaN(amount)) {
+      errors.push(`Måned ${index + 1}: Beløb skal være et tal`);
+    } else if (amount < 0) {
+      errors.push(`Måned ${index + 1}: Beløb skal være mindst 0 kr.`);
+    }
+  });
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
 };
 
 /**
@@ -68,6 +116,14 @@ export const validateExpense = expense => {
     errors.push('Startmåned kan ikke være efter slutmåned');
   }
 
+  // Validate monthly amounts if present
+  if (expense.monthlyAmounts !== null && expense.monthlyAmounts !== undefined) {
+    const amountsValidation = validateMonthlyAmounts(expense.monthlyAmounts);
+    if (!amountsValidation.valid) {
+      errors.push(...amountsValidation.errors);
+    }
+  }
+
   return {
     valid: errors.length === 0,
     errors,
@@ -82,12 +138,27 @@ export const validateExpense = expense => {
 export const sanitizeExpense = expense => {
   const range = validateMonthRange(expense.startMonth, expense.endMonth);
 
-  return {
+  const sanitized = {
     ...expense,
     amount: validateAmount(expense.amount),
     startMonth: range.startMonth,
     endMonth: range.endMonth,
   };
+
+  // Validate and sanitize monthly amounts if present
+  if (expense.monthlyAmounts !== undefined) {
+    if (expense.monthlyAmounts === null) {
+      sanitized.monthlyAmounts = null;
+    } else if (Array.isArray(expense.monthlyAmounts)) {
+      sanitized.monthlyAmounts = expense.monthlyAmounts.map(amount =>
+        Math.max(0, parseFloat(amount) || 0)
+      );
+    } else {
+      sanitized.monthlyAmounts = null; // Invalid format, fallback to fixed
+    }
+  }
+
+  return sanitized;
 };
 
 /**

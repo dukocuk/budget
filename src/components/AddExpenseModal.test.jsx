@@ -84,7 +84,7 @@ describe('AddExpenseModal', () => {
       render(<AddExpenseModal {...defaultProps} />);
 
       expect(screen.getByLabelText(/Udgiftsnavn/)).toHaveValue('Ny udgift');
-      expect(screen.getByLabelText(/Beløb/)).toHaveValue(100);
+      expect(screen.getByLabelText(/Beløb/)).toHaveValue('100'); // String value (type="text")
       expect(screen.getByLabelText(/Frekvens/)).toHaveValue('monthly');
     });
 

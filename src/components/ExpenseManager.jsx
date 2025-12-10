@@ -1,7 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useExpenses } from '../hooks/useExpenses';
 import { calculateAnnualAmount } from '../utils/calculations';
+import { parseDanishNumber } from '../utils/localeHelpers';
 import { DeleteConfirmation } from './DeleteConfirmation';
+import { MonthlyAmountsModal } from './MonthlyAmountsModal';
 import { Alert } from './Alert';
 import { useAlert } from '../hooks/useAlert';
 import './ExpenseManager.css';
@@ -33,6 +35,12 @@ export default function ExpenseManager({ userId }) {
   const [selectedIds, setSelectedIds] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const { alert, showAlert } = useAlert();
+
+  // Monthly amounts modal state
+  const [monthlyAmountsModal, setMonthlyAmountsModal] = useState({
+    isOpen: false,
+    expense: null,
+  });
 
   // Delete confirmation state
   const [deleteConfirmation, setDeleteConfirmation] = useState({
@@ -166,35 +174,40 @@ export default function ExpenseManager({ userId }) {
   };
 
   // Confirm and execute deletion
-  const confirmDelete = async () => {
-    try {
-      if (deleteConfirmation.count > 0) {
-        // Bulk delete
-        await deleteExpenses(selectedIds);
-        setSelectedIds([]);
-        showAlert(
-          `✅ ${deleteConfirmation.count} udgift(er) slettet`,
-          'success'
-        );
-      } else {
-        // Single delete
-        await deleteExpense(deleteConfirmation.expenseId);
-        showAlert('✅ Udgift slettet', 'success');
-      }
-      setDeleteConfirmation({
-        isOpen: false,
-        expenseId: null,
-        expenseName: null,
-        count: 0,
-      });
-    } catch (error) {
-      showAlert('❌ Fejl ved sletning: ' + error.message, 'error');
-      setDeleteConfirmation({
-        isOpen: false,
-        expenseId: null,
-        expenseName: null,
-        count: 0,
-      });
+  const confirmDelete = () => {
+    // 1. Capture deletion context before closing modal
+    const expenseId = deleteConfirmation.expenseId;
+    const count = deleteConfirmation.count;
+    const selectedIdsCopy = [...selectedIds];
+
+    // 2. Close modal immediately for instant UI feedback
+    setDeleteConfirmation({
+      isOpen: false,
+      expenseId: null,
+      expenseName: null,
+      count: 0,
+    });
+
+    // 3. Perform deletion in background (async)
+    if (count > 0) {
+      // Bulk delete
+      deleteExpenses(selectedIdsCopy)
+        .then(() => {
+          setSelectedIds([]);
+          showAlert(`✅ ${count} udgift(er) slettet`, 'success');
+        })
+        .catch(error => {
+          showAlert('❌ Fejl ved sletning: ' + error.message, 'error');
+        });
+    } else {
+      // Single delete
+      deleteExpense(expenseId)
+        .then(() => {
+          showAlert('✅ Udgift slettet', 'success');
+        })
+        .catch(error => {
+          showAlert('❌ Fejl ved sletning: ' + error.message, 'error');
+        });
     }
   };
 
@@ -293,19 +306,37 @@ export default function ExpenseManager({ userId }) {
                   />
                 </td>
                 <td>
-                  <input
-                    type="number"
-                    value={
-                      localValues[`${expense.id}_amount`] ?? expense.amount
-                    }
-                    onChange={e =>
-                      handleDebouncedUpdate(
-                        expense.id,
-                        'amount',
-                        parseInt(e.target.value) || 0
-                      )
-                    }
-                  />
+                  {expense.monthlyAmounts ? (
+                    <div className="variable-amount-display">
+                      <span className="variable-badge">Variabel</span>
+                      <button
+                        className="edit-variable-btn"
+                        onClick={() =>
+                          setMonthlyAmountsModal({ isOpen: true, expense })
+                        }
+                        aria-label={`Rediger variable beløb for ${expense.name}`}
+                      >
+                        ✏️ Rediger
+                      </button>
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={
+                        localValues[`${expense.id}_amount`] ?? expense.amount
+                      }
+                      onChange={e =>
+                        handleDebouncedUpdate(
+                          expense.id,
+                          'amount',
+                          parseDanishNumber(e.target.value)
+                        )
+                      }
+                      inputMode="decimal"
+                      pattern="[0-9.,]+"
+                      placeholder="0,00"
+                    />
+                  )}
                 </td>
                 <td>
                   <select
@@ -394,6 +425,23 @@ export default function ExpenseManager({ userId }) {
             Ingen udgifter endnu. Klik "Tilføj ny udgift" for at komme i gang!
           </p>
         </div>
+      )}
+
+      {monthlyAmountsModal.isOpen && (
+        <MonthlyAmountsModal
+          isOpen={monthlyAmountsModal.isOpen}
+          expense={monthlyAmountsModal.expense}
+          onClose={() =>
+            setMonthlyAmountsModal({ isOpen: false, expense: null })
+          }
+          onSave={async monthlyAmounts => {
+            await updateExpense(monthlyAmountsModal.expense.id, {
+              monthlyAmounts,
+            });
+            setMonthlyAmountsModal({ isOpen: false, expense: null });
+            showAlert('✅ Variable beløb opdateret', 'success');
+          }}
+        />
       )}
     </div>
   );

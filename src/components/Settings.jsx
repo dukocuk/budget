@@ -4,6 +4,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { useSyncContext } from '../hooks/useSyncContext';
+import { parseDanishNumber } from '../utils/localeHelpers';
 import { PaymentModeConfirmation } from './PaymentModeConfirmation';
 import './Settings.css';
 
@@ -21,6 +22,7 @@ export const Settings = ({
   // Year management props (optional for backwards compatibility)
   activePeriod,
   onArchivePeriod,
+  onUnarchivePeriod, // NEW: Unarchive functionality
   // Template management
   onOpenTemplateManager,
 }) => {
@@ -121,10 +123,10 @@ export const Settings = ({
     setPendingMode(null);
   };
 
-  // Handler for updating specific month
+  // Handler for updating specific month (supports Danish locale)
   const handleMonthPaymentChange = (monthIndex, value) => {
     const newPayments = [...localMonthlyPayments];
-    newPayments[monthIndex] = value === '' ? 0 : parseFloat(value) || 0;
+    newPayments[monthIndex] = value === '' ? 0 : parseDanishNumber(value);
     setLocalMonthlyPayments(newPayments);
   };
 
@@ -231,6 +233,22 @@ export const Settings = ({
                 </p>
               </div>
             )}
+            {activePeriod.status === 'archived' && onUnarchivePeriod && (
+              <div className="year-actions">
+                <button
+                  className="btn btn-primary"
+                  onClick={() => onUnarchivePeriod(activePeriod.id)}
+                  title="Genaktiver dette budgetår for redigering"
+                >
+                  <span className="btn-icon">🔓</span>
+                  <span>Genaktiver år {activePeriod.year}</span>
+                </button>
+                <p className="year-note">
+                  💡 Genaktivering gør året redigerbart igen. Du kan arkivere
+                  det senere hvis nødvendigt.
+                </p>
+              </div>
+            )}
           </div>
         )}
 
@@ -276,7 +294,7 @@ export const Settings = ({
               {localPaymentMode === 'fixed' && (
                 <div className="fixed-payment-input">
                   <input
-                    type="number"
+                    type="text"
                     id="monthlyPayment"
                     value={localMonthlyPayment}
                     onChange={e => {
@@ -284,10 +302,8 @@ export const Settings = ({
                       if (value === '') {
                         setLocalMonthlyPayment(0);
                       } else {
-                        const parsed = parseFloat(value);
-                        if (!isNaN(parsed)) {
-                          setLocalMonthlyPayment(parsed);
-                        }
+                        const parsed = parseDanishNumber(value);
+                        setLocalMonthlyPayment(parsed);
                       }
                     }}
                     onBlur={() => {
@@ -295,7 +311,9 @@ export const Settings = ({
                         onMonthlyPaymentChange(localMonthlyPayment);
                       }
                     }}
-                    placeholder="5700"
+                    placeholder="f.eks. 5.700,00"
+                    inputMode="decimal"
+                    pattern="[0-9.,]+"
                   />
                   <span className="input-suffix">kr./måned</span>
                 </div>
@@ -331,14 +349,16 @@ export const Settings = ({
                     <div key={month} className="month-payment-item">
                       <label htmlFor={`month-${index}`}>{month}</label>
                       <input
-                        type="number"
+                        type="text"
                         id={`month-${index}`}
                         value={localMonthlyPayments[index]}
                         onChange={e =>
                           handleMonthPaymentChange(index, e.target.value)
                         }
                         onBlur={handleMonthPaymentBlur}
-                        placeholder="0"
+                        placeholder="0,00"
+                        inputMode="decimal"
+                        pattern="[0-9.,]+"
                       />
                     </div>
                   ))}
@@ -349,21 +369,22 @@ export const Settings = ({
           <div className="settings-item">
             <label htmlFor="previousBalance">Overført fra sidste år:</label>
             <input
-              type="number"
+              type="text"
               id="previousBalance"
               value={localPreviousBalance}
               onChange={e => {
                 const value = e.target.value;
-                // Update local state immediately for responsive UI
+                // Update local state immediately for responsive UI (supports Danish locale)
                 if (value === '') {
                   setLocalPreviousBalance(0);
                 } else {
-                  const parsed = parseFloat(value);
-                  if (!isNaN(parsed)) {
-                    setLocalPreviousBalance(parsed);
-                  }
+                  const parsed = parseDanishNumber(value);
+                  setLocalPreviousBalance(parsed);
                 }
               }}
+              placeholder="f.eks. 4.831,00"
+              inputMode="decimal"
+              pattern="[0-9.,]+"
               onBlur={() => {
                 // Only trigger parent update (and sync) on blur
                 if (localPreviousBalance !== previousBalance) {

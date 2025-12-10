@@ -338,6 +338,18 @@ export const useBudgetPeriods = userId => {
   );
 
   /**
+   * Unarchive a budget period (restore to 'active' status)
+   * Makes the period editable again
+   * @param {string} id - Period ID to unarchive
+   */
+  const unarchivePeriod = useCallback(
+    async id => {
+      return updatePeriod(id, { status: 'active' });
+    },
+    [updatePeriod]
+  );
+
+  /**
    * Delete budget period and all associated expenses
    */
   const deletePeriod = useCallback(
@@ -747,6 +759,7 @@ export const useBudgetPeriods = userId => {
     createPeriod,
     updatePeriod,
     archivePeriod,
+    unarchivePeriod, // NEW: Unarchive functionality
     deletePeriod,
     calculateEndingBalance,
     getActivePeriod,
