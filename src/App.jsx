@@ -3,23 +3,14 @@
  * OPTIMIZATION: Uses React.startTransition for batched state updates to prevent chart re-renders
  */
 
-import {
-  useState,
-  useEffect,
-  useMemo,
-  useRef,
-  startTransition,
-  memo,
-} from 'react';
+import { useState, useEffect, useMemo, useRef, memo } from 'react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Header } from './components/Header';
 import { Alert } from './components/Alert';
-import { SummaryCards } from './components/SummaryCards';
 import { ExpensesTable } from './components/ExpensesTable';
 import { MonthlyOverview } from './components/MonthlyOverview';
 import { TabView } from './components/TabView';
 import BottomTabBar from './components/BottomTabBar';
-import { BalanceChart } from './components/BalanceChart';
 import Dashboard from './components/Dashboard';
 import { AddExpenseModal } from './components/AddExpenseModal';
 import { MonthlyAmountsModal } from './components/MonthlyAmountsModal';
@@ -30,8 +21,6 @@ import YearSelector from './components/YearSelector';
 import CreateYearModal from './components/CreateYearModal';
 import YearComparison from './components/YearComparison';
 import Auth from './components/Auth';
-import { useExpenses } from './hooks/useExpenses';
-import { useBudgetPeriods } from './hooks/useBudgetPeriods';
 import { useAlert } from './hooks/useAlert';
 import { useAuth } from './hooks/useAuth';
 import { useViewportSize } from './hooks/useViewportSize';
@@ -51,7 +40,6 @@ import { useDataInitialization } from './hooks/useDataInitialization';
 import { useSettingsHandlers } from './hooks/useSettingsHandlers';
 import { calculateSummary } from './utils/calculations';
 import { DEFAULT_SETTINGS } from './utils/constants';
-import { logger } from './utils/logger';
 import './App.css';
 
 /**
@@ -237,15 +225,15 @@ function AppContent() {
     selectedExpenses,
     addExpense,
     updateExpense,
-    deleteExpense,
-    deleteSelected,
+    _deleteExpense,
+    _deleteSelected,
     setAllExpenses,
     undo,
     redo,
     canUndo,
     canRedo,
-    immediateSyncExpenses: immediateSyncExpensesFromContext,
-    isOnline: isOnlineFromContext,
+    _immediateSyncExpenses: immediateSyncExpensesFromContext,
+    _isOnline: isOnlineFromContext,
   } = useExpenseContext();
 
   // Cloud sync (from isolated context to prevent re-renders)
@@ -255,10 +243,6 @@ function AppContent() {
     loadBudgetPeriods,
     immediateSyncBudgetPeriods,
   } = useSyncContext();
-
-  // Use immediateSyncExpenses and isOnline from ExpenseContext
-  const immediateSyncExpenses = immediateSyncExpensesFromContext;
-  const isOnline = isOnlineFromContext;
 
   const { alert, showAlert } = useAlert();
 
@@ -347,6 +331,16 @@ function AppContent() {
 
   // Note: Data initialization is handled by useDataInitialization hook
 
+  // Keyboard shortcuts (extracted to custom hook) - MUST be called before any conditional returns
+  const handleKeyPress = useKeyboardShortcuts({
+    onAddExpense: openAddExpenseModal,
+    onUndo: undo,
+    onRedo: redo,
+    canUndo,
+    canRedo,
+    showAlert,
+  });
+
   // Sync expenses whenever they change (ONLY after initialization AND initial load complete)
   // OPTIMIZATION: Only sync if expenses actually changed to prevent cascading syncs
   useEffect(() => {
@@ -387,16 +381,6 @@ function AppContent() {
       </div>
     );
   }
-
-  // Keyboard shortcuts (extracted to custom hook)
-  const handleKeyPress = useKeyboardShortcuts({
-    onAddExpense: openAddExpenseModal,
-    onUndo: undo,
-    onRedo: redo,
-    canUndo,
-    canRedo,
-    showAlert,
-  });
 
   // Add expense handler - receives form data from modal
   const handleAddExpense = formData => {
