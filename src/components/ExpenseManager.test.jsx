@@ -1,16 +1,17 @@
 /**
  * Tests for ExpenseManager component
  * Tests inline editing, bulk operations, and search functionality
+ * Updated to use centralized ExpenseProvider context
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ExpenseManager from './ExpenseManager';
-import { useExpenses } from '../hooks/useExpenses';
+import { useExpenseContext } from '../hooks/useExpenseContext';
 
 // Mock the hooks
-vi.mock('../hooks/useExpenses');
+vi.mock('../hooks/useExpenseContext');
 
 describe('ExpenseManager', () => {
   const mockExpenses = [
@@ -35,29 +36,34 @@ describe('ExpenseManager', () => {
   const mockAddExpense = vi.fn();
   const mockUpdateExpense = vi.fn();
   const mockDeleteExpense = vi.fn();
-  const mockDeleteExpenses = vi.fn();
+  const mockDeleteSelected = vi.fn();
+  const mockToggleExpenseSelection = vi.fn();
+  const mockToggleSelectAll = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useExpenses.mockReturnValue({
+    useExpenseContext.mockReturnValue({
       expenses: mockExpenses,
       loading: false,
+      selectedExpenses: [],
       addExpense: mockAddExpense,
       updateExpense: mockUpdateExpense,
       deleteExpense: mockDeleteExpense,
-      deleteExpenses: mockDeleteExpenses,
+      deleteSelected: mockDeleteSelected,
+      toggleExpenseSelection: mockToggleExpenseSelection,
+      toggleSelectAll: mockToggleSelectAll,
     });
   });
 
   describe('Rendering', () => {
     it('should render expense manager with header', () => {
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       expect(screen.getByText('💰 Dine udgifter')).toBeInTheDocument();
     });
 
     it('should render search input', () => {
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       expect(
         screen.getByPlaceholderText('Søg udgifter...')
@@ -65,13 +71,13 @@ describe('ExpenseManager', () => {
     });
 
     it('should render add expense button', () => {
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       expect(screen.getByText('➕ Tilføj ny udgift')).toBeInTheDocument();
     });
 
     it('should render all expenses in table', () => {
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       expect(screen.getByDisplayValue('Netflix')).toBeInTheDocument();
       expect(screen.getByDisplayValue('Spotify')).toBeInTheDocument();
@@ -80,16 +86,19 @@ describe('ExpenseManager', () => {
 
   describe('Loading State', () => {
     it('should show loading message when expenses are loading', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: [],
         loading: true,
+        selectedExpenses: [],
         addExpense: mockAddExpense,
         updateExpense: mockUpdateExpense,
         deleteExpense: mockDeleteExpense,
-        deleteExpenses: mockDeleteExpenses,
+        deleteSelected: mockDeleteSelected,
+        toggleExpenseSelection: mockToggleExpenseSelection,
+        toggleSelectAll: mockToggleSelectAll,
       });
 
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       expect(screen.getByText('Indlæser udgifter...')).toBeInTheDocument();
     });
@@ -98,7 +107,7 @@ describe('ExpenseManager', () => {
   describe('Search Functionality', () => {
     it('should filter expenses by search term', async () => {
       const user = userEvent.setup();
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       const searchInput = screen.getByPlaceholderText('Søg udgifter...');
       await user.type(searchInput, 'Netflix');
@@ -111,7 +120,7 @@ describe('ExpenseManager', () => {
 
     it('should be case-insensitive', async () => {
       const user = userEvent.setup();
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       const searchInput = screen.getByPlaceholderText('Søg udgifter...');
       await user.type(searchInput, 'netflix');
@@ -123,7 +132,7 @@ describe('ExpenseManager', () => {
 
     it('should show no results message when no matches', async () => {
       const user = userEvent.setup();
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       const searchInput = screen.getByPlaceholderText('Søg udgifter...');
       await user.type(searchInput, 'NonExistent');
@@ -137,7 +146,7 @@ describe('ExpenseManager', () => {
   describe('Add Expense', () => {
     it('should call addExpense when add button is clicked', async () => {
       const user = userEvent.setup();
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       const addButton = screen.getByText('➕ Tilføj ny udgift');
       await user.click(addButton);
@@ -157,7 +166,7 @@ describe('ExpenseManager', () => {
   describe('Inline Editing', () => {
     it('should update expense name when edited', async () => {
       const user = userEvent.setup();
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       const nameInput = screen.getByDisplayValue('Netflix');
       await user.clear(nameInput);
@@ -176,7 +185,7 @@ describe('ExpenseManager', () => {
 
     it('should update expense amount when edited', async () => {
       const user = userEvent.setup();
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       const amountInput = screen.getByDisplayValue('79');
       await user.clear(amountInput);
@@ -192,7 +201,7 @@ describe('ExpenseManager', () => {
 
     it('should update frequency immediately when changed', async () => {
       const user = userEvent.setup();
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       const frequencySelects = screen.getAllByDisplayValue('Månedlig');
       await user.selectOptions(frequencySelects[0], 'quarterly');
@@ -206,45 +215,51 @@ describe('ExpenseManager', () => {
   });
 
   describe('Selection and Bulk Delete', () => {
-    it('should allow selecting individual expenses', async () => {
+    it('should call toggleExpenseSelection when individual checkbox is clicked', async () => {
       const user = userEvent.setup();
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       const checkboxes = screen.getAllByRole('checkbox');
-      // First checkbox is "select all", so use second checkbox
+      // First checkbox is "select all", so use second checkbox (first expense)
       await user.click(checkboxes[1]);
 
-      expect(checkboxes[1]).toBeChecked();
+      expect(mockToggleExpenseSelection).toHaveBeenCalledWith(1);
     });
 
     it('should show delete button when expenses are selected', async () => {
-      const user = userEvent.setup();
-      render(<ExpenseManager userId="test-user-id" />);
+      // Mock context with selected expenses
+      useExpenseContext.mockReturnValue({
+        expenses: mockExpenses,
+        loading: false,
+        selectedExpenses: [1], // First expense selected
+        addExpense: mockAddExpense,
+        updateExpense: mockUpdateExpense,
+        deleteExpense: mockDeleteExpense,
+        deleteSelected: mockDeleteSelected,
+        toggleExpenseSelection: mockToggleExpenseSelection,
+        toggleSelectAll: mockToggleSelectAll,
+      });
 
-      const checkboxes = screen.getAllByRole('checkbox');
-      await user.click(checkboxes[1]);
+      render(<ExpenseManager />);
 
       expect(screen.getByText(/Slet 1 valgte/)).toBeInTheDocument();
     });
 
-    it('should select all expenses when select all is clicked', async () => {
+    it('should call toggleSelectAll when select all is clicked', async () => {
       const user = userEvent.setup();
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       const selectAllCheckbox = screen.getAllByRole('checkbox')[0];
       await user.click(selectAllCheckbox);
 
-      const checkboxes = screen.getAllByRole('checkbox');
-      checkboxes.forEach(checkbox => {
-        expect(checkbox).toBeChecked();
-      });
+      expect(mockToggleSelectAll).toHaveBeenCalled();
     });
   });
 
   describe('Delete Operations', () => {
     it('should open delete confirmation for single expense', async () => {
       const user = userEvent.setup();
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       const deleteButtons = screen.getAllByText('Slet');
       await user.click(deleteButtons[0]);
@@ -258,16 +273,19 @@ describe('ExpenseManager', () => {
 
   describe('Empty States', () => {
     it('should show empty state when no expenses exist', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: [],
         loading: false,
+        selectedExpenses: [],
         addExpense: mockAddExpense,
         updateExpense: mockUpdateExpense,
         deleteExpense: mockDeleteExpense,
-        deleteExpenses: mockDeleteExpenses,
+        deleteSelected: mockDeleteSelected,
+        toggleExpenseSelection: mockToggleExpenseSelection,
+        toggleSelectAll: mockToggleSelectAll,
       });
 
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       expect(screen.getByText(/Ingen udgifter endnu/)).toBeInTheDocument();
     });
@@ -277,7 +295,7 @@ describe('ExpenseManager', () => {
     it('should handle update errors gracefully', async () => {
       mockUpdateExpense.mockRejectedValue(new Error('Update failed'));
       const user = userEvent.setup();
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       const nameInput = screen.getByDisplayValue('Netflix');
       await user.clear(nameInput);
@@ -296,7 +314,7 @@ describe('ExpenseManager', () => {
   describe('Debouncing', () => {
     it('should debounce text input updates', async () => {
       const user = userEvent.setup();
-      render(<ExpenseManager userId="test-user-id" />);
+      render(<ExpenseManager />);
 
       const nameInput = screen.getByDisplayValue('Netflix');
 

@@ -427,18 +427,20 @@ describe('DeleteConfirmation', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle zero count', () => {
+    it('should handle zero count as single-delete mode', () => {
       render(
         <DeleteConfirmation
           isOpen={true}
           onConfirm={mockOnConfirm}
           onCancel={mockOnCancel}
           count={0}
+          expenseName="Test Udgift"
         />
       );
 
+      // count=0 should trigger single-delete mode, not bulk mode
       expect(
-        screen.getByText('Er du sikker på at du vil slette 0 udgift?')
+        screen.getByText('Er du sikker på at du vil slette "Test Udgift"?')
       ).toBeInTheDocument();
     });
 

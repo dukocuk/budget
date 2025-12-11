@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useViewportSize } from '../hooks/useViewportSize';
+import { useExpenseContext } from '../hooks/useExpenseContext';
 import {
   calculateSummary,
   calculateMonthlyTotals,
@@ -30,9 +31,9 @@ function Dashboard({
   monthlyPayment,
   previousBalance,
   monthlyPayments,
-  expenses = [],
 }) {
-  // Expenses passed as prop from App.jsx - no async loading needed
+  // Get expenses from centralized context
+  const { expenses } = useExpenseContext();
   const expensesLoading = false;
   const { width } = useViewportSize();
   const isMobile = width < 768;

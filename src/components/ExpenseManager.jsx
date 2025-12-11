@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useExpenses } from '../hooks/useExpenses';
+import { useExpenseContext } from '../hooks/useExpenseContext';
 import { calculateAnnualAmount } from '../utils/calculations';
 import { parseDanishNumber } from '../utils/localeHelpers';
 import { DeleteConfirmation } from './DeleteConfirmation';
@@ -23,16 +23,18 @@ const months = [
   'Dec',
 ];
 
-export default function ExpenseManager({ userId }) {
+export default function ExpenseManager() {
   const {
     expenses,
     loading,
     addExpense,
     updateExpense,
     deleteExpense,
-    deleteExpenses,
-  } = useExpenses(userId);
-  const [selectedIds, setSelectedIds] = useState([]);
+    deleteSelected,
+    selectedExpenses,
+    toggleExpenseSelection,
+    toggleSelectAll,
+  } = useExpenseContext();
   const [searchTerm, setSearchTerm] = useState('');
   const { alert, showAlert } = useAlert();
 
@@ -47,7 +49,7 @@ export default function ExpenseManager({ userId }) {
     isOpen: false,
     expenseId: null,
     expenseName: null,
-    count: 0,
+    count: null,
   });
 
   // Local input state to prevent focus loss during sync
@@ -154,13 +156,13 @@ export default function ExpenseManager({ userId }) {
       isOpen: true,
       expenseId: id,
       expenseName: name,
-      count: 0,
+      count: null,
     });
   };
 
   // Open delete confirmation modal for multiple expenses
   const handleDeleteSelected = () => {
-    if (selectedIds.length === 0) {
+    if (selectedExpenses.length === 0) {
       showAlert('⚠️ Vælg venligst udgifter at slette', 'warning');
       return;
     }
@@ -169,7 +171,7 @@ export default function ExpenseManager({ userId }) {
       isOpen: true,
       expenseId: null,
       expenseName: null,
-      count: selectedIds.length,
+      count: selectedExpenses.length,
     });
   };
 
@@ -178,22 +180,20 @@ export default function ExpenseManager({ userId }) {
     // 1. Capture deletion context before closing modal
     const expenseId = deleteConfirmation.expenseId;
     const count = deleteConfirmation.count;
-    const selectedIdsCopy = [...selectedIds];
 
     // 2. Close modal immediately for instant UI feedback
     setDeleteConfirmation({
       isOpen: false,
       expenseId: null,
       expenseName: null,
-      count: 0,
+      count: null,
     });
 
     // 3. Perform deletion in background (async)
     if (count > 0) {
-      // Bulk delete
-      deleteExpenses(selectedIdsCopy)
+      // Bulk delete - context manages selection internally
+      deleteSelected()
         .then(() => {
-          setSelectedIds([]);
           showAlert(`✅ ${count} udgift(er) slettet`, 'success');
         })
         .catch(error => {
@@ -217,22 +217,8 @@ export default function ExpenseManager({ userId }) {
       isOpen: false,
       expenseId: null,
       expenseName: null,
-      count: 0,
+      count: null,
     });
-  };
-
-  const toggleSelection = id => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-    );
-  };
-
-  const toggleSelectAll = () => {
-    setSelectedIds(prev =>
-      prev.length === filteredExpenses.length
-        ? []
-        : filteredExpenses.map(e => e.id)
-    );
   };
 
   return (
@@ -271,7 +257,7 @@ export default function ExpenseManager({ userId }) {
                 <input
                   type="checkbox"
                   checked={
-                    selectedIds.length === filteredExpenses.length &&
+                    selectedExpenses.length === filteredExpenses.length &&
                     filteredExpenses.length > 0
                   }
                   onChange={toggleSelectAll}
@@ -292,8 +278,8 @@ export default function ExpenseManager({ userId }) {
                 <td>
                   <input
                     type="checkbox"
-                    checked={selectedIds.includes(expense.id)}
-                    onChange={() => toggleSelection(expense.id)}
+                    checked={selectedExpenses.includes(expense.id)}
+                    onChange={() => toggleExpenseSelection(expense.id)}
                   />
                 </td>
                 <td>
@@ -407,9 +393,9 @@ export default function ExpenseManager({ userId }) {
         </table>
       </div>
 
-      {selectedIds.length > 0 && (
+      {selectedExpenses.length > 0 && (
         <button className="btn btn-danger" onClick={handleDeleteSelected}>
-          🗑️ Slet {selectedIds.length} valgte
+          🗑️ Slet {selectedExpenses.length} valgte
         </button>
       )}
 

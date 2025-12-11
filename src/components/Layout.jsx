@@ -33,7 +33,7 @@ export default function Layout() {
       case 'dashboard':
         return <Dashboard userId={user.id} />;
       case 'expenses':
-        return <ExpenseManager userId={user.id} />;
+        return <ExpenseManager />;
       case 'monthly':
         return <MonthlyView userId={user.id} />;
       case 'settings':

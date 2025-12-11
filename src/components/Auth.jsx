@@ -9,28 +9,18 @@ export default function Auth({
   signOut,
   retryAuth,
 }) {
-  // Initialize Google Identity Services (GIS) directly
+  // Initialize Google OAuth with Authorization Code Flow (supports refresh tokens)
   useEffect(() => {
-    // Check if we're returning from OAuth redirect with token
-    const hash = window.location.hash;
-    if (hash && hash.includes('access_token=')) {
-      // Parse token from URL hash
-      const params = new URLSearchParams(hash.substring(1));
-      const accessToken = params.get('access_token');
-      const expiresIn = params.get('expires_in');
-      const scope = params.get('scope');
+    // Check if we're returning from OAuth redirect with authorization code
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
 
-      if (accessToken) {
-        // Clean up URL
-        window.history.replaceState(null, '', window.location.pathname);
+    if (code) {
+      // Clean up URL
+      window.history.replaceState(null, '', window.location.pathname);
 
-        // Call auth handler
-        handleGoogleSignIn({
-          access_token: accessToken,
-          expires_in: expiresIn,
-          scope: scope,
-        });
-      }
+      // Call auth handler with authorization code
+      handleGoogleSignIn({ code });
     }
   }, [handleGoogleSignIn]);
 
@@ -41,14 +31,17 @@ export default function Auth({
     // In development: http://localhost:5173/
     const basePath = import.meta.env.BASE_URL || '/';
     const redirectUri = window.location.origin + basePath.replace(/\/$/, ''); // Remove trailing slash
-    const scope = 'https://www.googleapis.com/auth/drive.file';
+    const scope =
+      'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
 
-    // Build OAuth URL manually for implicit flow
+    // Build OAuth URL for Authorization Code Flow (enables refresh tokens)
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
-    authUrl.searchParams.set('response_type', 'token'); // implicit flow
+    authUrl.searchParams.set('response_type', 'code'); // authorization code flow
     authUrl.searchParams.set('scope', scope);
+    authUrl.searchParams.set('access_type', 'offline'); // Request refresh token
+    authUrl.searchParams.set('prompt', 'consent'); // Force consent screen for refresh token
     authUrl.searchParams.set('include_granted_scopes', 'true');
     authUrl.searchParams.set('state', 'pass-through-value');
 

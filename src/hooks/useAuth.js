@@ -54,6 +54,61 @@ export function useAuth() {
   });
   const [error, setError] = useState(null);
 
+  /**
+   * Refresh access token using refresh token
+   * Updates session with new access token and re-initializes Google Drive
+   *
+   * @param {string} refreshToken - Refresh token from original authentication
+   * @returns {Promise<string>} New access token
+   */
+  const refreshAccessToken = async refreshToken => {
+    try {
+      logger.log('🔄 Refreshing access token...');
+
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET,
+          refresh_token: refreshToken,
+          grant_type: 'refresh_token',
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.json();
+        throw new Error(
+          `Token refresh failed: ${errorData.error_description || errorData.error}`
+        );
+      }
+
+      const tokens = await tokenResponse.json();
+      const newAccessToken = tokens.access_token;
+      const expiresIn = tokens.expires_in;
+
+      // Update session with new access token
+      const savedSession = localStorage.getItem(STORAGE_KEY);
+      if (savedSession) {
+        const session = JSON.parse(savedSession);
+        session.accessToken = newAccessToken;
+        session.expiresAt = new Date(
+          Date.now() + expiresIn * 1000
+        ).toISOString();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+      }
+
+      // Re-initialize Google Drive with new token
+      await initGoogleDrive(newAccessToken);
+
+      logger.log('✅ Token refreshed successfully');
+      return newAccessToken;
+    } catch (error) {
+      logger.error('❌ Token refresh failed:', error);
+      throw error;
+    }
+  };
+
   // Check for existing session on mount
   useEffect(() => {
     const loadSession = async () => {
@@ -67,7 +122,57 @@ export function useAuth() {
           const expiresAt = new Date(session.expiresAt).getTime();
           const now = Date.now();
 
-          if (expiresAt > now) {
+          // If expired but has refresh token → refresh automatically
+          if (expiresAt < now && session.refreshToken) {
+            logger.log('Token expired, refreshing automatically...');
+
+            // Update to verifying stage
+            setLoadingState({
+              isLoading: true,
+              stage: 'verifying',
+              message: 'Fornyer din session...',
+              progress: 35,
+              errorMessage: null,
+            });
+
+            try {
+              // Update to connecting stage
+              setLoadingState({
+                isLoading: true,
+                stage: 'connecting',
+                message: 'Forbinder til Google Drive...',
+                progress: 70,
+                errorMessage: null,
+              });
+
+              await refreshAccessToken(session.refreshToken);
+              setUser(session.user);
+              logger.log('✅ Token refreshed and session restored');
+
+              // Complete stage
+              setLoadingState({
+                isLoading: true,
+                stage: 'complete',
+                message: 'Klar!',
+                progress: 100,
+                errorMessage: null,
+              });
+            } catch (refreshError) {
+              logger.error('❌ Token refresh failed:', refreshError);
+              // Clear invalid session
+              localStorage.removeItem(STORAGE_KEY);
+              setUser(null);
+              setError('Session udløbet. Log venligst ind igen.');
+              setLoadingState({
+                isLoading: false,
+                stage: 'error',
+                message: 'Session udløbet',
+                progress: 0,
+                errorMessage: 'Session udløbet. Log venligst ind igen.',
+              });
+            }
+          } else if (expiresAt > now) {
+            // Still valid
             logger.log('Found valid session, initializing Google Drive...');
 
             // Update to verifying stage
@@ -108,17 +213,18 @@ export function useAuth() {
               // Clear invalid session
               localStorage.removeItem(STORAGE_KEY);
               setUser(null);
-              setError('Session expired. Please sign in again.');
+              setError('Session udløbet. Log venligst ind igen.');
               setLoadingState({
                 isLoading: false,
                 stage: 'error',
                 message: 'Der opstod en fejl',
                 progress: 0,
-                errorMessage: 'Session expired. Please sign in again.',
+                errorMessage: 'Session udløbet. Log venligst ind igen.',
               });
             }
           } else {
-            logger.log('Session expired, clearing...');
+            // Expired and no refresh token
+            logger.log('Session expired with no refresh token, clearing...');
             localStorage.removeItem(STORAGE_KEY);
             setUser(null);
           }
@@ -147,12 +253,12 @@ export function useAuth() {
 
   /**
    * Handle Google Sign-In success
-   * Extracts user info and stores session
+   * Exchanges authorization code for tokens (including refresh token)
    *
-   * @param {Object} tokenResponse - Google OAuth token response from useGoogleLogin
-   * @param {string} tokenResponse.access_token - OAuth access token for Drive API
+   * @param {Object} codeResponse - Google OAuth authorization code response
+   * @param {string} codeResponse.code - Authorization code to exchange for tokens
    */
-  const handleGoogleSignIn = async tokenResponse => {
+  const handleGoogleSignIn = async codeResponse => {
     try {
       setError(null);
       setLoadingState({
@@ -163,13 +269,65 @@ export function useAuth() {
         errorMessage: null,
       });
 
-      logger.log('Processing Google Sign-In...');
+      logger.log('Processing Google Sign-In (Authorization Code Flow)...');
 
-      const accessToken = tokenResponse.access_token;
+      const authCode = codeResponse.code;
+
+      if (!authCode) {
+        throw new Error('No authorization code received from Google');
+      }
+
+      // Exchange authorization code for tokens
+      const basePath = import.meta.env.BASE_URL || '/';
+      const redirectUri = window.location.origin + basePath.replace(/\/$/, '');
+
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code: authCode,
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          client_secret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code',
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.json();
+        console.error('❌ Token exchange failed:', {
+          status: tokenResponse.status,
+          statusText: tokenResponse.statusText,
+          error: errorData.error,
+          error_description: errorData.error_description,
+          clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          hasClientSecret: !!import.meta.env.VITE_GOOGLE_CLIENT_SECRET,
+          redirectUri:
+            window.location.origin +
+            (import.meta.env.BASE_URL || '/').replace(/\/$/, ''),
+        });
+        throw new Error(
+          `Token exchange failed: ${errorData.error_description || errorData.error}\n\n` +
+            `Status: ${tokenResponse.status}\n` +
+            `Redirect URI: ${window.location.origin + (import.meta.env.BASE_URL || '/').replace(/\/$/, '')}\n` +
+            `Has Client Secret: ${!!import.meta.env.VITE_GOOGLE_CLIENT_SECRET}`
+        );
+      }
+
+      const tokens = await tokenResponse.json();
+      const accessToken = tokens.access_token;
+      const refreshToken = tokens.refresh_token;
+      const expiresIn = tokens.expires_in;
 
       if (!accessToken) {
-        throw new Error('No access token received from Google');
+        throw new Error('No access token in token response');
       }
+
+      logger.log('✅ Token exchange successful:', {
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        expiresIn,
+      });
 
       // Fetch user info from Google's userinfo endpoint
       const userInfoResponse = await fetch(
@@ -192,8 +350,8 @@ export function useAuth() {
         name: userData.name,
       });
 
-      // Store session with expiration (default 1 hour)
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+      // Store session with refresh token and actual expiration
+      const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
       const session = {
         user: {
           id: userData.sub,
@@ -203,6 +361,7 @@ export function useAuth() {
           picture: userData.picture,
         },
         accessToken,
+        refreshToken, // NEW: Store refresh token for automatic renewal
         expiresAt,
       };
 
@@ -311,6 +470,38 @@ export function useAuth() {
     // Reload the page to restart auth flow
     window.location.reload();
   };
+
+  // Background token refresh timer - refreshes 5 minutes before expiration
+  useEffect(() => {
+    if (!user) return;
+
+    logger.log('🕐 Starting background token refresh timer');
+
+    // Check token expiration every minute
+    const checkTokenExpiry = setInterval(() => {
+      const savedSession = localStorage.getItem(STORAGE_KEY);
+      if (savedSession) {
+        const session = JSON.parse(savedSession);
+        const expiresAt = new Date(session.expiresAt).getTime();
+        const now = Date.now();
+        const fiveMinutes = 5 * 60 * 1000;
+
+        // Refresh if expiring within 5 minutes and has refresh token
+        if (expiresAt - now < fiveMinutes && session.refreshToken) {
+          logger.log('⏰ Token expiring soon, refreshing in background...');
+          refreshAccessToken(session.refreshToken).catch(error => {
+            logger.error('❌ Background refresh failed:', error);
+            // If refresh fails, user will need to re-login on next action
+          });
+        }
+      }
+    }, 60000); // Check every minute
+
+    return () => {
+      logger.log('🛑 Stopping background token refresh timer');
+      clearInterval(checkTokenExpiry);
+    };
+  }, [user]);
 
   return {
     user,

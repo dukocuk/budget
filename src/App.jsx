@@ -7,7 +7,6 @@ import {
   useState,
   useEffect,
   useMemo,
-  useReducer,
   useRef,
   startTransition,
   memo,
@@ -23,6 +22,7 @@ import BottomTabBar from './components/BottomTabBar';
 import { BalanceChart } from './components/BalanceChart';
 import Dashboard from './components/Dashboard';
 import { AddExpenseModal } from './components/AddExpenseModal';
+import { MonthlyAmountsModal } from './components/MonthlyAmountsModal';
 import { SettingsModal } from './components/SettingsModal';
 import { TemplateManagerModal } from './components/TemplateManagerModal';
 import { DeleteConfirmation } from './components/DeleteConfirmation';
@@ -37,136 +37,149 @@ import { useAuth } from './hooks/useAuth';
 import { useViewportSize } from './hooks/useViewportSize';
 import { SyncProvider } from './contexts/SyncContext';
 import { useSyncContext } from './hooks/useSyncContext';
+import { ModalProvider } from './contexts/ModalProvider';
+import { useModal } from './hooks/useModal';
+import { ExpenseProvider } from './contexts/ExpenseProvider';
+import { useExpenseContext } from './hooks/useExpenseContext';
+import { BudgetPeriodProvider } from './contexts/BudgetPeriodProvider';
+import { useBudgetPeriodContext } from './hooks/useBudgetPeriodContext';
+import { useDeleteConfirmation } from './hooks/useDeleteConfirmation';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useCSVOperations } from './hooks/useCSVOperations';
+import { useYearManagement } from './hooks/useYearManagement';
+import { useDataInitialization } from './hooks/useDataInitialization';
+import { useSettingsHandlers } from './hooks/useSettingsHandlers';
 import { calculateSummary } from './utils/calculations';
-import { generateCSV, downloadCSV } from './utils/exportHelpers';
-import { parseCSV } from './utils/importHelpers';
 import { DEFAULT_SETTINGS } from './utils/constants';
 import { logger } from './utils/logger';
 import './App.css';
 
 /**
- * Settings reducer - Batches monthlyPayment, previousBalance, and monthlyPayments array updates
- */
-const settingsReducer = (state, action) => {
-  switch (action.type) {
-    case 'SET_MONTHLY_PAYMENT':
-      return { ...state, monthlyPayment: action.payload };
-    case 'SET_PREVIOUS_BALANCE':
-      return { ...state, previousBalance: action.payload };
-    case 'SET_MONTHLY_PAYMENTS':
-      return {
-        ...state,
-        monthlyPayments: action.payload,
-        useVariablePayments: action.payload !== null,
-      };
-    case 'SET_PAYMENT_MODE':
-      return {
-        ...state,
-        useVariablePayments: action.payload,
-        monthlyPayments: action.payload ? state.monthlyPayments : null,
-      };
-    case 'SET_BOTH':
-      return {
-        monthlyPayment: action.payload.monthlyPayment,
-        previousBalance: action.payload.previousBalance,
-      };
-    case 'SET_ALL':
-      return {
-        monthlyPayment: action.payload.monthlyPayment,
-        previousBalance: action.payload.previousBalance,
-        monthlyPayments: action.payload.monthlyPayments || null,
-        useVariablePayments:
-          action.payload.monthlyPayments !== null &&
-          action.payload.monthlyPayments !== undefined,
-      };
-    default:
-      return state;
-  }
-};
-
-/**
  * Tab content components - defined outside AppContent to prevent recreation
  * This ensures stable component references across re-renders, preventing chart unmount/remount
  */
-const OverviewTabContent = memo(({ userId, periodId, settings, expenses }) => (
+const OverviewTabContent = memo(({ userId, periodId, activePeriod }) => (
   <Dashboard
     userId={userId}
     periodId={periodId}
-    monthlyPayment={settings.monthlyPayment}
-    previousBalance={settings.previousBalance}
-    monthlyPayments={settings.monthlyPayments}
-    expenses={expenses}
+    monthlyPayment={
+      activePeriod?.monthlyPayment || DEFAULT_SETTINGS.monthlyPayment
+    }
+    previousBalance={
+      activePeriod?.previousBalance || DEFAULT_SETTINGS.previousBalance
+    }
+    monthlyPayments={activePeriod?.monthlyPayments}
   />
 ));
 
 const ExpensesTabContent = memo(
   ({
     isReadOnly,
-    expenses,
-    selectedExpenses,
-    toggleExpenseSelection,
-    toggleSelectAll,
-    updateExpense,
     handleDeleteExpense,
     handleEditExpense,
-    addExpense,
     handleDeleteSelected,
-    setShowAddModal,
-  }) => (
-    <div className="tab-content-wrapper">
-      {isReadOnly && (
-        <div className="read-only-banner">
-          <span className="read-only-icon">📦</span>
-          <span className="read-only-text">
-            Dette år er arkiveret (kun visning). Gå til{' '}
-            <strong>⚙️ Indstillinger</strong> for at genaktivere det.
-          </span>
+  }) => {
+    const {
+      expenses,
+      selectedExpenses,
+      toggleExpenseSelection,
+      toggleSelectAll,
+      updateExpense,
+      addExpense,
+    } = useExpenseContext();
+    const { openAddExpenseModal } = useModal();
+    const { showAlert } = useAlert();
+
+    // State for MonthlyAmountsModal
+    const [monthlyAmountsModal, setMonthlyAmountsModal] = useState({
+      isOpen: false,
+      expense: null,
+    });
+
+    // Handler to open MonthlyAmountsModal
+    const handleEditMonthlyAmounts = expense => {
+      setMonthlyAmountsModal({ isOpen: true, expense });
+    };
+
+    return (
+      <div className="tab-content-wrapper">
+        {isReadOnly && (
+          <div className="read-only-banner">
+            <span className="read-only-icon">📦</span>
+            <span className="read-only-text">
+              Dette år er arkiveret (kun visning). Gå til{' '}
+              <strong>⚙️ Indstillinger</strong> for at genaktivere det.
+            </span>
+          </div>
+        )}
+        <div className="expenses-header">
+          <h2>📋 Dine udgifter</h2>
+          <button
+            className="btn btn-primary"
+            onClick={() => openAddExpenseModal()}
+            title={
+              isReadOnly
+                ? 'Kan ikke tilføje udgifter til arkiveret år'
+                : 'Tilføj ny udgift (Ctrl+N)'
+            }
+            disabled={isReadOnly}
+          >
+            ➕ Tilføj udgift
+          </button>
         </div>
-      )}
-      <div className="expenses-header">
-        <h2>📋 Dine udgifter</h2>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowAddModal(true)}
-          title={
-            isReadOnly
-              ? 'Kan ikke tilføje udgifter til arkiveret år'
-              : 'Tilføj ny udgift (Ctrl+N)'
+
+        <ExpensesTable
+          expenses={expenses}
+          selectedExpenses={selectedExpenses}
+          onToggleSelection={isReadOnly ? () => {} : toggleExpenseSelection}
+          onToggleSelectAll={isReadOnly ? () => {} : toggleSelectAll}
+          onUpdate={isReadOnly ? () => {} : updateExpense}
+          onDelete={isReadOnly ? () => {} : handleDeleteExpense}
+          onAdd={isReadOnly ? () => {} : addExpense}
+          onEdit={isReadOnly ? () => {} : handleEditExpense}
+          onEditMonthlyAmounts={
+            isReadOnly ? () => {} : handleEditMonthlyAmounts
           }
-          disabled={isReadOnly}
+          readOnly={isReadOnly}
+        />
+
+        <button
+          className="btn btn-danger"
+          onClick={handleDeleteSelected}
+          disabled={isReadOnly || selectedExpenses.length === 0}
         >
-          ➕ Tilføj udgift
+          🗑️ Slet valgte
         </button>
+
+        {monthlyAmountsModal.isOpen && (
+          <MonthlyAmountsModal
+            isOpen={monthlyAmountsModal.isOpen}
+            expense={monthlyAmountsModal.expense}
+            onClose={() =>
+              setMonthlyAmountsModal({ isOpen: false, expense: null })
+            }
+            onSave={async monthlyAmounts => {
+              await updateExpense(monthlyAmountsModal.expense.id, {
+                monthlyAmounts,
+              });
+              setMonthlyAmountsModal({ isOpen: false, expense: null });
+              showAlert('✅ Variable beløb opdateret', 'success');
+            }}
+          />
+        )}
       </div>
-
-      <ExpensesTable
-        expenses={expenses}
-        selectedExpenses={selectedExpenses}
-        onToggleSelection={isReadOnly ? () => {} : toggleExpenseSelection}
-        onToggleSelectAll={isReadOnly ? () => {} : toggleSelectAll}
-        onUpdate={isReadOnly ? () => {} : updateExpense}
-        onDelete={isReadOnly ? () => {} : handleDeleteExpense}
-        onAdd={isReadOnly ? () => {} : addExpense}
-        onEdit={isReadOnly ? () => {} : handleEditExpense}
-        readOnly={isReadOnly}
-      />
-
-      <button
-        className="btn btn-danger"
-        onClick={handleDeleteSelected}
-        disabled={isReadOnly || selectedExpenses.length === 0}
-      >
-        🗑️ Slet valgte
-      </button>
-    </div>
-  )
+    );
+  }
 );
 
-const MonthlyTabContent = memo(({ expenses, totalAnnual }) => (
-  <div className="tab-content-wrapper">
-    <MonthlyOverview expenses={expenses} totalAnnual={totalAnnual} />
-  </div>
-));
+const MonthlyTabContent = memo(({ totalAnnual }) => {
+  const { expenses } = useExpenseContext();
+  return (
+    <div className="tab-content-wrapper">
+      <MonthlyOverview expenses={expenses} totalAnnual={totalAnnual} />
+    </div>
+  );
+});
 
 const ComparisonTabContent = memo(({ periods, getExpensesForPeriod }) => (
   <div className="tab-content-wrapper">
@@ -184,7 +197,7 @@ function AppContent() {
   // Authentication
   const { user } = useAuth();
 
-  // Budget periods management (multi-year support)
+  // Budget periods from context
   const {
     periods,
     activePeriod,
@@ -197,49 +210,28 @@ function AppContent() {
     calculateEndingBalance,
     getExpensesForPeriod,
     fetchPeriodsFromDB,
-  } = useBudgetPeriods(user?.id);
-
-  // Use reducer to batch settings updates (prevents multiple re-renders)
-  const [settings, dispatchSettings] = useReducer(settingsReducer, {
-    monthlyPayment: DEFAULT_SETTINGS.monthlyPayment,
-    previousBalance: DEFAULT_SETTINGS.previousBalance,
-    monthlyPayments: null,
-    useVariablePayments: false,
-  });
+  } = useBudgetPeriodContext();
 
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isLoadingData, setIsLoadingData] = useState(true);
   const [activeTab, setActiveTab] = useState(0);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editingExpense, setEditingExpense] = useState(null);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showCreateYearModal, setShowCreateYearModal] = useState(false);
-  const [showTemplateManagerModal, setShowTemplateManagerModal] =
-    useState(false);
 
-  // Delete confirmation state
-  const [deleteConfirmation, setDeleteConfirmation] = useState({
-    isOpen: false,
-    expenseId: null,
-    expenseName: null,
-    count: 0,
-  });
+  // Modal state from ModalProvider (replaces 6 individual useState calls)
+  const {
+    addExpenseModal,
+    openAddExpenseModal,
+    closeAddExpenseModal,
+    showSettingsModal,
+    openSettingsModal,
+    closeSettingsModal,
+    showCreateYearModal,
+    openCreateYearModal,
+    closeCreateYearModal,
+    showTemplateManagerModal,
+    openTemplateManagerModal,
+    closeTemplateManagerModal,
+  } = useModal();
 
-  // Track if we're in initial data load to prevent sync triggers
-  const isInitialLoadRef = useRef(true);
-
-  // Track last loaded period to prevent reloading settings after saves
-  const lastLoadedPeriodIdRef = useRef(null);
-
-  // Track last synced values to prevent cascading syncs
-  const lastSyncedExpensesRef = useRef(null);
-  const lastSyncedSettingsRef = useRef({
-    monthlyPayment: 0,
-    previousBalance: 0,
-    monthlyPayments: null,
-  });
-
-  // Expenses management (pass user ID AND period ID for filtering)
+  // Expenses from ExpenseContext (now managed by provider)
   const {
     expenses,
     selectedExpenses,
@@ -247,27 +239,90 @@ function AppContent() {
     updateExpense,
     deleteExpense,
     deleteSelected,
-    toggleExpenseSelection,
-    toggleSelectAll,
     setAllExpenses,
     undo,
     redo,
     canUndo,
     canRedo,
-  } = useExpenses(user?.id, activePeriod?.id);
+    immediateSyncExpenses: immediateSyncExpensesFromContext,
+    isOnline: isOnlineFromContext,
+  } = useExpenseContext();
 
   // Cloud sync (from isolated context to prevent re-renders)
   const {
     syncExpenses,
-    syncSettings,
     loadExpenses,
     loadBudgetPeriods,
-    immediateSyncExpenses,
     immediateSyncBudgetPeriods,
-    isOnline,
   } = useSyncContext();
 
+  // Use immediateSyncExpenses and isOnline from ExpenseContext
+  const immediateSyncExpenses = immediateSyncExpensesFromContext;
+  const isOnline = isOnlineFromContext;
+
   const { alert, showAlert } = useAlert();
+
+  // Track last synced values to prevent cascading syncs
+  const lastSyncedExpensesRef = useRef(null);
+
+  // Delete confirmation logic (extracted to custom hook)
+  const {
+    deleteConfirmation,
+    confirmDeleteExpense,
+    confirmDeleteSelected,
+    executeDelete,
+    cancelDelete,
+  } = useDeleteConfirmation();
+
+  // CSV import/export (extracted to custom hook)
+  const { handleExport, handleImport } = useCSVOperations({
+    expenses,
+    activePeriod,
+    addExpense,
+    showAlert,
+  });
+
+  // Year management (extracted to custom hook)
+  const { handleCreateYear, handleSelectPeriod } = useYearManagement({
+    createPeriod,
+    createFromTemplate,
+    closeCreateYearModal,
+    showAlert,
+  });
+
+  // Track if we're in initial data load to prevent sync triggers
+  const isInitialLoadRef = useRef(true);
+
+  // Data initialization (extracted to custom hook)
+  const isLoadingData = useDataInitialization({
+    user,
+    activePeriod,
+    isInitialized,
+    setIsInitialized,
+    loadExpenses,
+    loadBudgetPeriods,
+    setAllExpenses,
+    fetchPeriodsFromDB,
+    immediateSyncBudgetPeriods,
+    showAlert,
+    isInitialLoadRef,
+  });
+
+  // Settings handlers (extracted to custom hook)
+  const {
+    handleMonthlyPaymentChange,
+    handlePreviousBalanceChange,
+    handleMonthlyPaymentsChange,
+    handleTogglePaymentMode,
+    handleArchivePeriod,
+    handleUnarchivePeriod,
+  } = useSettingsHandlers({
+    activePeriod,
+    updatePeriod,
+    archivePeriod,
+    unarchivePeriod,
+    showAlert,
+  });
 
   // Viewport detection for responsive rendering
   const { isMobile } = useViewportSize();
@@ -275,162 +330,22 @@ function AppContent() {
   // Memoize expensive calculations to prevent chart re-renders
   // Use monthlyPayments array if available, otherwise fallback to single monthlyPayment
   const summary = useMemo(() => {
-    const paymentValue = settings.monthlyPayments || settings.monthlyPayment;
-    return calculateSummary(expenses, paymentValue, settings.previousBalance);
+    if (!activePeriod) return { totalAnnual: 0, endingBalance: 0 };
+    const paymentValue =
+      activePeriod.monthlyPayments || activePeriod.monthlyPayment;
+    return calculateSummary(
+      expenses,
+      paymentValue,
+      activePeriod.previousBalance
+    );
   }, [
     expenses,
-    settings.monthlyPayment,
-    settings.monthlyPayments,
-    settings.previousBalance,
+    activePeriod?.monthlyPayment,
+    activePeriod?.monthlyPayments,
+    activePeriod?.previousBalance,
   ]);
 
-  // Load settings from active budget period (only when period changes, not on every update)
-  useEffect(() => {
-    if (activePeriod && !periodsLoading) {
-      // Only reload settings if we switched to a different period
-      const periodChanged = lastLoadedPeriodIdRef.current !== activePeriod.id;
-
-      if (periodChanged) {
-        lastLoadedPeriodIdRef.current = activePeriod.id;
-
-        startTransition(() => {
-          dispatchSettings({
-            type: 'SET_ALL',
-            payload: {
-              monthlyPayment:
-                activePeriod.monthlyPayment || DEFAULT_SETTINGS.monthlyPayment,
-              previousBalance:
-                activePeriod.previousBalance ||
-                DEFAULT_SETTINGS.previousBalance,
-              monthlyPayments: activePeriod.monthlyPayments || null,
-            },
-          });
-        });
-      }
-    }
-  }, [activePeriod, periodsLoading]);
-
-  // Load data from cloud when user logs in (OPTIMIZED: batched updates prevent multiple re-renders)
-  useEffect(() => {
-    if (user && activePeriod && !isInitialized) {
-      const loadData = async () => {
-        logger.info('🔄 Starting data initialization...');
-        setIsLoadingData(true);
-
-        // Create timeout promise (10 seconds)
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error('Initialization timeout after 10 seconds')),
-            10000
-          )
-        );
-
-        try {
-          // Race between data loading and timeout
-          await Promise.race([
-            (async () => {
-              logger.info('📊 Loading expenses and budget periods...');
-
-              // Load expenses and budget periods in PARALLEL to reduce load time
-              const [expensesResult, periodsResult] = await Promise.all([
-                loadExpenses().catch(err => {
-                  logger.error('Error loading expenses:', err);
-                  return { success: false, data: [] };
-                }),
-                loadBudgetPeriods().catch(err => {
-                  logger.error('Error loading budget periods:', err);
-                  return { success: false, data: [] };
-                }),
-              ]);
-
-              logger.info(
-                `📦 Loaded ${expensesResult?.data?.length || 0} expenses, ${periodsResult?.data?.length || 0} periods`
-              );
-
-              // CRITICAL: Sync local budget periods to cloud BEFORE syncing expenses
-              // This prevents foreign key constraint violations when expenses reference
-              // budget_period_id that doesn't exist in cloud yet
-              if (fetchPeriodsFromDB && immediateSyncBudgetPeriods) {
-                try {
-                  const localPeriods = await fetchPeriodsFromDB();
-                  if (localPeriods && localPeriods.length > 0) {
-                    logger.info(
-                      `🔄 Syncing ${localPeriods.length} budget periods to cloud before expense sync...`
-                    );
-                    await immediateSyncBudgetPeriods(localPeriods);
-                    logger.info('✅ Budget periods synced successfully');
-                  }
-                } catch (syncError) {
-                  logger.error(
-                    '❌ Error syncing budget periods during initialization:',
-                    syncError
-                  );
-                  // Continue anyway - expense sync will handle validation
-                }
-              }
-
-              // ATOMIC UPDATE: Use startTransition to batch ALL state updates into a single render
-              // This prevents charts from re-rendering multiple times during initialization
-              startTransition(() => {
-                // Update expenses first (if available)
-                if (
-                  expensesResult &&
-                  expensesResult.success &&
-                  expensesResult.data &&
-                  expensesResult.data.length > 0
-                ) {
-                  logger.info(
-                    `✅ Setting ${expensesResult.data.length} expenses in state`
-                  );
-                  setAllExpenses(expensesResult.data);
-                }
-
-                // Settings are loaded from activePeriod (handled by separate useEffect)
-
-                // Mark initial load as complete BEFORE enabling sync
-                isInitialLoadRef.current = false;
-                setIsLoadingData(false);
-                setIsInitialized(true);
-                logger.info('✅ Initialization complete!');
-              });
-            })(),
-            timeoutPromise,
-          ]);
-        } catch (error) {
-          logger.error('❌ Error loading initial data:', error);
-          showAlert(
-            `Fejl ved indlæsning: ${error.message}. Genindlæs venligst siden.`,
-            'error'
-          );
-
-          // Even on error, ensure loading state is cleared
-          startTransition(() => {
-            isInitialLoadRef.current = false;
-            setIsLoadingData(false);
-            setIsInitialized(true);
-          });
-        } finally {
-          // SAFETY NET: Always ensure loading state is cleared
-          // This handles edge cases where neither success nor catch blocks execute
-          setTimeout(() => {
-            setIsLoadingData(false);
-          }, 100);
-        }
-      };
-
-      loadData();
-    }
-  }, [
-    user,
-    activePeriod,
-    isInitialized,
-    loadExpenses,
-    loadBudgetPeriods,
-    setAllExpenses,
-    fetchPeriodsFromDB,
-    immediateSyncBudgetPeriods,
-    showAlert,
-  ]);
+  // Note: Data initialization is handled by useDataInitialization hook
 
   // Sync expenses whenever they change (ONLY after initialization AND initial load complete)
   // OPTIMIZATION: Only sync if expenses actually changed to prevent cascading syncs
@@ -447,56 +362,6 @@ function AppContent() {
       }
     }
   }, [expenses, user, isInitialized, isLoadingData, syncExpenses]);
-
-  // Sync settings whenever they change (ONLY after initialization AND initial load complete)
-  // OPTIMIZATION: Only sync if settings actually changed to prevent cascading syncs
-  useEffect(() => {
-    if (user && isInitialized && !isLoadingData && !isInitialLoadRef.current) {
-      // Compare with last synced state to avoid redundant syncs
-      const monthlyPaymentsChanged =
-        JSON.stringify(settings.monthlyPayments) !==
-        JSON.stringify(lastSyncedSettingsRef.current.monthlyPayments);
-      const settingsChanged =
-        settings.monthlyPayment !==
-          lastSyncedSettingsRef.current.monthlyPayment ||
-        settings.previousBalance !==
-          lastSyncedSettingsRef.current.previousBalance ||
-        monthlyPaymentsChanged;
-
-      if (settingsChanged && activePeriod) {
-        lastSyncedSettingsRef.current = { ...settings };
-
-        // Save to local database first
-        updatePeriod(activePeriod.id, {
-          monthlyPayment: settings.monthlyPayment,
-          previousBalance: settings.previousBalance,
-          monthlyPayments: settings.monthlyPayments,
-        }).catch(err => {
-          logger.error('Error updating period settings:', err);
-          showAlert('Kunne ikke gemme indstillinger', 'error');
-        });
-
-        // Then sync to cloud
-        syncSettings(
-          settings.monthlyPayment,
-          settings.previousBalance,
-          settings.monthlyPayments
-        );
-      }
-    }
-  }, [
-    settings.monthlyPayment,
-    settings.previousBalance,
-    settings.monthlyPayments,
-    settings,
-    user,
-    isInitialized,
-    isLoadingData,
-    syncSettings,
-    activePeriod,
-    updatePeriod,
-    showAlert,
-  ]);
 
   // Show loading screen while fetching cloud data
   if (isLoadingData) {
@@ -523,29 +388,15 @@ function AppContent() {
     );
   }
 
-  // Keyboard shortcuts
-  const handleKeyPress = e => {
-    // Ctrl/Cmd + N for new expense
-    if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-      e.preventDefault();
-      setShowAddModal(true);
-      return;
-    }
-    // Ctrl/Cmd + Z for undo
-    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-      e.preventDefault();
-      if (canUndo && undo()) {
-        showAlert('Handling fortrudt', 'info');
-      }
-    }
-    // Ctrl/Cmd + Shift + Z for redo
-    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
-      e.preventDefault();
-      if (canRedo && redo()) {
-        showAlert('Handling gentaget', 'info');
-      }
-    }
-  };
+  // Keyboard shortcuts (extracted to custom hook)
+  const handleKeyPress = useKeyboardShortcuts({
+    onAddExpense: openAddExpenseModal,
+    onUndo: undo,
+    onRedo: redo,
+    canUndo,
+    canRedo,
+    showAlert,
+  });
 
   // Add expense handler - receives form data from modal
   const handleAddExpense = formData => {
@@ -562,193 +413,13 @@ function AppContent() {
 
   // Open edit modal with pre-filled expense data
   const handleEditExpense = expense => {
-    setEditingExpense(expense);
-    setShowAddModal(true);
+    openAddExpenseModal(expense);
   };
 
-  // Open delete confirmation modal for single expense
-  const handleDeleteExpense = id => {
-    const expense = expenses.find(e => e.id === id);
-    if (!expense) return;
-
-    setDeleteConfirmation({
-      isOpen: true,
-      expenseId: id,
-      expenseName: expense.name,
-      count: 0,
-    });
-  };
-
-  // Open delete confirmation modal for multiple expenses
-  const handleDeleteSelected = () => {
-    if (selectedExpenses.length === 0) {
-      showAlert('⚠️ Vælg venligst udgifter at slette først', 'warning');
-      return;
-    }
-
-    setDeleteConfirmation({
-      isOpen: true,
-      expenseId: null,
-      expenseName: null,
-      count: selectedExpenses.length,
-    });
-  };
-
-  // Confirm and execute deletion
-  const confirmDelete = () => {
-    // 1. Capture deletion context before closing modal
-    const expenseId = deleteConfirmation.expenseId;
-    const count = deleteConfirmation.count;
-    const selectedExpensesCopy = [...selectedExpenses];
-
-    // 2. Close modal immediately for instant UI feedback
-    setDeleteConfirmation({
-      isOpen: false,
-      expenseId: null,
-      expenseName: null,
-      count: 0,
-    });
-
-    // 3. Perform deletion in background (async)
-    if (count > 0) {
-      // Bulk delete
-      const result = deleteSelected();
-
-      // Immediately sync to cloud (bypass debounce for critical operations)
-      if (user && isOnline && result.success) {
-        const updatedExpenses = expenses.filter(
-          e => !selectedExpensesCopy.includes(e.id)
-        );
-        immediateSyncExpenses(updatedExpenses)
-          .then(() => {
-            showAlert(`✅ ${count} udgift(er) slettet`, 'success');
-          })
-          .catch(error => {
-            showAlert('❌ Fejl ved synkronisering: ' + error.message, 'error');
-          });
-      } else {
-        showAlert(`✅ ${count} udgift(er) slettet`, 'success');
-      }
-    } else {
-      // Single delete
-      const expense = expenses.find(e => e.id === expenseId);
-
-      // Calculate updated expenses BEFORE deleting
-      const updatedExpenses = expenses.filter(e => e.id !== expenseId);
-
-      // Delete from local state
-      deleteExpense(expenseId);
-
-      // Immediately sync to cloud (bypass debounce for critical operations)
-      if (user && isOnline) {
-        logger.log(
-          `🗑️ Immediately syncing delete: ${updatedExpenses.length} expenses remaining`
-        );
-        immediateSyncExpenses(updatedExpenses)
-          .then(() => {
-            showAlert(`✅ "${expense?.name}" blev slettet`, 'success');
-          })
-          .catch(error => {
-            showAlert('❌ Fejl ved synkronisering: ' + error.message, 'error');
-          });
-      } else {
-        showAlert(`✅ "${expense?.name}" blev slettet`, 'success');
-      }
-    }
-  };
-
-  // Cancel deletion
-  const cancelDelete = () => {
-    setDeleteConfirmation({
-      isOpen: false,
-      expenseId: null,
-      expenseName: null,
-      count: 0,
-    });
-  };
-
-  // Export to CSV
-  const handleExport = () => {
-    try {
-      const paymentValue = settings.monthlyPayments || settings.monthlyPayment;
-      const csvContent = generateCSV(
-        expenses,
-        paymentValue,
-        settings.previousBalance
-      );
-      // Include year in filename if available
-      const year = activePeriod?.year || new Date().getFullYear();
-      const filename = `budget_${year}_${new Date().toISOString().split('T')[0]}.csv`;
-      downloadCSV(csvContent, filename);
-      showAlert('CSV fil downloadet!', 'success');
-    } catch (error) {
-      logger.error('Export error:', error);
-      showAlert('Kunne ikke eksportere CSV', 'error');
-    }
-  };
-
-  // Import from CSV
-  const handleImport = async file => {
-    try {
-      const text = await file.text();
-      const result = parseCSV(text);
-
-      if (!result.success) {
-        showAlert(`Import fejl: ${result.errors.join(', ')}`, 'error');
-        return;
-      }
-
-      if (result.expenses.length === 0) {
-        showAlert('Ingen gyldige udgifter fundet i CSV filen', 'info');
-        return;
-      }
-
-      // Add imported expenses
-      result.expenses.forEach(expense => {
-        addExpense(expense);
-      });
-
-      showAlert(`${result.expenses.length} udgift(er) importeret!`, 'success');
-    } catch (error) {
-      logger.error('Import error:', error);
-      showAlert('Kunne ikke importere CSV fil', 'error');
-    }
-  };
-
-  // Create new budget year
-  const handleCreateYear = async yearData => {
-    try {
-      // Check if creating from template
-      if (yearData.templateId) {
-        // Create period from template
-        await createFromTemplate({
-          templateId: yearData.templateId,
-          year: yearData.year,
-          previousBalance: yearData.previousBalance,
-        });
-        showAlert(
-          `✅ Budget for år ${yearData.year} oprettet fra skabelon!`,
-          'success'
-        );
-      } else {
-        // Create regular period (with optional expense copying)
-        await createPeriod(yearData);
-        showAlert(`✅ Budget for år ${yearData.year} oprettet!`, 'success');
-      }
-      setShowCreateYearModal(false);
-    } catch (error) {
-      logger.error('Create year error:', error);
-      showAlert(`❌ Kunne ikke oprette år: ${error.message}`, 'error');
-    }
-  };
-
-  // Select budget period (year)
-  const handleSelectPeriod = period => {
-    // Period selection is handled automatically by useBudgetPeriods
-    // This is just for UI feedback
-    const status = period.status === 'archived' ? '📦 Arkiveret' : '';
-    showAlert(`Skiftet til budget ${period.year} ${status}`, 'info');
-  };
+  // Note: Handler functions are provided by custom hooks:
+  // - useDeleteConfirmation: confirmDeleteExpense, confirmDeleteSelected, executeDelete, cancelDelete
+  // - useCSVOperations: handleExport, handleImport
+  // - useYearManagement: handleCreateYear, handleSelectPeriod
 
   // Check if current period is archived (read-only mode)
   const isReadOnly = activePeriod?.status === 'archived';
@@ -762,8 +433,7 @@ function AppContent() {
         <OverviewTabContent
           userId={user?.id}
           periodId={activePeriod?.id}
-          settings={settings}
-          expenses={expenses}
+          activePeriod={activePeriod}
         />
       ),
     },
@@ -773,28 +443,16 @@ function AppContent() {
       content: (
         <ExpensesTabContent
           isReadOnly={isReadOnly}
-          expenses={expenses}
-          selectedExpenses={selectedExpenses}
-          toggleExpenseSelection={toggleExpenseSelection}
-          toggleSelectAll={toggleSelectAll}
-          updateExpense={updateExpense}
-          handleDeleteExpense={handleDeleteExpense}
+          handleDeleteExpense={confirmDeleteExpense}
           handleEditExpense={handleEditExpense}
-          addExpense={addExpense}
-          handleDeleteSelected={handleDeleteSelected}
-          setShowAddModal={setShowAddModal}
+          handleDeleteSelected={confirmDeleteSelected}
         />
       ),
     },
     {
       icon: '📅',
       label: 'Månedlig oversigt',
-      content: (
-        <MonthlyTabContent
-          expenses={expenses}
-          totalAnnual={summary.totalAnnual}
-        />
-      ),
+      content: <MonthlyTabContent totalAnnual={summary.totalAnnual} />,
     },
     {
       icon: '📈',
@@ -819,18 +477,15 @@ function AppContent() {
             periods={periods}
             activePeriod={activePeriod}
             onSelectPeriod={handleSelectPeriod}
-            onCreateYear={() => setShowCreateYearModal(true)}
+            onCreateYear={openCreateYearModal}
             disabled={periodsLoading}
           />
-          <Header
-            user={user}
-            onOpenSettings={() => setShowSettingsModal(true)}
-          />
+          <Header user={user} onOpenSettings={openSettingsModal} />
         </div>
 
         <DeleteConfirmation
           isOpen={deleteConfirmation.isOpen}
-          onConfirm={confirmDelete}
+          onConfirm={executeDelete}
           onCancel={cancelDelete}
           expenseName={deleteConfirmation.expenseName}
           count={deleteConfirmation.count}
@@ -859,82 +514,47 @@ function AppContent() {
 
         {/* Add Expense Modal */}
         <AddExpenseModal
-          isOpen={showAddModal}
-          onClose={() => {
-            setShowAddModal(false);
-            setEditingExpense(null);
-          }}
+          isOpen={addExpenseModal.isOpen}
+          onClose={closeAddExpenseModal}
           onAdd={handleAddExpense}
-          editingExpense={editingExpense}
+          editingExpense={addExpenseModal.editingExpense}
         />
 
         {/* Settings Modal */}
         <SettingsModal
           isOpen={showSettingsModal}
-          onClose={() => setShowSettingsModal(false)}
-          monthlyPayment={settings.monthlyPayment}
-          previousBalance={settings.previousBalance}
-          monthlyPayments={settings.monthlyPayments}
-          useVariablePayments={settings.useVariablePayments}
-          onMonthlyPaymentChange={value =>
-            dispatchSettings({ type: 'SET_MONTHLY_PAYMENT', payload: value })
+          onClose={closeSettingsModal}
+          monthlyPayment={
+            activePeriod?.monthlyPayment || DEFAULT_SETTINGS.monthlyPayment
           }
-          onPreviousBalanceChange={value =>
-            dispatchSettings({ type: 'SET_PREVIOUS_BALANCE', payload: value })
+          previousBalance={
+            activePeriod?.previousBalance || DEFAULT_SETTINGS.previousBalance
           }
-          onMonthlyPaymentsChange={paymentsArray =>
-            dispatchSettings({
-              type: 'SET_MONTHLY_PAYMENTS',
-              payload: paymentsArray,
-            })
-          }
-          onTogglePaymentMode={useVariable =>
-            dispatchSettings({ type: 'SET_PAYMENT_MODE', payload: useVariable })
-          }
+          monthlyPayments={activePeriod?.monthlyPayments}
+          useVariablePayments={activePeriod?.monthlyPayments !== null}
+          onMonthlyPaymentChange={handleMonthlyPaymentChange}
+          onPreviousBalanceChange={handlePreviousBalanceChange}
+          onMonthlyPaymentsChange={handleMonthlyPaymentsChange}
+          onTogglePaymentMode={handleTogglePaymentMode}
           onExport={handleExport}
           onImport={handleImport}
           activePeriod={activePeriod}
-          onArchivePeriod={async periodId => {
-            try {
-              await archivePeriod(periodId);
-              showAlert(
-                `✅ År ${activePeriod.year} er nu arkiveret`,
-                'success'
-              );
-            } catch (error) {
-              logger.error('Archive period error:', error);
-              showAlert(`❌ Kunne ikke arkivere år: ${error.message}`, 'error');
-            }
-          }}
-          onUnarchivePeriod={async periodId => {
-            try {
-              await unarchivePeriod(periodId);
-              showAlert(
-                `✅ År ${activePeriod.year} er nu genaktiveret og kan redigeres`,
-                'success'
-              );
-            } catch (error) {
-              logger.error('Unarchive period error:', error);
-              showAlert(
-                `❌ Kunne ikke genaktivere år: ${error.message}`,
-                'error'
-              );
-            }
-          }}
-          onOpenTemplateManager={() => setShowTemplateManagerModal(true)}
+          onArchivePeriod={handleArchivePeriod}
+          onUnarchivePeriod={handleUnarchivePeriod}
+          onOpenTemplateManager={openTemplateManagerModal}
         />
 
         {/* Template Manager Modal */}
         <TemplateManagerModal
           isOpen={showTemplateManagerModal}
-          onClose={() => setShowTemplateManagerModal(false)}
+          onClose={closeTemplateManagerModal}
           activePeriod={activePeriod}
         />
 
         {/* Create Year Modal */}
         <CreateYearModal
           isOpen={showCreateYearModal}
-          onClose={() => setShowCreateYearModal(false)}
+          onClose={closeCreateYearModal}
           onCreate={handleCreateYear}
           periods={periods}
           calculateEndingBalance={calculateEndingBalance}
@@ -943,7 +563,7 @@ function AppContent() {
         {/* Floating Action Button (FAB) */}
         <button
           className="fab"
-          onClick={() => setShowAddModal(true)}
+          onClick={openAddExpenseModal}
           title="Tilføj ny udgift (Ctrl+N)"
           aria-label="Tilføj ny udgift"
         >
@@ -1000,11 +620,42 @@ function App() {
     );
   }
 
-  // Wrap AppContent with SyncProvider to isolate sync state
+  // Wrap AppContent with all providers in correct order
   return (
     <SyncProvider user={user}>
-      <AppContent />
+      <BudgetPeriodProvider userId={user?.id}>
+        <ModalProvider>
+          <AppContentWrapper />
+        </ModalProvider>
+      </BudgetPeriodProvider>
     </SyncProvider>
+  );
+}
+
+/**
+ * AppContentWrapper - Wraps ExpenseProvider which needs activePeriod from BudgetPeriodContext
+ */
+function AppContentWrapper() {
+  const { user } = useAuth();
+  const { activePeriod } = useBudgetPeriodContext();
+
+  // Don't render until we have a period
+  if (!activePeriod) {
+    return (
+      <div className="auth-container">
+        <div className="auth-loading-card">
+          <div className="loading-icon">⚙️</div>
+          <p className="loading-message">Indlæser budget...</p>
+          <div className="spinner-enhanced"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ExpenseProvider userId={user?.id} periodId={activePeriod?.id}>
+      <AppContent />
+    </ExpenseProvider>
   );
 }
 

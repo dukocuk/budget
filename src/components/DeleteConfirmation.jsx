@@ -39,7 +39,7 @@ export const DeleteConfirmation = memo(
 
     if (!isOpen) return null;
 
-    const isBulk = typeof count === 'number' && count >= 0;
+    const isBulk = typeof count === 'number' && count > 0;
     const message = isBulk
       ? `Er du sikker på at du vil slette ${count} udgift${count > 1 ? 'er' : ''}?`
       : `Er du sikker på at du vil slette "${expenseName}"?`;

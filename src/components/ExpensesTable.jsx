@@ -23,6 +23,7 @@ const ExpenseRow = memo(
     onDelete,
     onClone,
     onEdit,
+    onEditMonthlyAmounts,
     readOnly = false,
   }) => {
     // Local state for controlled inputs to prevent focus loss
@@ -120,16 +121,37 @@ const ExpenseRow = memo(
           />
         </td>
         <td>
-          <input
-            type="number"
-            value={localAmount}
-            onChange={e => handleAmountChange(e.target.value)}
-            onFocus={handleAmountFocus}
-            onBlur={handleAmountBlur}
-            min="0"
-            aria-label="Beløb"
-            disabled={readOnly}
-          />
+          {expense.monthlyAmounts ? (
+            // Variable expense - show badge only
+            <div className="variable-amount-display">
+              <span
+                className="variable-badge"
+                title="Klik for at redigere månedlige beløb"
+              >
+                🏷️ Variabel
+              </span>
+              <button
+                className="edit-variable-btn"
+                onClick={() => onEditMonthlyAmounts(expense)}
+                aria-label="Rediger månedlige beløb"
+                disabled={readOnly}
+              >
+                ✏️
+              </button>
+            </div>
+          ) : (
+            // Fixed expense - show input field
+            <input
+              type="number"
+              value={localAmount}
+              onChange={e => handleAmountChange(e.target.value)}
+              onFocus={handleAmountFocus}
+              onBlur={handleAmountBlur}
+              min="0"
+              aria-label="Beløb"
+              disabled={readOnly}
+            />
+          )}
         </td>
         <td>
           <select
@@ -248,6 +270,7 @@ export const ExpensesTable = ({
   onDelete,
   onAdd,
   onEdit,
+  onEditMonthlyAmounts,
   readOnly = false,
 }) => {
   // Viewport detection for responsive layout
@@ -686,6 +709,7 @@ export const ExpensesTable = ({
                 onDelete={onDelete}
                 onClone={handleClone}
                 onEdit={onEdit}
+                onEditMonthlyAmounts={onEditMonthlyAmounts}
                 readOnly={readOnly}
               />
             ))}

@@ -19,7 +19,7 @@ npm run lint         # ESLint
 
 **Offline-First Architecture**: PGlite (PostgreSQL in browser) as primary storage → Google Drive backup/sync
 **Multi-Year Budgets**: Budget periods with complete data isolation, archived years read-only
-**State Management**: Hook-based architecture (10 custom hooks)
+**State Management**: Context-based architecture with 4 centralized providers (ExpenseProvider, BudgetPeriodProvider, ModalProvider, SyncContext)
 **Language**: Danish (da-DK), comma decimal separator (1.234,56)
 **Cloud Sync**: Automatic Google Drive sync (debounced 1s), 30s polling for multi-device
 
@@ -30,7 +30,7 @@ src/
 ├── hooks/       # 10 custom hooks (useExpenses, useAuth, useBudgetPeriods, etc.)
 ├── utils/       # 10 utility modules (calculations, validators, localeHelpers, etc.)
 ├── lib/         # External integrations (pglite.js, googleDrive.js)
-└── contexts/    # React contexts (SyncContext)
+└── contexts/    # 4 React contexts (ExpenseProvider, BudgetPeriodProvider, ModalProvider, SyncContext)
 ```
 
 ## Hook API Reference
@@ -47,6 +47,54 @@ src/
 | **useDebounce** | - | debouncedValue | Debounce utility |
 | **useOnlineStatus** | - | isOnline | Network detection |
 | **useViewportSize** | - | width, height | Responsive layout |
+
+## Centralized State Management
+
+The app uses a **context-based architecture** with 4 core providers for centralized state management:
+
+### Provider Hierarchy
+```
+App (useAuth)
+└─ SyncProvider (user)
+   └─ BudgetPeriodProvider (userId)
+      └─ ModalProvider
+         └─ ExpenseProvider (userId, periodId)
+            └─ AppContent
+```
+
+### Context Providers
+
+| Provider | State Managed | Consumer Hook | Purpose |
+|----------|--------------|---------------|---------|
+| **ExpenseProvider** | expenses, selectedExpenses, loading, canUndo, canRedo | useExpenseContext() | Expense CRUD + undo/redo + bulk operations |
+| **BudgetPeriodProvider** | periods, activePeriod, loading, error | useBudgetPeriodContext() | Multi-year budget management |
+| **ModalProvider** | Modal open/close states for all modals | useModal() | Centralized modal coordination |
+| **SyncContext** | syncStatus, lastSyncTime, isOnline | useSyncContext() | Cloud sync orchestration |
+
+### Key Patterns
+
+**1. Context + Consumer Hook Pattern**
+```javascript
+// ✅ Correct: Always use consumer hooks
+import { useExpenseContext } from '../hooks/useExpenseContext';
+
+function MyComponent() {
+  const { expenses, addExpense } = useExpenseContext();
+  // Component logic
+}
+
+// ❌ Wrong: Never bypass providers
+import { useExpenses } from '../hooks/useExpenses'; // Don't call directly!
+```
+
+**2. Provider Dependencies**
+- ExpenseProvider requires `activePeriod.id` from BudgetPeriodProvider (for year filtering)
+- All providers depend on `userId` from authentication
+- ModalProvider is independent and can be used anywhere in the tree
+
+**3. State Scope**
+- **Centralize**: Cross-component state (expenses, periods, modals, sync)
+- **Keep Local**: Transient UI state (form inputs, search filters, debounced values)
 
 ## Component Map
 

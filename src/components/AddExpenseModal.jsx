@@ -51,17 +51,18 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd, editingExpense }) => {
   // Modal title state (to prevent flicker during close animation)
   const [modalTitle, setModalTitle] = useState('');
   const [buttonText, setButtonText] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Reset form when modal opens or editingExpense changes
   useEffect(() => {
     if (isOpen) {
       // Set modal title and button text based on mode (prevents flicker during close)
-      setModalTitle(
-        editingExpense ? '✏️ Rediger udgift' : '➕ Tilføj ny udgift'
-      );
-      setButtonText(editingExpense ? '💾 Gem ændringer' : '➕ Tilføj udgift');
+      const isEditing = !!editingExpense;
+      setIsEditMode(isEditing);
+      setModalTitle(isEditing ? '✏️ Rediger udgift' : '➕ Tilføj ny udgift');
+      setButtonText(isEditing ? '💾 Gem ændringer' : '➕ Tilføj udgift');
 
-      if (editingExpense) {
+      if (isEditing) {
         // Editing mode - pre-fill with expense data
         setFormData({
           name: editingExpense.name,
@@ -367,7 +368,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd, editingExpense }) => {
           </div>
         )}
 
-        {!editingExpense && (
+        {!isEditMode && (
           <p className="form-hint">
             <span className="required">*</span> = Påkrævet felt
           </p>

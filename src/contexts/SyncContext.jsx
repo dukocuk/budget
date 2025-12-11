@@ -19,6 +19,7 @@ import {
 import { localDB } from '../lib/pglite';
 import { validateCloudData } from '../utils/validators';
 import { logger } from '../utils/logger';
+import { SyncCoordinator } from '../lib/syncCoordinator';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const SyncContext = createContext(null);
@@ -44,8 +45,11 @@ export const SyncProvider = ({ user, children }) => {
   const [uiSyncError, setUiSyncError] = useState(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Debouncing and sync control
-  const syncTimeoutRef = useRef(null);
+  // Sync coordinator (centralized sync queue management)
+  const coordinatorRef = useRef(null);
+  if (!coordinatorRef.current) {
+    coordinatorRef.current = new SyncCoordinator();
+  }
   const isSyncingRef = useRef(false);
   const pollingIntervalRef = useRef(null);
 
@@ -609,24 +613,24 @@ export const SyncProvider = ({ user, children }) => {
   /**
    * Debounced sync for expenses
    * CRITICAL FIX: Now fetches complete local data before syncing
+   * Uses SyncCoordinator for centralized queue management
    */
   const syncExpenses = useCallback(
     expenses => {
       if (!user || !isOnline) return;
 
-      // Clear existing timeout
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-      }
-
-      // Debounce sync with fetch-merge-upload pattern
-      syncTimeoutRef.current = setTimeout(async () => {
+      // Use coordinator for debounced sync
+      coordinatorRef.current.enqueue(async () => {
         logger.log('🔄 Fetching complete local data for expense sync...');
         const localData = await fetchCompleteLocalData(user.id);
 
         // Use local expenses (just changed) and complete periods/settings from DB
-        syncToCloud(expenses, localData.budgetPeriods, localData.settings);
-      }, SYNC_DEBOUNCE_DELAY);
+        await syncToCloud(
+          expenses,
+          localData.budgetPeriods,
+          localData.settings
+        );
+      }, false); // false = debounced
     },
     [user, isOnline, syncToCloud, fetchCompleteLocalData]
   );
@@ -634,22 +638,20 @@ export const SyncProvider = ({ user, children }) => {
   /**
    * Debounced sync for budget periods
    * CRITICAL FIX: Now fetches complete local data before syncing
+   * Uses SyncCoordinator for centralized queue management
    */
   const syncBudgetPeriods = useCallback(
     periods => {
       if (!user || !isOnline) return;
 
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-      }
-
-      syncTimeoutRef.current = setTimeout(async () => {
+      // Use coordinator for debounced sync
+      coordinatorRef.current.enqueue(async () => {
         logger.log('🔄 Fetching complete local data for period sync...');
         const localData = await fetchCompleteLocalData(user.id);
 
         // Use local periods (just changed) and complete expenses/settings from DB
-        syncToCloud(localData.expenses, periods, localData.settings);
-      }, SYNC_DEBOUNCE_DELAY);
+        await syncToCloud(localData.expenses, periods, localData.settings);
+      }, false); // false = debounced
     },
     [user, isOnline, syncToCloud, fetchCompleteLocalData]
   );
@@ -657,16 +659,14 @@ export const SyncProvider = ({ user, children }) => {
   /**
    * Debounced sync for settings
    * CRITICAL FIX: Now fetches complete local data before syncing
+   * Uses SyncCoordinator for centralized queue management
    */
   const syncSettings = useCallback(
     (monthlyPayment, previousBalance, monthlyPayments) => {
       if (!user || !isOnline) return;
 
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-      }
-
-      syncTimeoutRef.current = setTimeout(async () => {
+      // Use coordinator for debounced sync
+      coordinatorRef.current.enqueue(async () => {
         logger.log('🔄 Fetching complete local data for settings sync...');
         const localData = await fetchCompleteLocalData(user.id);
 
@@ -677,8 +677,12 @@ export const SyncProvider = ({ user, children }) => {
         };
 
         // Use complete expenses/periods from DB and new settings
-        syncToCloud(localData.expenses, localData.budgetPeriods, settings);
-      }, SYNC_DEBOUNCE_DELAY);
+        await syncToCloud(
+          localData.expenses,
+          localData.budgetPeriods,
+          settings
+        );
+      }, false); // false = debounced
     },
     [user, isOnline, syncToCloud, fetchCompleteLocalData]
   );
@@ -719,48 +723,61 @@ export const SyncProvider = ({ user, children }) => {
   /**
    * Immediate sync (bypasses debounce) - for critical operations
    * CRITICAL FIX: Now fetches complete local data before syncing
+   * Uses SyncCoordinator with immediate flag
    */
   const immediateSyncExpenses = useCallback(
     async expenses => {
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-      }
       if (!user) return;
 
-      logger.log('⚡ Immediate expense sync - fetching complete local data...');
-      const localData = await fetchCompleteLocalData(user.id);
-      await syncToCloud(expenses, localData.budgetPeriods, localData.settings);
+      // Use coordinator for immediate sync (bypasses debounce)
+      return coordinatorRef.current.enqueue(async () => {
+        logger.log(
+          '⚡ Immediate expense sync - fetching complete local data...'
+        );
+        const localData = await fetchCompleteLocalData(user.id);
+        await syncToCloud(
+          expenses,
+          localData.budgetPeriods,
+          localData.settings
+        );
+      }, true); // true = immediate
     },
     [syncToCloud, fetchCompleteLocalData, user]
   );
 
   const immediateSyncBudgetPeriods = useCallback(
     async periods => {
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-      }
       if (!user) return;
 
-      logger.log('⚡ Immediate period sync - fetching complete local data...');
-      const localData = await fetchCompleteLocalData(user.id);
-      await syncToCloud(localData.expenses, periods, localData.settings);
+      // Use coordinator for immediate sync
+      return coordinatorRef.current.enqueue(async () => {
+        logger.log(
+          '⚡ Immediate period sync - fetching complete local data...'
+        );
+        const localData = await fetchCompleteLocalData(user.id);
+        await syncToCloud(localData.expenses, periods, localData.settings);
+      }, true); // true = immediate
     },
     [syncToCloud, fetchCompleteLocalData, user]
   );
 
   const immediateSyncSettings = useCallback(
     async (monthlyPayment, previousBalance, monthlyPayments) => {
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-      }
       if (!user) return;
 
-      logger.log(
-        '⚡ Immediate settings sync - fetching complete local data...'
-      );
-      const localData = await fetchCompleteLocalData(user.id);
-      const settings = { monthlyPayment, previousBalance, monthlyPayments };
-      await syncToCloud(localData.expenses, localData.budgetPeriods, settings);
+      // Use coordinator for immediate sync
+      return coordinatorRef.current.enqueue(async () => {
+        logger.log(
+          '⚡ Immediate settings sync - fetching complete local data...'
+        );
+        const localData = await fetchCompleteLocalData(user.id);
+        const settings = { monthlyPayment, previousBalance, monthlyPayments };
+        await syncToCloud(
+          localData.expenses,
+          localData.budgetPeriods,
+          settings
+        );
+      }, true); // true = immediate
     },
     [syncToCloud, fetchCompleteLocalData, user]
   );

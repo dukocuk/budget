@@ -12,7 +12,7 @@
   border-collapse: separate;
   border-spacing: 0;
   background: white;
-  min-width: 1000px;
+  /* Removed min-width: 1000px to prevent horizontal scrolling */
 }
 
 .monthly-table th {
@@ -75,6 +75,38 @@
   background: #f9fafb;
 }
 
+/* Desktop table container - no scroll needed */
+.table-container {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow-x: hidden; /* Prevent horizontal scroll */
+}
+
+/* Responsive table cells for better fit */
+.monthly-table th,
+.monthly-table td {
+  padding: 12px 8px;
+  font-size: 0.875rem;
+}
+
+/* Tablet optimization (768px - 1024px) */
+@media (max-width: 1024px) {
+  .monthly-table th,
+  .monthly-table td {
+    padding: 10px 6px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Large desktop - more spacing */
+@media (min-width: 1200px) {
+  .monthly-table th,
+  .monthly-table td {
+    padding: 15px 10px;
+    font-size: 0.95rem;
+  }
+}
+
 /* Mobile Card View Container */
 .monthly-cards-container {
   padding: 16px;
@@ -127,15 +159,6 @@
 }
 
 @media (max-width: 768px) {
-  .monthly-table {
-    font-size: 14px;
-  }
-
-  .monthly-table td,
-  .monthly-table th {
-    padding: 8px;
-  }
-
   .monthly-view h2 {
     margin-bottom: 16px;
     font-size: 20px;
