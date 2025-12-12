@@ -67,6 +67,19 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: linear-gradient(135deg, var(--primary-purple) 0%, #764ba2 100%);
   min-height: 100vh;
+
+  /* Reserve scrollbar space to prevent layout shift during loading transitions */
+  scrollbar-gutter: stable; /* Modern browsers: reserve space, hide scrollbar when unneeded */
+  overflow-y: scroll; /* Fallback: always show scrollbar (older browsers) */
+}
+
+/* Mobile override: restore natural scrollbar behavior */
+@media (max-width: 768px) {
+  body {
+    /* Mobile uses overlay scrollbars (don't take space) - restore natural behavior */
+    scrollbar-gutter: auto;
+    overflow-y: auto;
+  }
 }
 
 .app {
