@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useViewportSize } from '../hooks/useViewportSize';
 import { useExpenseContext } from '../hooks/useExpenseContext';
+import { useBudgetPeriodContext } from '../hooks/useBudgetPeriodContext';
 import {
   calculateSummary,
   calculateMonthlyTotals,
@@ -25,24 +26,19 @@ import {
 import { CHART_COLORS, MONTHS } from '../utils/constants';
 import './Dashboard.css';
 
-function Dashboard({
-  userId,
-  periodId,
-  monthlyPayment,
-  previousBalance,
-  monthlyPayments,
-}) {
-  // Get expenses from centralized context
+function Dashboard() {
+  // Get data from centralized contexts
   const { expenses } = useExpenseContext();
+  const { activePeriod } = useBudgetPeriodContext();
   const expensesLoading = false;
   const { width } = useViewportSize();
   const isMobile = width < 768;
 
-  // Use props directly instead of loading from database
+  // Get budget settings from active period
   const settings = {
-    monthlyPayment,
-    previousBalance,
-    monthlyPayments,
+    monthlyPayment: activePeriod?.monthlyPayment,
+    previousBalance: activePeriod?.previousBalance,
+    monthlyPayments: activePeriod?.monthlyPayments,
   };
   const settingsLoading = false; // No async loading needed
 
@@ -334,16 +330,6 @@ function Dashboard({
   );
 }
 
-// Memoize Dashboard to prevent re-renders when props haven't changed
-// This significantly reduces chart re-renders on mobile orientation changes
-export default React.memo(Dashboard, (prevProps, nextProps) => {
-  return (
-    prevProps.userId === nextProps.userId &&
-    prevProps.periodId === nextProps.periodId &&
-    prevProps.monthlyPayment === nextProps.monthlyPayment &&
-    prevProps.previousBalance === nextProps.previousBalance &&
-    prevProps.expenses === nextProps.expenses &&
-    JSON.stringify(prevProps.monthlyPayments) ===
-      JSON.stringify(nextProps.monthlyPayments)
-  );
-});
+// Memoize Dashboard to prevent unnecessary re-renders
+// This reduces chart re-renders on mobile orientation changes
+export default React.memo(Dashboard);

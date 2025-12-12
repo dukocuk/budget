@@ -46,19 +46,7 @@ import './App.css';
  * Tab content components - defined outside AppContent to prevent recreation
  * This ensures stable component references across re-renders, preventing chart unmount/remount
  */
-const OverviewTabContent = memo(({ userId, periodId, activePeriod }) => (
-  <Dashboard
-    userId={userId}
-    periodId={periodId}
-    monthlyPayment={
-      activePeriod?.monthlyPayment || DEFAULT_SETTINGS.monthlyPayment
-    }
-    previousBalance={
-      activePeriod?.previousBalance || DEFAULT_SETTINGS.previousBalance
-    }
-    monthlyPayments={activePeriod?.monthlyPayments}
-  />
-));
+const OverviewTabContent = memo(() => <Dashboard />);
 
 const ExpensesTabContent = memo(
   ({
@@ -222,18 +210,13 @@ function AppContent() {
   // Expenses from ExpenseContext (now managed by provider)
   const {
     expenses,
-    selectedExpenses,
     addExpense,
     updateExpense,
-    _deleteExpense,
-    _deleteSelected,
     setAllExpenses,
     undo,
     redo,
     canUndo,
     canRedo,
-    _immediateSyncExpenses: immediateSyncExpensesFromContext,
-    _isOnline: isOnlineFromContext,
   } = useExpenseContext();
 
   // Cloud sync (from isolated context to prevent re-renders)
@@ -532,7 +515,6 @@ function AppContent() {
         <TemplateManagerModal
           isOpen={showTemplateManagerModal}
           onClose={closeTemplateManagerModal}
-          activePeriod={activePeriod}
         />
 
         {/* Create Year Modal */}
@@ -540,8 +522,6 @@ function AppContent() {
           isOpen={showCreateYearModal}
           onClose={closeCreateYearModal}
           onCreate={handleCreateYear}
-          periods={periods}
-          calculateEndingBalance={calculateEndingBalance}
         />
 
         {/* Floating Action Button (FAB) */}

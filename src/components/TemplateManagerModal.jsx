@@ -14,9 +14,8 @@ Modal.setAppElement('#root');
  * TemplateManagerModal component
  * @param {boolean} isOpen - Modal visibility state
  * @param {function} onClose - Close modal callback
- * @param {object} activePeriod - Current active budget period
  */
-export const TemplateManagerModal = ({ isOpen, onClose, activePeriod }) => {
+export const TemplateManagerModal = ({ isOpen, onClose }) => {
   const handleTemplateCreated = () => {
     // Optional: Show success feedback or refresh data
     // For now, we'll just let the TemplateManager handle its own alerts
@@ -44,10 +43,7 @@ export const TemplateManagerModal = ({ isOpen, onClose, activePeriod }) => {
       </div>
 
       <div className="modal-body">
-        <TemplateManager
-          activePeriod={activePeriod}
-          onTemplateCreated={handleTemplateCreated}
-        />
+        <TemplateManager onTemplateCreated={handleTemplateCreated} />
       </div>
     </Modal>
   );

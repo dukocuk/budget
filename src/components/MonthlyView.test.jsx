@@ -5,11 +5,11 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { useExpenses } from '../hooks/useExpenses';
+import { useExpenseContext } from '../hooks/useExpenseContext';
 import MonthlyView from './MonthlyView';
 
 // Mock the hook
-vi.mock('../hooks/useExpenses');
+vi.mock('../hooks/useExpenseContext');
 
 describe('MonthlyView', () => {
   const mockExpenses = [
@@ -45,23 +45,23 @@ describe('MonthlyView', () => {
 
   describe('Rendering', () => {
     it('should render monthly overview table', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: mockExpenses,
         loading: false,
       });
 
-      render(<MonthlyView userId="test-user-id" />);
+      render(<MonthlyView />);
 
       expect(screen.getByText('📅 Månedlig oversigt')).toBeInTheDocument();
     });
 
     it('should render all 12 month columns', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: mockExpenses,
         loading: false,
       });
 
-      render(<MonthlyView userId="test-user-id" />);
+      render(<MonthlyView />);
 
       const months = [
         'Jan',
@@ -83,12 +83,12 @@ describe('MonthlyView', () => {
     });
 
     it('should render all expense rows', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: mockExpenses,
         loading: false,
       });
 
-      render(<MonthlyView userId="test-user-id" />);
+      render(<MonthlyView />);
 
       expect(screen.getByText('Netflix')).toBeInTheDocument();
       expect(screen.getByText('Insurance')).toBeInTheDocument();
@@ -98,12 +98,12 @@ describe('MonthlyView', () => {
 
   describe('Loading State', () => {
     it('should show loading message when expenses are loading', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: [],
         loading: true,
       });
 
-      render(<MonthlyView userId="test-user-id" />);
+      render(<MonthlyView />);
 
       expect(
         screen.getByText('Indlæser månedsoversigt...')
@@ -113,7 +113,7 @@ describe('MonthlyView', () => {
 
   describe('Monthly Amounts', () => {
     it('should display monthly expense amount for all 12 months', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: [
           {
             id: 1,
@@ -127,7 +127,7 @@ describe('MonthlyView', () => {
         loading: false,
       });
 
-      render(<MonthlyView userId="test-user-id" />);
+      render(<MonthlyView />);
 
       // Netflix should show 100 kr for all 12 months
       const amountCells = screen.getAllByText('100');
@@ -135,7 +135,7 @@ describe('MonthlyView', () => {
     });
 
     it('should display quarterly amounts only in quarter months', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: [
           {
             id: 1,
@@ -149,7 +149,7 @@ describe('MonthlyView', () => {
         loading: false,
       });
 
-      const { container } = render(<MonthlyView userId="test-user-id" />);
+      const { container } = render(<MonthlyView />);
 
       // Should appear in Jan (1), Apr (4), Jul (7), Oct (10)
       // Count only in expense row cells, not in totals
@@ -163,7 +163,7 @@ describe('MonthlyView', () => {
     });
 
     it('should display yearly amount only in specified month', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: [
           {
             id: 1,
@@ -177,7 +177,7 @@ describe('MonthlyView', () => {
         loading: false,
       });
 
-      const { container } = render(<MonthlyView userId="test-user-id" />);
+      const { container } = render(<MonthlyView />);
 
       // Should appear only once in July (in expense row, not total row)
       const amountCells = container.querySelectorAll(
@@ -190,7 +190,7 @@ describe('MonthlyView', () => {
     });
 
     it('should show dash for months outside expense range', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: [
           {
             id: 1,
@@ -204,7 +204,7 @@ describe('MonthlyView', () => {
         loading: false,
       });
 
-      render(<MonthlyView userId="test-user-id" />);
+      render(<MonthlyView />);
 
       // Should show dashes for Jan-May and Sep-Dec
       const dashes = screen.getAllByText('-');
@@ -214,18 +214,18 @@ describe('MonthlyView', () => {
 
   describe('Totals Row', () => {
     it('should display monthly totals for each month', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: mockExpenses,
         loading: false,
       });
 
-      render(<MonthlyView userId="test-user-id" />);
+      render(<MonthlyView />);
 
       expect(screen.getByText('Total')).toBeInTheDocument();
     });
 
     it('should calculate correct monthly total', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: [
           {
             id: 1,
@@ -247,7 +247,7 @@ describe('MonthlyView', () => {
         loading: false,
       });
 
-      render(<MonthlyView userId="test-user-id" />);
+      render(<MonthlyView />);
 
       // January total should be 300 (100 + 200)
       const totals = screen.getAllByText('300');
@@ -257,7 +257,7 @@ describe('MonthlyView', () => {
 
   describe('Row Totals', () => {
     it('should display annual total for each expense', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: [
           {
             id: 1,
@@ -271,7 +271,7 @@ describe('MonthlyView', () => {
         loading: false,
       });
 
-      const { container } = render(<MonthlyView userId="test-user-id" />);
+      const { container } = render(<MonthlyView />);
 
       // Annual total should be 1200 (100 * 12 months)
       // Check in .total-cell within expense row
@@ -287,12 +287,12 @@ describe('MonthlyView', () => {
 
   describe('Empty State', () => {
     it('should handle empty expenses array', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: [],
         loading: false,
       });
 
-      render(<MonthlyView userId="test-user-id" />);
+      render(<MonthlyView />);
 
       expect(screen.getByText(/Ingen udgifter/)).toBeInTheDocument();
     });
@@ -300,7 +300,7 @@ describe('MonthlyView', () => {
 
   describe('Formatting', () => {
     it('should format amounts with Danish locale', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: [
           {
             id: 1,
@@ -314,7 +314,7 @@ describe('MonthlyView', () => {
         loading: false,
       });
 
-      const { container } = render(<MonthlyView userId="test-user-id" />);
+      const { container } = render(<MonthlyView />);
 
       // Danish format uses . as thousand separator
       const allCells = container.querySelectorAll('.amount-cell, .total-cell');
@@ -327,12 +327,12 @@ describe('MonthlyView', () => {
 
   describe('Frequency Display', () => {
     it('should show expense names without frequency badges', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: mockExpenses,
         loading: false,
       });
 
-      render(<MonthlyView userId="test-user-id" />);
+      render(<MonthlyView />);
 
       // MonthlyView shows expense names in simple table format
       expect(screen.getByText('Netflix')).toBeInTheDocument();
@@ -343,7 +343,7 @@ describe('MonthlyView', () => {
 
   describe('Complex Scenarios', () => {
     it('should handle partial year expenses correctly', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: [
           {
             id: 1,
@@ -357,7 +357,7 @@ describe('MonthlyView', () => {
         loading: false,
       });
 
-      const { container } = render(<MonthlyView userId="test-user-id" />);
+      const { container } = render(<MonthlyView />);
 
       // Should show amounts for Mar-Aug (6 months) = 600 kr total
       const totalCells = container.querySelectorAll('.total-cell');
@@ -368,7 +368,7 @@ describe('MonthlyView', () => {
     });
 
     it('should handle multiple expenses in same month', () => {
-      useExpenses.mockReturnValue({
+      useExpenseContext.mockReturnValue({
         expenses: [
           {
             id: 1,
@@ -390,7 +390,7 @@ describe('MonthlyView', () => {
         loading: false,
       });
 
-      render(<MonthlyView userId="test-user-id" />);
+      render(<MonthlyView />);
 
       // January should show sum of both quarterly expenses (300)
       const januaryTotal = screen.getAllByText('300');

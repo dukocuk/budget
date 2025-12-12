@@ -6,8 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import Modal from 'react-modal';
-import { useBudgetPeriods } from '../hooks/useBudgetPeriods';
-import { useAuth } from '../hooks/useAuth';
+import { useBudgetPeriodContext } from '../hooks/useBudgetPeriodContext';
 import './CreateYearModal.css';
 
 /**
@@ -15,18 +14,13 @@ import './CreateYearModal.css';
  * @param {boolean} props.isOpen - Whether modal is open
  * @param {Function} props.onClose - Callback to close modal
  * @param {Function} props.onCreate - Callback when year is created (year, options)
- * @param {Array<Object>} props.periods - Existing budget periods
- * @param {Function} props.calculateEndingBalance - Function to calculate ending balance for a period
  */
-export default function CreateYearModal({
-  isOpen,
-  onClose,
-  onCreate,
-  periods = [],
-  calculateEndingBalance,
-}) {
-  const { user } = useAuth();
-  const { getTemplates } = useBudgetPeriods(user?.id);
+export default function CreateYearModal({ isOpen, onClose, onCreate }) {
+  const {
+    periods = [],
+    getTemplates,
+    calculateEndingBalance,
+  } = useBudgetPeriodContext();
 
   const [year, setYear] = useState('');
   const [sourceType, setSourceType] = useState('period'); // 'period' or 'template'

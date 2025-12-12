@@ -31,15 +31,15 @@ export default function Layout() {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard userId={user.id} />;
+        return <Dashboard />;
       case 'expenses':
         return <ExpenseManager />;
       case 'monthly':
-        return <MonthlyView userId={user.id} />;
+        return <MonthlyView />;
       case 'settings':
         return <Settings userId={user.id} />;
       default:
-        return <Dashboard userId={user.id} />;
+        return <Dashboard />;
     }
   };
 

@@ -1,4 +1,4 @@
-import { useExpenses } from '../hooks/useExpenses';
+import { useExpenseContext } from '../hooks/useExpenseContext';
 import { getMonthlyAmount } from '../utils/calculations';
 import './MonthlyView.css';
 
@@ -17,8 +17,8 @@ const months = [
   'Dec',
 ];
 
-export default function MonthlyView({ userId }) {
-  const { expenses, loading } = useExpenses(userId);
+export default function MonthlyView() {
+  const { expenses, loading } = useExpenseContext();
 
   if (loading) {
     return <div className="loading">Indlæser månedsoversigt...</div>;

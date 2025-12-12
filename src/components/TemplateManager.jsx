@@ -4,16 +4,13 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useBudgetPeriods } from '../hooks/useBudgetPeriods';
-import { useAuth } from '../hooks/useAuth';
+import { useBudgetPeriodContext } from '../hooks/useBudgetPeriodContext';
 import { localDB } from '../lib/pglite';
 import './TemplateManager.css';
 
-export default function TemplateManager({ activePeriod, onTemplateCreated }) {
-  const { user } = useAuth();
-  const { getTemplates, saveAsTemplate, deleteTemplate } = useBudgetPeriods(
-    user?.id
-  );
+export default function TemplateManager({ onTemplateCreated }) {
+  const { activePeriod, getTemplates, saveAsTemplate, deleteTemplate } =
+    useBudgetPeriodContext();
 
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
