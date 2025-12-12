@@ -59,15 +59,37 @@ describe('useAuth', () => {
     vi.clearAllMocks();
     localStorageStore = {};
     mockInitGoogleDrive.mockResolvedValue(undefined);
-    global.fetch.mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          sub: 'user-123',
-          email: 'test@example.com',
-          name: 'Test User',
-          picture: 'https://example.com/avatar.jpg',
-        }),
+
+    // Mock token exchange endpoint (first call)
+    // Mock userinfo endpoint (second call)
+    global.fetch.mockImplementation(url => {
+      if (url.includes('oauth2.googleapis.com/token')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              access_token: 'test-access-token',
+              refresh_token: 'test-refresh-token',
+              expires_in: 3600,
+            }),
+        });
+      }
+      if (url.includes('googleapis.com/oauth2/v3/userinfo')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              sub: 'user-123',
+              email: 'test@example.com',
+              name: 'Test User',
+              picture: 'https://example.com/avatar.jpg',
+            }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
     });
   });
 
@@ -179,13 +201,12 @@ describe('useAuth', () => {
         expect(result.current.loading).toBe(false);
       });
 
-      const tokenResponse = {
-        access_token: 'test-access-token',
-        expires_in: 3600,
+      const codeResponse = {
+        code: 'test-authorization-code',
       };
 
       await act(async () => {
-        await result.current.handleGoogleSignIn(tokenResponse);
+        await result.current.handleGoogleSignIn(codeResponse);
       });
 
       await waitFor(() => {
@@ -198,6 +219,25 @@ describe('useAuth', () => {
     });
 
     it('should handle missing access token', async () => {
+      // Mock token endpoint to return response without access_token
+      global.fetch.mockImplementation(url => {
+        if (url.includes('oauth2.googleapis.com/token')) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                refresh_token: 'test-refresh-token',
+                expires_in: 3600,
+                // Missing access_token
+              }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      });
+
       const { result } = renderHook(() => useAuth());
 
       await waitFor(() => {
@@ -205,7 +245,7 @@ describe('useAuth', () => {
       });
 
       await act(async () => {
-        await result.current.handleGoogleSignIn({});
+        await result.current.handleGoogleSignIn({ code: 'test-code' });
       });
 
       // Wait for loading to complete (finally block has run)
@@ -215,16 +255,34 @@ describe('useAuth', () => {
 
       // Now check error state
       await waitFor(() => {
-        expect(result.current.error).toBe(
-          'No access token received from Google'
-        );
+        expect(result.current.error).toBe('No access token in token response');
       });
     });
 
     it('should handle userinfo fetch failure', async () => {
-      global.fetch.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
+      // Mock token exchange to succeed, but userinfo to fail
+      global.fetch.mockImplementation(url => {
+        if (url.includes('oauth2.googleapis.com/token')) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                access_token: 'test-access-token',
+                refresh_token: 'test-refresh-token',
+                expires_in: 3600,
+              }),
+          });
+        }
+        if (url.includes('googleapis.com/oauth2/v3/userinfo')) {
+          return Promise.resolve({
+            ok: false,
+            status: 401,
+          });
+        }
+        return Promise.resolve({
+          ok: false,
+          status: 401,
+        });
       });
 
       const { result } = renderHook(() => useAuth());
@@ -234,7 +292,7 @@ describe('useAuth', () => {
       });
 
       await act(async () => {
-        await result.current.handleGoogleSignIn({ access_token: 'bad-token' });
+        await result.current.handleGoogleSignIn({ code: 'test-code' });
       });
 
       // Wait for loading to complete (finally block has run)
@@ -259,7 +317,7 @@ describe('useAuth', () => {
 
       await act(async () => {
         await result.current.handleGoogleSignIn({
-          access_token: 'test-token',
+          code: 'test-authorization-code',
         });
       });
 

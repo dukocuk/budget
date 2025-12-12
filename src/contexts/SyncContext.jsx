@@ -691,33 +691,57 @@ export const SyncProvider = ({ user, children }) => {
    * Load expenses from Google Drive
    */
   const loadExpenses = useCallback(async () => {
-    const data = await loadFromCloud();
-    return {
-      success: true,
-      data: data.expenses || [],
-    };
+    try {
+      const data = await loadFromCloud();
+      return {
+        success: true,
+        data: data.expenses || [],
+      };
+    } catch (error) {
+      // Error already logged and tracked by loadFromCloud
+      return {
+        success: true,
+        data: [],
+      };
+    }
   }, [loadFromCloud]);
 
   /**
    * Load budget periods from Google Drive
    */
   const loadBudgetPeriods = useCallback(async () => {
-    const data = await loadFromCloud();
-    return {
-      success: true,
-      data: data.budgetPeriods || [],
-    };
+    try {
+      const data = await loadFromCloud();
+      return {
+        success: true,
+        data: data.budgetPeriods || [],
+      };
+    } catch (error) {
+      // Error already logged and tracked by loadFromCloud
+      return {
+        success: true,
+        data: [],
+      };
+    }
   }, [loadFromCloud]);
 
   /**
    * Load settings from Google Drive (deprecated - kept for compatibility)
    */
   const loadSettings = useCallback(async () => {
-    const data = await loadFromCloud();
-    return {
-      success: true,
-      data: data.settings || {},
-    };
+    try {
+      const data = await loadFromCloud();
+      return {
+        success: true,
+        data: data.settings || {},
+      };
+    } catch (error) {
+      // Error already logged and tracked by loadFromCloud
+      return {
+        success: true,
+        data: {},
+      };
+    }
   }, [loadFromCloud]);
 
   /**
