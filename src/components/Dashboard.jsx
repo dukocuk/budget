@@ -99,6 +99,7 @@ function Dashboard() {
     () => groupExpensesByFrequency(expenses),
     [expenses]
   );
+
   // Prepare data for charts (memoized)
   // Handle variable monthly payments: use array if available, otherwise use fixed value
   const monthlyData = React.useMemo(() => {
