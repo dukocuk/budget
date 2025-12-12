@@ -697,7 +697,7 @@ export const SyncProvider = ({ user, children }) => {
         success: true,
         data: data.expenses || [],
       };
-    } catch (error) {
+    } catch {
       // Error already logged and tracked by loadFromCloud
       return {
         success: true,
@@ -716,7 +716,7 @@ export const SyncProvider = ({ user, children }) => {
         success: true,
         data: data.budgetPeriods || [],
       };
-    } catch (error) {
+    } catch {
       // Error already logged and tracked by loadFromCloud
       return {
         success: true,
@@ -735,7 +735,7 @@ export const SyncProvider = ({ user, children }) => {
         success: true,
         data: data.settings || {},
       };
-    } catch (error) {
+    } catch {
       // Error already logged and tracked by loadFromCloud
       return {
         success: true,
