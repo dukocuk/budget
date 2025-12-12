@@ -32,6 +32,9 @@ import { ExpenseProvider } from './contexts/ExpenseProvider';
 import { useExpenseContext } from './hooks/useExpenseContext';
 import { BudgetPeriodProvider } from './contexts/BudgetPeriodProvider';
 import { useBudgetPeriodContext } from './hooks/useBudgetPeriodContext';
+import { LoadingProvider } from './contexts/LoadingContext';
+import { useLoadingContext } from './hooks/useLoadingContext';
+import { UnifiedLoadingScreen } from './components/UnifiedLoadingScreen';
 import { useDeleteConfirmation } from './hooks/useDeleteConfirmation';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useCSVOperations } from './hooks/useCSVOperations';
@@ -190,6 +193,7 @@ function AppContent() {
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+  const [isAppVisible, setIsAppVisible] = useState(false);
 
   // Modal state from ModalProvider (replaces 6 individual useState calls)
   const {
@@ -228,6 +232,9 @@ function AppContent() {
   } = useSyncContext();
 
   const { alert, showAlert } = useAlert();
+
+  // Loading state management
+  const { setLoadingStage } = useLoadingContext();
 
   // Track last synced values to prevent cascading syncs
   const lastSyncedExpensesRef = useRef(null);
@@ -324,6 +331,18 @@ function AppContent() {
     showAlert,
   });
 
+  // Update loading stage when data is loading
+  useEffect(() => {
+    if (isLoadingData) {
+      setLoadingStage('data');
+      setIsAppVisible(false); // Hide app while loading
+    } else {
+      // All loading complete - trigger crossfade!
+      setLoadingStage('complete');
+      setIsAppVisible(true); // Start fade-in
+    }
+  }, [isLoadingData, setLoadingStage]);
+
   // Sync expenses whenever they change (ONLY after initialization AND initial load complete)
   // OPTIMIZATION: Only sync if expenses actually changed to prevent cascading syncs
   useEffect(() => {
@@ -340,29 +359,9 @@ function AppContent() {
     }
   }, [expenses, user, isInitialized, isLoadingData, syncExpenses]);
 
-  // Show loading screen while fetching cloud data
+  // Don't render main app while loading data
   if (isLoadingData) {
-    return (
-      <div className="auth-container">
-        <div className="auth-loading-card">
-          <div className="loading-icon">☁️</div>
-          <div className="progress-bar-container">
-            <div className="progress-bar-fill" style={{ width: '60%' }}></div>
-          </div>
-          <p className="loading-message">Henter dine data...</p>
-          <div className="spinner-enhanced"></div>
-          <p
-            style={{
-              fontSize: '0.875rem',
-              color: '#6b7280',
-              marginTop: '1rem',
-            }}
-          >
-            Hvis indlæsning tager lang tid, prøv at genindlæse siden.
-          </p>
-        </div>
-      </div>
-    );
+    return null; // UnifiedLoadingScreen will show
   }
 
   // Add expense handler - receives form data from modal
@@ -435,7 +434,10 @@ function AppContent() {
 
   return (
     <ErrorBoundary>
-      <div className="app" onKeyDown={handleKeyPress}>
+      <div
+        className={`app ${isAppVisible ? 'visible' : 'hidden'}`}
+        onKeyDown={handleKeyPress}
+      >
         <Alert message={alert?.message} type={alert?.type} />
 
         {/* Header with Year Selector */}
@@ -555,20 +557,50 @@ function App() {
     retryAuth,
   } = useAuth();
 
-  // Show auth screen if not logged in
+  // Wrap entire app with LoadingProvider for unified loading screen
+  return (
+    <LoadingProvider>
+      <UnifiedLoadingScreen />
+      <AppRouter
+        authLoading={authLoading}
+        user={user}
+        loadingState={loadingState}
+        error={error}
+        handleGoogleSignIn={handleGoogleSignIn}
+        signOut={signOut}
+        retryAuth={retryAuth}
+      />
+    </LoadingProvider>
+  );
+}
+
+/**
+ * AppRouter - Handles routing between Auth and main app
+ */
+function AppRouter({
+  authLoading,
+  user,
+  loadingState,
+  error,
+  handleGoogleSignIn,
+  signOut,
+  retryAuth,
+}) {
+  const { setLoadingStage } = useLoadingContext();
+
+  // Update loading stage when auth is loading
+  useEffect(() => {
+    if (authLoading) {
+      setLoadingStage('auth');
+    } else if (user) {
+      // Auth complete, don't set to 'complete' yet (budget loading comes next)
+      // setLoadingStage will be called by AppContentWrapper next
+    }
+  }, [authLoading, user, setLoadingStage]);
+
+  // Show auth screen if not logged in (but not if loading)
   if (authLoading) {
-    return (
-      <div className="auth-container">
-        <div className="auth-loading-card">
-          <div className="loading-icon">⚙️</div>
-          <div className="progress-bar-container">
-            <div className="progress-bar-fill" style={{ width: '30%' }}></div>
-          </div>
-          <p className="loading-message">Indlæser...</p>
-          <div className="spinner-enhanced"></div>
-        </div>
-      </div>
-    );
+    return null; // UnifiedLoadingScreen will show
   }
 
   if (!user) {
@@ -602,18 +634,19 @@ function App() {
 function AppContentWrapper() {
   const { user } = useAuth();
   const { activePeriod } = useBudgetPeriodContext();
+  const { setLoadingStage } = useLoadingContext();
+
+  // Update loading stage when waiting for budget period
+  useEffect(() => {
+    if (!activePeriod) {
+      setLoadingStage('budget');
+    }
+    // Don't set to 'complete' here, AppContent will handle data loading stage
+  }, [activePeriod, setLoadingStage]);
 
   // Don't render until we have a period
   if (!activePeriod) {
-    return (
-      <div className="auth-container">
-        <div className="auth-loading-card">
-          <div className="loading-icon">⚙️</div>
-          <p className="loading-message">Indlæser budget...</p>
-          <div className="spinner-enhanced"></div>
-        </div>
-      </div>
-    );
+    return null; // UnifiedLoadingScreen will show
   }
 
   return (

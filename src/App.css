@@ -72,6 +72,19 @@ body {
 .app {
   min-height: 100vh;
   padding: 20px;
+  /* Smooth fade-in animation for main app */
+  opacity: 0;
+  transition: opacity 400ms ease-in;
+}
+
+/* App visible state - fades in */
+.app.visible {
+  opacity: 1;
+}
+
+/* App hidden state - stays transparent */
+.app.hidden {
+  opacity: 0;
 }
 
 .alert-success {

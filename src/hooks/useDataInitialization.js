@@ -136,12 +136,6 @@ export function useDataInitialization({
             setIsLoadingData(false);
             setIsInitialized(true);
           });
-        } finally {
-          // SAFETY NET: Always ensure loading state is cleared
-          // This handles edge cases where neither success nor catch blocks execute
-          setTimeout(() => {
-            setIsLoadingData(false);
-          }, 100);
         }
       };
 
