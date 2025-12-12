@@ -3,10 +3,9 @@
  * Wraps useBudgetPeriods hook to eliminate prop drilling
  */
 
-import { createContext, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useBudgetPeriods } from '../hooks/useBudgetPeriods';
-
-export const BudgetPeriodContext = createContext(null);
+import { BudgetPeriodContext } from './BudgetPeriodContext';
 
 export function BudgetPeriodProvider({ children, userId }) {
   // Core budget period management from hook

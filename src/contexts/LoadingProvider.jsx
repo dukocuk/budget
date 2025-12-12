@@ -1,7 +1,3 @@
-import { createContext, useState, useCallback, startTransition } from 'react';
-
-export const LoadingContext = createContext(null);
-
 /**
  * LoadingProvider - Centralized loading state management
  *
@@ -16,6 +12,10 @@ export const LoadingContext = createContext(null);
  *
  * Uses startTransition for smooth, flicker-free updates.
  */
+
+import { useState, useCallback, startTransition } from 'react';
+import { LoadingContext } from './LoadingContext';
+
 export function LoadingProvider({ children }) {
   const [loadingState, setLoadingState] = useState({
     isLoading: false,

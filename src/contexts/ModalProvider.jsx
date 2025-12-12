@@ -3,10 +3,9 @@
  * Consolidates all modal states to prevent prop drilling and coordinate modal behavior
  */
 
-import { createContext, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { logger } from '../utils/logger';
-
-export const ModalContext = createContext(null);
+import { ModalContext } from './ModalContext';
 
 export function ModalProvider({ children }) {
   // Add Expense Modal (combines showAddModal + editingExpense)

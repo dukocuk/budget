@@ -32,7 +32,7 @@ import { ExpenseProvider } from './contexts/ExpenseProvider';
 import { useExpenseContext } from './hooks/useExpenseContext';
 import { BudgetPeriodProvider } from './contexts/BudgetPeriodProvider';
 import { useBudgetPeriodContext } from './hooks/useBudgetPeriodContext';
-import { LoadingProvider } from './contexts/LoadingContext';
+import { LoadingProvider } from './contexts/LoadingProvider';
 import { useLoadingContext } from './hooks/useLoadingContext';
 import { UnifiedLoadingScreen } from './components/UnifiedLoadingScreen';
 import { useDeleteConfirmation } from './hooks/useDeleteConfirmation';
@@ -186,7 +186,6 @@ function AppContent() {
     createFromTemplate,
     archivePeriod,
     unarchivePeriod,
-    calculateEndingBalance,
     getExpensesForPeriod,
     fetchPeriodsFromDB,
   } = useBudgetPeriodContext();
@@ -303,6 +302,7 @@ function AppContent() {
 
   // Memoize expensive calculations to prevent chart re-renders
   // Use monthlyPayments array if available, otherwise fallback to single monthlyPayment
+  // Note: Track activePeriod object for proper recalculation when switching years
   const summary = useMemo(() => {
     if (!activePeriod) return { totalAnnual: 0, endingBalance: 0 };
     const paymentValue =
@@ -312,12 +312,7 @@ function AppContent() {
       paymentValue,
       activePeriod.previousBalance
     );
-  }, [
-    expenses,
-    activePeriod?.monthlyPayment,
-    activePeriod?.monthlyPayments,
-    activePeriod?.previousBalance,
-  ]);
+  }, [expenses, activePeriod]);
 
   // Note: Data initialization is handled by useDataInitialization hook
 

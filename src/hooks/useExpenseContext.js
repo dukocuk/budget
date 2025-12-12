@@ -4,7 +4,7 @@
  */
 
 import { useContext } from 'react';
-import { ExpenseContext } from '../contexts/ExpenseProvider';
+import { ExpenseContext } from '../contexts/ExpenseContext';
 
 export function useExpenseContext() {
   const context = useContext(ExpenseContext);

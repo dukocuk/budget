@@ -3,11 +3,10 @@
  * Wraps useExpenses hook to eliminate prop drilling
  */
 
-import { createContext, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useExpenses } from '../hooks/useExpenses';
 import { useSyncContext } from '../hooks/useSyncContext';
-
-export const ExpenseContext = createContext(null);
+import { ExpenseContext } from './ExpenseContext';
 
 export function ExpenseProvider({ children, userId, periodId }) {
   // Core expense management from hook

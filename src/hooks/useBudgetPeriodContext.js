@@ -4,7 +4,7 @@
  */
 
 import { useContext } from 'react';
-import { BudgetPeriodContext } from '../contexts/BudgetPeriodProvider';
+import { BudgetPeriodContext } from '../contexts/BudgetPeriodContext';
 
 export function useBudgetPeriodContext() {
   const context = useContext(BudgetPeriodContext);
