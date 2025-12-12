@@ -45,11 +45,16 @@ const STORAGE_KEY = 'google_auth_session';
  */
 export function useAuth() {
   const [user, setUser] = useState(null);
+
+  // Check if we have a saved session to restore
+  // Only show loading screen if there's a session to restore
+  const hasSavedSession = localStorage.getItem(STORAGE_KEY) !== null;
+
   const [loadingState, setLoadingState] = useState({
-    isLoading: true,
-    stage: 'initializing', // initializing | verifying | connecting | complete | error
-    message: 'Forbereder applikationen...',
-    progress: 10,
+    isLoading: hasSavedSession, // Only show loading if restoring session
+    stage: hasSavedSession ? 'initializing' : 'complete',
+    message: hasSavedSession ? 'Forbereder applikationen...' : '',
+    progress: hasSavedSession ? 10 : 100,
     errorMessage: null,
   });
   const [error, setError] = useState(null);

@@ -186,10 +186,33 @@ describe('useAuth', () => {
       expect(result.current.loadingState).toHaveProperty('progress');
     });
 
-    it('should start with initializing stage', () => {
+    it('should start with complete stage when no saved session', () => {
+      // Clear any saved session to test default state
+      localStorage.removeItem('google_auth_session');
       const { result } = renderHook(() => useAuth());
 
-      expect(result.current.loadingState.stage).toBe('initializing');
+      expect(result.current.loadingState.stage).toBe('complete');
+      expect(result.current.loadingState.isLoading).toBe(false);
+    });
+
+    it('should start with loading state when saved session exists', () => {
+      // Add a saved session to test loading state
+      localStorage.setItem(
+        'google_auth_session',
+        JSON.stringify({
+          user: { sub: '123', email: 'test@example.com' },
+          accessToken: 'test_token',
+          expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        })
+      );
+
+      const { result } = renderHook(() => useAuth());
+
+      // Stage should be either 'initializing' or 'connecting' (as it processes quickly)
+      expect(['initializing', 'connecting']).toContain(
+        result.current.loadingState.stage
+      );
+      expect(result.current.loadingState.isLoading).toBe(true);
     });
   });
 
