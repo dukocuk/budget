@@ -154,22 +154,35 @@ const ExpenseRow = memo(
           )}
         </td>
         <td>
-          <select
-            value={expense.frequency}
-            onChange={e => onUpdate(expense.id, { frequency: e.target.value })}
-            aria-label="Frekvens"
-            disabled={readOnly}
-          >
-            <option value={FREQUENCY_TYPES.MONTHLY}>
-              {FREQUENCY_LABELS[FREQUENCY_TYPES.MONTHLY]}
-            </option>
-            <option value={FREQUENCY_TYPES.QUARTERLY}>
-              {FREQUENCY_LABELS[FREQUENCY_TYPES.QUARTERLY]}
-            </option>
-            <option value={FREQUENCY_TYPES.YEARLY}>
-              {FREQUENCY_LABELS[FREQUENCY_TYPES.YEARLY]}
-            </option>
-          </select>
+          {expense.monthlyAmounts ? (
+            // Variable expense - frequency not applicable
+            <span
+              className="frequency-na"
+              title="Frekvens gælder ikke for variable udgifter"
+            >
+              -
+            </span>
+          ) : (
+            // Fixed expense - show frequency selector
+            <select
+              value={expense.frequency}
+              onChange={e =>
+                onUpdate(expense.id, { frequency: e.target.value })
+              }
+              aria-label="Frekvens"
+              disabled={readOnly}
+            >
+              <option value={FREQUENCY_TYPES.MONTHLY}>
+                {FREQUENCY_LABELS[FREQUENCY_TYPES.MONTHLY]}
+              </option>
+              <option value={FREQUENCY_TYPES.QUARTERLY}>
+                {FREQUENCY_LABELS[FREQUENCY_TYPES.QUARTERLY]}
+              </option>
+              <option value={FREQUENCY_TYPES.YEARLY}>
+                {FREQUENCY_LABELS[FREQUENCY_TYPES.YEARLY]}
+              </option>
+            </select>
+          )}
         </td>
         <td>
           <select

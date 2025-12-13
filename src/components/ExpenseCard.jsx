@@ -159,9 +159,18 @@ const ExpenseCard = ({
           </div>
 
           <div className="card-meta">
-            <span className={`card-frequency frequency-${frequency}`}>
-              {frequencyLabel}
-            </span>
+            {expense.monthlyAmounts ? (
+              <span
+                className="variable-badge-mobile"
+                title="Variabel månedligt beløb"
+              >
+                🏷️ Variabel
+              </span>
+            ) : (
+              <span className={`card-frequency frequency-${frequency}`}>
+                {frequencyLabel}
+              </span>
+            )}
             <span className="card-divider">•</span>
             <span className="card-months">{monthRange}</span>
           </div>

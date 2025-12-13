@@ -325,20 +325,29 @@ export default function ExpenseManager() {
                   )}
                 </td>
                 <td>
-                  <select
-                    value={expense.frequency}
-                    onChange={e =>
-                      handleImmediateUpdate(
-                        expense.id,
-                        'frequency',
-                        e.target.value
-                      )
-                    }
-                  >
-                    <option value="monthly">Månedlig</option>
-                    <option value="quarterly">Kvartalsvis</option>
-                    <option value="yearly">Årlig</option>
-                  </select>
+                  {expense.monthlyAmounts ? (
+                    <span
+                      className="frequency-na"
+                      title="Frekvens gælder ikke for variable udgifter"
+                    >
+                      -
+                    </span>
+                  ) : (
+                    <select
+                      value={expense.frequency}
+                      onChange={e =>
+                        handleImmediateUpdate(
+                          expense.id,
+                          'frequency',
+                          e.target.value
+                        )
+                      }
+                    >
+                      <option value="monthly">Månedlig</option>
+                      <option value="quarterly">Kvartalsvis</option>
+                      <option value="yearly">Årlig</option>
+                    </select>
+                  )}
                 </td>
                 <td>
                   <select

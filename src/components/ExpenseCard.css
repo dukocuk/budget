@@ -106,6 +106,22 @@
   color: #065f46;
 }
 
+/* Variable expense badge for mobile */
+.variable-badge-mobile {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
 .card-divider {
   color: #d1d5db;
   font-weight: bold;
