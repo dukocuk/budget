@@ -1,0 +1,282 @@
+{
+  "project": {
+    "name": "Budget Tracker",
+    "type": "React SPA",
+    "language": "Danish (da-DK)",
+    "generated": "2025-12-14",
+    "description": "Offline-first budget tracking application for managing fixed expenses in DKK with cloud sync"
+  },
+  "stats": {
+    "components": 30,
+    "hooks": 10,
+    "utils": 10,
+    "tests": 595,
+    "buildSize": "280KB",
+    "buildSizeCompressed": "85KB",
+    "performance": "<50ms operations"
+  },
+  "techStack": {
+    "frontend": {
+      "react": "19.1.1",
+      "vite": "7.1.7",
+      "recharts": "3.2.1",
+      "reactModal": "3.16.3"
+    },
+    "database": {
+      "pglite": "0.3.10"
+    },
+    "authentication": {
+      "@react-oauth/google": "0.12.1",
+      "gapi-script": "1.2.0"
+    },
+    "testing": {
+      "vitest": "3.2.4",
+      "@testing-library/react": "16.3.0",
+      "happy-dom": "20.0.0"
+    },
+    "codeQuality": {
+      "eslint": "9.36.0",
+      "prettier": "3.6.2"
+    }
+  },
+  "entryPoints": [
+    {
+      "path": "src/main.jsx",
+      "purpose": "Application bootstrap",
+      "exports": ["Initializes PGlite", "Validates OAuth", "Renders App"]
+    },
+    {
+      "path": "src/App.jsx",
+      "purpose": "Root component",
+      "exports": ["Provider hierarchy", "Routing", "Error boundary"]
+    },
+    {
+      "path": "src/lib/pglite.js",
+      "purpose": "Local database",
+      "exports": ["initLocalDB()", "getAllExpenses()", "upsertExpense()"]
+    },
+    {
+      "path": "src/lib/googleDrive.js",
+      "purpose": "Cloud sync",
+      "exports": ["uploadToGoogleDrive()", "downloadFromGoogleDrive()"]
+    }
+  ],
+  "coreModules": {
+    "expenseManagement": {
+      "path": "src/hooks/useExpenses.js",
+      "exports": ["useExpenses(userId, periodId)"],
+      "features": ["CRUD operations", "Undo/redo stack", "Bulk operations", "Auto sync"],
+      "usedBy": ["ExpenseManager", "Dashboard", "MonthlyView"]
+    },
+    "budgetPeriods": {
+      "path": "src/hooks/useBudgetPeriods.js",
+      "exports": ["useBudgetPeriods(userId)"],
+      "features": ["Multi-year isolation", "Balance carryover", "Archive mode", "Year comparison"],
+      "usedBy": ["Header", "CreateYearModal", "YearSelector"]
+    },
+    "authentication": {
+      "path": "src/hooks/useAuth.js",
+      "exports": ["useAuth()"],
+      "features": ["Google OAuth 2.0", "Token management", "Auto-refresh"],
+      "usedBy": ["App.jsx", "Header", "Auth"]
+    },
+    "cloudSync": {
+      "path": "src/contexts/SyncContext.jsx",
+      "exports": ["useSyncContext()"],
+      "features": ["Debounced uploads", "Multi-device polling", "Network monitoring", "Conflict resolution"],
+      "usedBy": ["Header", "Settings", "ExpenseProvider"]
+    },
+    "calculations": {
+      "path": "src/utils/calculations.js",
+      "functions": [
+        "calculateMonthlyAmount()",
+        "calculateAnnualAmount()",
+        "calculateTotalMonthlyExpenses()",
+        "calculateProjectedBalance()",
+        "calculateMonthlyData()",
+        "calculateEndingBalance()",
+        "isExpenseActiveInMonth()",
+        "getExpenseBreakdown()"
+      ],
+      "usedBy": ["Dashboard", "MonthlyView", "SummaryCards", "BudgetPeriods"]
+    },
+    "localization": {
+      "path": "src/utils/localeHelpers.js",
+      "exports": ["parseDanishNumber()", "formatDanishNumber()", "formatCurrency()"],
+      "usedBy": ["All forms", "Tables", "Charts", "Summaries"]
+    }
+  },
+  "contexts": [
+    {
+      "name": "ExpenseProvider",
+      "path": "src/contexts/ExpenseProvider.jsx",
+      "consumerHook": "useExpenseContext()",
+      "manages": ["expenses", "selectedExpenses", "undo/redo"],
+      "keyMethods": ["addExpense()", "updateExpense()", "deleteExpense()", "undo()", "redo()"]
+    },
+    {
+      "name": "BudgetPeriodProvider",
+      "path": "src/contexts/BudgetPeriodProvider.jsx",
+      "consumerHook": "useBudgetPeriodContext()",
+      "manages": ["periods", "activePeriod"],
+      "keyMethods": ["createPeriod()", "archivePeriod()", "calculateEndingBalance()"]
+    },
+    {
+      "name": "ModalProvider",
+      "path": "src/contexts/ModalProvider.jsx",
+      "consumerHook": "useModal()",
+      "manages": ["Modal open/close states"],
+      "keyMethods": ["openModal()", "closeModal()"]
+    },
+    {
+      "name": "SyncContext",
+      "path": "src/contexts/SyncContext.jsx",
+      "consumerHook": "useSyncContext()",
+      "manages": ["syncStatus", "lastSyncTime", "isOnline"],
+      "keyMethods": ["syncExpenses()", "syncSettings()", "loadExpenses()"]
+    }
+  ],
+  "components": {
+    "coreUI": [
+      "Header",
+      "Auth",
+      "Layout",
+      "Dashboard",
+      "ExpenseManager",
+      "MonthlyView",
+      "Settings"
+    ],
+    "modals": [
+      "AddExpenseModal",
+      "CreateYearModal",
+      "DeleteConfirmation",
+      "SettingsModal",
+      "PaymentModeConfirmation",
+      "MonthlyAmountsModal",
+      "SwitchToFixedModal",
+      "TemplateManagerModal"
+    ],
+    "supporting": [
+      "Alert",
+      "ErrorBoundary",
+      "TabView",
+      "SummaryCards",
+      "BalanceChart",
+      "ExpensesTable",
+      "YearSelector",
+      "YearComparison",
+      "YearComparisonCharts",
+      "TemplateManager",
+      "MonthlyCard",
+      "ExpenseCard",
+      "BottomSheet",
+      "BottomTabBar",
+      "MonthlyOverview"
+    ]
+  },
+  "hooks": [
+    "useExpenses",
+    "useAuth",
+    "useBudgetPeriods",
+    "useSyncContext",
+    "useExpenseFilters",
+    "useSettings",
+    "useAlert",
+    "useDebounce",
+    "useOnlineStatus",
+    "useViewportSize",
+    "useKeyboardShortcuts",
+    "useCSVOperations",
+    "useYearManagement",
+    "useDeleteConfirmation",
+    "useSettingsHandlers"
+  ],
+  "utils": [
+    "calculations",
+    "validators",
+    "localeHelpers",
+    "importHelpers",
+    "exportHelpers",
+    "yearComparison",
+    "logger",
+    "uuid",
+    "constants",
+    "seed"
+  ],
+  "database": {
+    "type": "PGlite (PostgreSQL in browser)",
+    "tables": [
+      {
+        "name": "budget_periods",
+        "columns": ["id", "user_id", "year", "monthly_payment", "previous_balance", "monthly_payments", "status"]
+      },
+      {
+        "name": "expenses",
+        "columns": ["id", "budget_period_id", "name", "amount", "frequency", "start_month", "end_month"]
+      }
+    ],
+    "cloudBackup": {
+      "location": "/BudgetTracker/budget-data.json",
+      "format": "JSON",
+      "syncStrategy": "Debounced 1s upload, 30s polling"
+    }
+  },
+  "testing": {
+    "framework": "Vitest 3.2.4 + @testing-library/react 16.3.0",
+    "totalTests": 595,
+    "coverage": {
+      "components": "15 test files, 300+ tests",
+      "hooks": "12 test files, 200+ tests",
+      "utils": "8 test files, 95+ tests"
+    },
+    "keyTestFiles": [
+      "src/hooks/useExpenses.test.js",
+      "src/hooks/useBudgetPeriods.test.js",
+      "src/utils/calculations.test.js",
+      "src/components/Dashboard.test.jsx",
+      "src/components/ExpenseManager.test.jsx"
+    ]
+  },
+  "scripts": {
+    "dev": "Start development server",
+    "build": "Production build",
+    "preview": "Preview production build",
+    "test": "Run all tests",
+    "test:watch": "Watch mode",
+    "test:coverage": "Coverage report",
+    "test:ui": "Visual test UI",
+    "lint": "Run ESLint",
+    "format": "Format with Prettier"
+  },
+  "documentation": {
+    "primary": [
+      "CLAUDE.md",
+      "README.md"
+    ],
+    "extended": [
+      "docs/ARCHITECTURE.md",
+      "docs/MULTI_YEAR.md",
+      "docs/COMPONENTS.md",
+      "docs/HISTORY.md"
+    ]
+  },
+  "configuration": [
+    "package.json",
+    "vite.config.js",
+    "vitest.config.js",
+    "eslint.config.js",
+    ".env.example"
+  ],
+  "performance": {
+    "operations": "<50ms",
+    "initialLoad": "<500ms",
+    "syncUpload": "<300ms",
+    "consoleLogs": 22
+  },
+  "keyConcepts": {
+    "frequencies": ["monthly", "quarterly", "yearly"],
+    "syncStrategy": "Offline-first with last-write-wins",
+    "undoRedo": "50-action history stack",
+    "multiYear": "Isolated budget periods with balance carryover"
+  }
+}

@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  parseDanishNumber,
-  formatDanishNumber,
-  isValidDanishNumber,
-} from './localeHelpers';
+import { parseDanishNumber, formatDanishNumber } from './localeHelpers';
 
 describe('localeHelpers', () => {
   describe('parseDanishNumber', () => {
@@ -191,102 +187,6 @@ describe('localeHelpers', () => {
 
       it('should format annual total', () => {
         expect(formatDanishNumber(68400)).toBe('68.400,00');
-      });
-    });
-  });
-
-  describe('isValidDanishNumber', () => {
-    describe('valid formats', () => {
-      it('should validate whole numbers', () => {
-        expect(isValidDanishNumber('100')).toBe(true);
-      });
-
-      it('should validate decimal with comma', () => {
-        expect(isValidDanishNumber('100,95')).toBe(true);
-      });
-
-      it('should validate number with thousands separator and decimal', () => {
-        expect(isValidDanishNumber('1.234,56')).toBe(true);
-      });
-
-      it('should validate number with thousands separator without decimal', () => {
-        expect(isValidDanishNumber('1.234')).toBe(true);
-      });
-
-      it('should validate large numbers', () => {
-        expect(isValidDanishNumber('1.234.567,89')).toBe(true);
-      });
-
-      it('should validate negative numbers', () => {
-        expect(isValidDanishNumber('-100,95')).toBe(true);
-      });
-
-      it('should validate empty string', () => {
-        expect(isValidDanishNumber('')).toBe(true);
-      });
-
-      it('should validate null', () => {
-        expect(isValidDanishNumber(null)).toBe(true);
-      });
-
-      it('should validate undefined', () => {
-        expect(isValidDanishNumber(undefined)).toBe(true);
-      });
-
-      it('should validate zero', () => {
-        expect(isValidDanishNumber('0')).toBe(true);
-      });
-
-      it('should validate decimal with one digit', () => {
-        expect(isValidDanishNumber('100,5')).toBe(true);
-      });
-
-      it('should validate decimal with two digits', () => {
-        expect(isValidDanishNumber('100,95')).toBe(true);
-      });
-    });
-
-    describe('invalid formats', () => {
-      it('should reject non-numeric characters', () => {
-        expect(isValidDanishNumber('abc')).toBe(false);
-      });
-
-      it('should reject multiple commas', () => {
-        expect(isValidDanishNumber('100,9,5')).toBe(false);
-      });
-
-      it('should reject more than 2 decimal digits', () => {
-        expect(isValidDanishNumber('100,955')).toBe(false);
-      });
-
-      it('should reject invalid thousand separator placement', () => {
-        expect(isValidDanishNumber('12.34')).toBe(false); // Should be at least 4 digits for separator
-      });
-
-      it('should reject comma as thousands separator', () => {
-        expect(isValidDanishNumber('1,234.56')).toBe(false); // Wrong separators
-      });
-
-      it('should reject letters mixed with numbers', () => {
-        expect(isValidDanishNumber('100abc')).toBe(false);
-      });
-
-      it('should reject special characters', () => {
-        expect(isValidDanishNumber('100@95')).toBe(false);
-      });
-    });
-
-    describe('real-world validation', () => {
-      it('should validate typical user input', () => {
-        expect(isValidDanishNumber('5700')).toBe(true);
-        expect(isValidDanishNumber('5.700')).toBe(true);
-        expect(isValidDanishNumber('5.700,00')).toBe(true);
-      });
-
-      it('should validate expense amounts', () => {
-        expect(isValidDanishNumber('249,95')).toBe(true);
-        expect(isValidDanishNumber('9,99')).toBe(true);
-        expect(isValidDanishNumber('1.499,50')).toBe(true);
       });
     });
   });

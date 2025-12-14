@@ -8,10 +8,8 @@ import {
   compareMonthlyTotals,
   compareExpenses,
   calculateYearlyTrends,
-  compareFrequencyDistribution,
   calculateGrowthRate,
   formatComparisonValue,
-  calculateSavingsRate,
   generateComparisonSummary,
 } from './yearComparison';
 
@@ -378,50 +376,6 @@ describe('calculateYearlyTrends', () => {
   });
 });
 
-describe('compareFrequencyDistribution', () => {
-  const expenses1 = [
-    { frequency: 'monthly' },
-    { frequency: 'monthly' },
-    { frequency: 'quarterly' },
-    { frequency: 'yearly' },
-  ];
-
-  const expenses2 = [
-    { frequency: 'monthly' },
-    { frequency: 'monthly' },
-    { frequency: 'monthly' },
-    { frequency: 'quarterly' },
-    { frequency: 'quarterly' },
-    { frequency: 'yearly' },
-  ];
-
-  it('compares frequency distribution between periods', () => {
-    const result = compareFrequencyDistribution(expenses1, expenses2);
-
-    expect(result.period1).toEqual({ monthly: 2, quarterly: 1, yearly: 1 });
-    expect(result.period2).toEqual({ monthly: 3, quarterly: 2, yearly: 1 });
-    expect(result.differences).toEqual({ monthly: 1, quarterly: 1, yearly: 0 });
-  });
-
-  it('handles empty expense arrays', () => {
-    const result = compareFrequencyDistribution([], []);
-
-    expect(result.period1).toEqual({ monthly: 0, quarterly: 0, yearly: 0 });
-    expect(result.period2).toEqual({ monthly: 0, quarterly: 0, yearly: 0 });
-    expect(result.differences).toEqual({ monthly: 0, quarterly: 0, yearly: 0 });
-  });
-
-  it('ignores invalid frequency values', () => {
-    const exp1 = [{ frequency: 'invalid' }, { frequency: 'monthly' }];
-    const exp2 = [{ frequency: 'monthly' }];
-
-    const result = compareFrequencyDistribution(exp1, exp2);
-
-    expect(result.period1).toEqual({ monthly: 1, quarterly: 0, yearly: 0 });
-    expect(result.period2).toEqual({ monthly: 1, quarterly: 0, yearly: 0 });
-  });
-});
-
 describe('calculateGrowthRate', () => {
   it('calculates positive growth rate', () => {
     const rate = calculateGrowthRate(100, 150);
@@ -500,33 +454,6 @@ describe('formatComparisonValue', () => {
 
     expect(result.color).toBe('success');
     expect(result.isPositive).toBe(true);
-  });
-});
-
-describe('calculateSavingsRate', () => {
-  it('calculates savings rate correctly', () => {
-    const rate = calculateSavingsRate(1000, 5000);
-    expect(rate).toBe(20);
-  });
-
-  it('handles 100% savings', () => {
-    const rate = calculateSavingsRate(5000, 5000);
-    expect(rate).toBe(100);
-  });
-
-  it('handles negative balance (overspending)', () => {
-    const rate = calculateSavingsRate(-500, 5000);
-    expect(rate).toBe(-10);
-  });
-
-  it('returns 0 for zero monthly payment', () => {
-    const rate = calculateSavingsRate(1000, 0);
-    expect(rate).toBe(0);
-  });
-
-  it('returns 0 for zero balance', () => {
-    const rate = calculateSavingsRate(0, 5000);
-    expect(rate).toBe(0);
   });
 });
 

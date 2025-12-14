@@ -199,37 +199,6 @@ export function calculateYearlyTrends(periods) {
 }
 
 /**
- * Compare frequency distribution between two periods
- * @param {Array} expenses1 - Expenses from first period
- * @param {Array} expenses2 - Expenses from second period
- * @returns {Object} Frequency comparison data
- */
-export function compareFrequencyDistribution(expenses1, expenses2) {
-  const getFrequencyCounts = expenses => {
-    const counts = { monthly: 0, quarterly: 0, yearly: 0 };
-    expenses.forEach(expense => {
-      if (counts[expense.frequency] !== undefined) {
-        counts[expense.frequency]++;
-      }
-    });
-    return counts;
-  };
-
-  const freq1 = getFrequencyCounts(expenses1);
-  const freq2 = getFrequencyCounts(expenses2);
-
-  return {
-    period1: freq1,
-    period2: freq2,
-    differences: {
-      monthly: freq2.monthly - freq1.monthly,
-      quarterly: freq2.quarterly - freq1.quarterly,
-      yearly: freq2.yearly - freq1.yearly,
-    },
-  };
-}
-
-/**
  * Calculate year-over-year growth rate
  * @param {number} oldValue - Previous year value
  * @param {number} newValue - Current year value
@@ -259,17 +228,6 @@ export function formatComparisonValue(value, higherIsBetter = true) {
     icon,
     isPositive,
   };
-}
-
-/**
- * Calculate savings rate (balance/income ratio)
- * @param {number} monthlyBalance - Average monthly balance
- * @param {number} monthlyPayment - Monthly income/payment
- * @returns {number} Savings rate as percentage
- */
-export function calculateSavingsRate(monthlyBalance, monthlyPayment) {
-  if (monthlyPayment === 0) return 0;
-  return (monthlyBalance / monthlyPayment) * 100;
 }
 
 /**
