@@ -218,10 +218,6 @@ describe('SyncContext', () => {
       expect(uploadedData.budgetPeriods).toBeDefined();
       expect(uploadedData.budgetPeriods.length).toBeGreaterThan(0);
 
-      // Verify settings are included
-      expect(uploadedData.settings).toBeDefined();
-      expect(uploadedData.settings.monthlyPayment).toBe(5700);
-
       expect(result.current.syncStatus).toBe('synced');
     });
 
@@ -245,9 +241,6 @@ describe('SyncContext', () => {
       // CRITICAL: Verify expenses are included (not empty)
       expect(uploadedData.expenses).toBeDefined();
       expect(uploadedData.expenses.length).toBeGreaterThan(0);
-
-      // Verify settings are included
-      expect(uploadedData.settings).toBeDefined();
     });
 
     it('should sync settings successfully with complete data', async () => {
@@ -260,13 +253,9 @@ describe('SyncContext', () => {
       });
 
       // CRITICAL FIX: Now syncs complete data, not partial
+      // Settings are now stored in budget_periods, not as separate field
       expect(mockUploadBudgetData).toHaveBeenCalled();
       const uploadedData = mockUploadBudgetData.mock.calls[0][0];
-
-      // Verify settings were synced
-      expect(uploadedData.settings).toBeDefined();
-      expect(uploadedData.settings.monthlyPayment).toBe(5700);
-      expect(uploadedData.settings.previousBalance).toBe(4831);
 
       // CRITICAL: Verify expenses and periods are included (not empty)
       expect(uploadedData.expenses).toBeDefined();
@@ -418,7 +407,7 @@ describe('SyncContext', () => {
       expect(response.data).toEqual(mockBudgetPeriods);
     });
 
-    it('should load settings from Google Drive', async () => {
+    it('should load settings from Google Drive (deprecated - returns empty)', async () => {
       const { result } = renderHook(() => useSyncContext(), {
         wrapper: wrapper(),
       });
@@ -429,7 +418,8 @@ describe('SyncContext', () => {
 
       expect(mockDownloadBudgetData).toHaveBeenCalled();
       expect(response.success).toBe(true);
-      expect(response.data).toEqual(mockSettings);
+      // Settings are now stored in budget_periods, loadSettings always returns empty
+      expect(response.data).toEqual({});
     });
 
     it('should handle empty Drive response gracefully', async () => {

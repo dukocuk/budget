@@ -166,7 +166,6 @@ export const sanitizeExpense = expense => {
  * @param {Object} data - Cloud data object
  * @param {Array} data.expenses - Expenses array
  * @param {Array} data.budgetPeriods - Budget periods array
- * @param {Object} data.settings - Settings object
  * @returns {Object} Validation result with {valid: boolean, warnings: string[]}
  */
 export const validateCloudData = data => {
@@ -206,11 +205,6 @@ export const validateCloudData = data => {
         `⚠️ ${orphanedExpenses.length} udgifter refererer til ugyldige budgetperioder`
       );
     }
-  }
-
-  // Check settings structure
-  if (typeof data.settings !== 'object' || data.settings === null) {
-    warnings.push('Indstillinger er ikke et objekt');
   }
 
   return {

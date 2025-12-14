@@ -88,10 +88,10 @@ export const Header = ({ user, onOpenSettings }) => {
             {isExpanded && user && (
               <div className="header-mobile-expanded">
                 <div className="user-info">
-                  {user.user_metadata?.avatar_url && !imageError ? (
+                  {user.picture && !imageError ? (
                     <img
-                      src={user.user_metadata.avatar_url}
-                      alt={user.user_metadata?.full_name || user.email}
+                      src={user.picture}
+                      alt={user.name || user.email}
                       className="user-avatar"
                       crossOrigin="anonymous"
                       referrerPolicy="no-referrer"
@@ -100,15 +100,11 @@ export const Header = ({ user, onOpenSettings }) => {
                     />
                   ) : (
                     <div className="user-avatar user-avatar-fallback">
-                      {(user.user_metadata?.full_name || user.email)
-                        .charAt(0)
-                        .toUpperCase()}
+                      {(user.name || user.email).charAt(0).toUpperCase()}
                     </div>
                   )}
                   <div className="user-details">
-                    <span className="user-name">
-                      {user.user_metadata?.full_name || user.email}
-                    </span>
+                    <span className="user-name">{user.name || user.email}</span>
                   </div>
                 </div>
 
@@ -159,10 +155,10 @@ export const Header = ({ user, onOpenSettings }) => {
                 </div>
 
                 <div className="user-info">
-                  {user.user_metadata?.avatar_url && !imageError ? (
+                  {user.picture && !imageError ? (
                     <img
-                      src={user.user_metadata.avatar_url}
-                      alt={user.user_metadata?.full_name || user.email}
+                      src={user.picture}
+                      alt={user.name || user.email}
                       className="user-avatar"
                       crossOrigin="anonymous"
                       referrerPolicy="no-referrer"
@@ -171,15 +167,11 @@ export const Header = ({ user, onOpenSettings }) => {
                     />
                   ) : (
                     <div className="user-avatar user-avatar-fallback">
-                      {(user.user_metadata?.full_name || user.email)
-                        .charAt(0)
-                        .toUpperCase()}
+                      {(user.name || user.email).charAt(0).toUpperCase()}
                     </div>
                   )}
                   <div className="user-details">
-                    <span className="user-name">
-                      {user.user_metadata?.full_name || user.email}
-                    </span>
+                    <span className="user-name">{user.name || user.email}</span>
                   </div>
                 </div>
 

@@ -15,6 +15,10 @@ import {
   downloadBudgetData,
   uploadBudgetData,
   checkForUpdates,
+  createBackup,
+  listBackups,
+  downloadBackup,
+  deleteOldBackups,
 } from '../lib/googleDrive';
 import { localDB } from '../lib/pglite';
 import { validateCloudData } from '../utils/validators';
@@ -64,11 +68,11 @@ export const SyncProvider = ({ user, children }) => {
    * Fetch complete local data from PGlite database
    * This ensures we always sync the COMPLETE dataset, not partial updates
    * @param {string} userId - User ID for filtering
-   * @returns {Promise<{expenses: Array, budgetPeriods: Array, settings: Object}>}
+   * @returns {Promise<{expenses: Array, budgetPeriods: Array}>}
    */
   const fetchCompleteLocalData = useCallback(async userId => {
     if (!userId) {
-      return { expenses: [], budgetPeriods: [], settings: {} };
+      return { expenses: [], budgetPeriods: [] };
     }
 
     try {
@@ -116,26 +120,15 @@ export const SyncProvider = ({ user, children }) => {
         updatedAt: row.updated_at,
       }));
 
-      // Settings are deprecated - extract from active period if needed
-      const activePeriod = budgetPeriods.find(p => p.status === 'active');
-      const settings = activePeriod
-        ? {
-            monthlyPayment: activePeriod.monthlyPayment,
-            previousBalance: activePeriod.previousBalance,
-            monthlyPayments: activePeriod.monthlyPayments,
-          }
-        : {};
-
       logger.log('📦 Fetched complete local data:', {
         expenses: expenses.length,
         periods: budgetPeriods.length,
-        hasSettings: !!activePeriod,
       });
 
-      return { expenses, budgetPeriods, settings };
+      return { expenses, budgetPeriods };
     } catch (error) {
       logger.error('❌ Error fetching complete local data:', error);
-      return { expenses: [], budgetPeriods: [], settings: {} };
+      return { expenses: [], budgetPeriods: [] };
     }
   }, []);
 
@@ -185,10 +178,9 @@ export const SyncProvider = ({ user, children }) => {
    * CRITICAL FIX: Now validates and ensures complete data upload
    * @param {Array} expenses - Expense array
    * @param {Array} budgetPeriods - Budget periods array
-   * @param {Object} settings - Settings object (optional, for backward compatibility)
    */
   const syncToCloud = useCallback(
-    async (expenses, budgetPeriods, settings = {}) => {
+    async (expenses, budgetPeriods) => {
       if (!user || !isOnline || isSyncingRef.current) {
         logger.log('⚠️ Sync skipped:', {
           hasUser: !!user,
@@ -209,7 +201,6 @@ export const SyncProvider = ({ user, children }) => {
         const dataToUpload = {
           expenses: expenses || [],
           budgetPeriods: budgetPeriods || [],
-          settings: settings || {},
         };
 
         // CRITICAL: Validate data before upload to prevent data loss
@@ -271,12 +262,12 @@ export const SyncProvider = ({ user, children }) => {
 
   /**
    * Load data from Google Drive
-   * @returns {Promise<{expenses: Array, budgetPeriods: Array, settings: Object}>}
+   * @returns {Promise<{expenses: Array, budgetPeriods: Array}>}
    */
   const loadFromCloud = useCallback(async () => {
     if (!user || !isOnline) {
       logger.log('⚠️ Load skipped: no user or offline');
-      return { expenses: [], budgetPeriods: [], settings: {} };
+      return { expenses: [], budgetPeriods: [] };
     }
 
     // Return cached data if available (prevents duplicate downloads during initialization)
@@ -415,7 +406,6 @@ export const SyncProvider = ({ user, children }) => {
           const result = {
             expenses: data.expenses || [],
             budgetPeriods: data.budgetPeriods || [],
-            settings: data.settings || {},
           };
 
           // Cache the result for duplicate prevention
@@ -424,7 +414,7 @@ export const SyncProvider = ({ user, children }) => {
         }
 
         logger.log('ℹ️ No existing data in Google Drive');
-        const emptyResult = { expenses: [], budgetPeriods: [], settings: {} };
+        const emptyResult = { expenses: [], budgetPeriods: [] };
         cloudDataCacheRef.current = emptyResult;
         return emptyResult;
       } catch (error) {
@@ -624,12 +614,8 @@ export const SyncProvider = ({ user, children }) => {
         logger.log('🔄 Fetching complete local data for expense sync...');
         const localData = await fetchCompleteLocalData(user.id);
 
-        // Use local expenses (just changed) and complete periods/settings from DB
-        await syncToCloud(
-          expenses,
-          localData.budgetPeriods,
-          localData.settings
-        );
+        // Use local expenses (just changed) and complete periods from DB
+        await syncToCloud(expenses, localData.budgetPeriods);
       }, false); // false = debounced
     },
     [user, isOnline, syncToCloud, fetchCompleteLocalData]
@@ -649,8 +635,8 @@ export const SyncProvider = ({ user, children }) => {
         logger.log('🔄 Fetching complete local data for period sync...');
         const localData = await fetchCompleteLocalData(user.id);
 
-        // Use local periods (just changed) and complete expenses/settings from DB
-        await syncToCloud(localData.expenses, periods, localData.settings);
+        // Use local periods (just changed) and complete expenses from DB
+        await syncToCloud(localData.expenses, periods);
       }, false); // false = debounced
     },
     [user, isOnline, syncToCloud, fetchCompleteLocalData]
@@ -670,18 +656,9 @@ export const SyncProvider = ({ user, children }) => {
         logger.log('🔄 Fetching complete local data for settings sync...');
         const localData = await fetchCompleteLocalData(user.id);
 
-        const settings = {
-          monthlyPayment,
-          previousBalance,
-          monthlyPayments,
-        };
-
-        // Use complete expenses/periods from DB and new settings
-        await syncToCloud(
-          localData.expenses,
-          localData.budgetPeriods,
-          settings
-        );
+        // Settings are now stored in budget_periods, not as separate field
+        // Use complete expenses/periods from DB
+        await syncToCloud(localData.expenses, localData.budgetPeriods);
       }, false); // false = debounced
     },
     [user, isOnline, syncToCloud, fetchCompleteLocalData]
@@ -727,13 +704,14 @@ export const SyncProvider = ({ user, children }) => {
 
   /**
    * Load settings from Google Drive (deprecated - kept for compatibility)
+   * Settings are now stored in budget_periods, this always returns empty object
    */
   const loadSettings = useCallback(async () => {
     try {
-      const data = await loadFromCloud();
+      await loadFromCloud();
       return {
         success: true,
-        data: data.settings || {},
+        data: {},
       };
     } catch {
       // Error already logged and tracked by loadFromCloud
@@ -759,11 +737,7 @@ export const SyncProvider = ({ user, children }) => {
           '⚡ Immediate expense sync - fetching complete local data...'
         );
         const localData = await fetchCompleteLocalData(user.id);
-        await syncToCloud(
-          expenses,
-          localData.budgetPeriods,
-          localData.settings
-        );
+        await syncToCloud(expenses, localData.budgetPeriods);
       }, true); // true = immediate
     },
     [syncToCloud, fetchCompleteLocalData, user]
@@ -779,7 +753,7 @@ export const SyncProvider = ({ user, children }) => {
           '⚡ Immediate period sync - fetching complete local data...'
         );
         const localData = await fetchCompleteLocalData(user.id);
-        await syncToCloud(localData.expenses, periods, localData.settings);
+        await syncToCloud(localData.expenses, periods);
       }, true); // true = immediate
     },
     [syncToCloud, fetchCompleteLocalData, user]
@@ -795,15 +769,336 @@ export const SyncProvider = ({ user, children }) => {
           '⚡ Immediate settings sync - fetching complete local data...'
         );
         const localData = await fetchCompleteLocalData(user.id);
-        const settings = { monthlyPayment, previousBalance, monthlyPayments };
-        await syncToCloud(
-          localData.expenses,
-          localData.budgetPeriods,
-          settings
-        );
+        // Settings are now stored in budget_periods, not as separate field
+        await syncToCloud(localData.expenses, localData.budgetPeriods);
       }, true); // true = immediate
     },
     [syncToCloud, fetchCompleteLocalData, user]
+  );
+
+  /**
+   * Create manual backup of current data
+   * Triggers auto-cleanup of old backups after creation
+   *
+   * @returns {Promise<{success: boolean, filename: string, error?: string}>}
+   */
+  const createManualBackup = useCallback(async () => {
+    // Guard conditions
+    if (!user || !isOnline) {
+      return {
+        success: false,
+        error: isOnline
+          ? 'Skal være logget ind'
+          : 'Skal være online og logget ind',
+      };
+    }
+
+    try {
+      // Update sync status
+      updateSyncStatus('syncing');
+
+      // Fetch complete local data
+      logger.log('📦 Creating manual backup...');
+      const localData = await fetchCompleteLocalData(user.id);
+
+      // Validate data before creating backup
+      const validation = validateCloudData(localData);
+      if (!validation.valid) {
+        logger.error('❌ Backup validation failed:', validation.warnings);
+        // Check for critical errors
+        const hasCriticalError = validation.warnings.some(w =>
+          w.includes('KRITISK')
+        );
+        if (hasCriticalError) {
+          updateSyncStatus('error');
+          updateSyncError('Data validation failed');
+          return {
+            success: false,
+            error: 'Data er ikke gyldig til backup',
+          };
+        }
+      }
+
+      // Create backup
+      const result = await createBackup(localData);
+
+      // Auto-cleanup old backups (keep last 7)
+      await deleteOldBackups(7);
+
+      // Update sync status
+      updateSyncStatus('synced');
+      updateLastSyncTime(new Date());
+
+      // Clear status after 2 seconds
+      setTimeout(() => {
+        if (syncStatusRef.current === 'synced') {
+          updateSyncStatus('idle');
+        }
+      }, 2000);
+
+      logger.log('✅ Backup created successfully:', result.filename);
+      return {
+        success: true,
+        filename: result.filename,
+      };
+    } catch (error) {
+      logger.error('❌ Backup creation failed:', error);
+      updateSyncStatus('error');
+      updateSyncError('Backup creation failed');
+
+      // Clear error after 5 seconds
+      setTimeout(() => {
+        if (syncStatusRef.current === 'error') {
+          updateSyncStatus('idle');
+          updateSyncError(null);
+        }
+      }, 5000);
+
+      return {
+        success: false,
+        error: error.message || 'Ukendt fejl',
+      };
+    }
+  }, [
+    user,
+    isOnline,
+    fetchCompleteLocalData,
+    updateSyncStatus,
+    updateLastSyncTime,
+    updateSyncError,
+  ]);
+
+  /**
+   * List available backups with formatted metadata
+   * Parses timestamps and calculates size in KB
+   *
+   * @returns {Promise<Array<{fileId: string, filename: string, date: Date, sizeKB: number}>>}
+   */
+  const listAvailableBackups = useCallback(async () => {
+    // Guard conditions
+    if (!user || !isOnline) {
+      return [];
+    }
+
+    try {
+      logger.log('📋 Listing available backups...');
+      const backups = await listBackups();
+
+      // Transform for UI
+      return backups.map(backup => ({
+        fileId: backup.fileId,
+        filename: backup.filename,
+        date: new Date(backup.modifiedTime),
+        sizeKB: Math.round(backup.size / 1024),
+      }));
+    } catch (error) {
+      logger.error('❌ Failed to list backups:', error);
+      return [];
+    }
+  }, [user, isOnline]);
+
+  /**
+   * Get preview data for a specific backup (for restore confirmation)
+   * Downloads backup and extracts summary info
+   *
+   * @param {string} fileId - Backup file ID
+   * @returns {Promise<{years: number[], expenseCount: number, periodCount: number, timestamp: string}>}
+   */
+  const getBackupPreview = useCallback(
+    async fileId => {
+      // Guard conditions
+      if (!user || !isOnline) {
+        throw new Error('Skal være online og logget ind');
+      }
+
+      try {
+        logger.log('🔍 Getting backup preview:', fileId);
+        const data = await downloadBackup(fileId);
+
+        // Extract summary info
+        const years = [...new Set(data.budgetPeriods.map(p => p.year))].sort();
+
+        return {
+          years,
+          expenseCount: data.expenses.length,
+          periodCount: data.budgetPeriods.length,
+          timestamp: data.timestamp,
+        };
+      } catch (error) {
+        logger.error('❌ Failed to get backup preview:', error);
+        throw error;
+      }
+    },
+    [user, isOnline]
+  );
+
+  /**
+   * Restore data from backup file
+   * CRITICAL: Clears local PGlite tables and replaces with backup data
+   *
+   * @param {string} fileId - Backup file ID to restore
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  const restoreFromBackup = useCallback(
+    async fileId => {
+      // Guard conditions
+      if (!user || !isOnline) {
+        return {
+          success: false,
+          error: 'Skal være online og logget ind',
+        };
+      }
+
+      if (isSyncingRef.current) {
+        return {
+          success: false,
+          error: 'Vent venligst på aktuel synkronisering',
+        };
+      }
+
+      try {
+        // Set syncing flag
+        isSyncingRef.current = true;
+        updateSyncStatus('syncing');
+
+        logger.log('🔄 Restoring from backup:', fileId);
+
+        // Download backup
+        const data = await downloadBackup(fileId);
+
+        // Validate downloaded data
+        const validation = validateDownloadedData(data);
+        if (!validation.valid) {
+          logger.error('❌ Backup data validation failed:', validation.errors);
+          return {
+            success: false,
+            error: 'Backup indeholder ugyldige data',
+          };
+        }
+
+        // Clear local PGlite tables (transaction-safe)
+        logger.log('🗑️ Clearing local data...');
+        await localDB.query('DELETE FROM expenses WHERE user_id = $1', [
+          user.id,
+        ]);
+        await localDB.query('DELETE FROM budget_periods WHERE user_id = $1', [
+          user.id,
+        ]);
+
+        // Insert budget periods first (parent records)
+        if (data.budgetPeriods.length > 0) {
+          logger.log('💾 Inserting budget periods...');
+          const periodValuesClauses = data.budgetPeriods
+            .map((_, idx) => {
+              const offset = idx * 14;
+              return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11}, $${offset + 12}, $${offset + 13}, $${offset + 14})`;
+            })
+            .join(',');
+
+          const periodValues = data.budgetPeriods.flatMap(period => [
+            period.id,
+            period.userId || user.sub,
+            period.year,
+            period.monthlyPayment || 0,
+            period.previousBalance || 0,
+            period.monthlyPayments
+              ? JSON.stringify(period.monthlyPayments)
+              : null,
+            period.status || 'active',
+            period.isTemplate ? 1 : 0,
+            period.templateName || null,
+            period.templateDescription || null,
+            period.createdAt || new Date().toISOString(),
+            period.updatedAt || new Date().toISOString(),
+            period.monthlyPayment || 0, // For ON CONFLICT UPDATE
+            period.previousBalance || 0, // For ON CONFLICT UPDATE
+          ]);
+
+          await localDB.query(
+            `INSERT INTO budget_periods (id, user_id, year, monthly_payment, previous_balance, monthly_payments, status, is_template, template_name, template_description, created_at, updated_at)
+           VALUES ${periodValuesClauses}
+           ON CONFLICT (id) DO UPDATE SET
+             monthly_payment = $13,
+             previous_balance = $14,
+             updated_at = EXCLUDED.updated_at`,
+            periodValues
+          );
+        }
+
+        // Insert expenses (child records)
+        if (data.expenses.length > 0) {
+          logger.log('💾 Inserting expenses...');
+          const expenseValuesClauses = data.expenses
+            .map((_, idx) => {
+              const offset = idx * 11;
+              return `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11})`;
+            })
+            .join(',');
+
+          const expenseValues = data.expenses.flatMap(expense => [
+            expense.id,
+            expense.userId || user.sub,
+            expense.name || 'Unknown Expense',
+            typeof expense.amount === 'number' ? expense.amount : 0,
+            expense.frequency || 'monthly',
+            expense.startMonth || 1,
+            expense.endMonth || 12,
+            expense.budgetPeriodId,
+            expense.monthlyAmounts
+              ? JSON.stringify(expense.monthlyAmounts)
+              : null,
+            expense.createdAt || new Date().toISOString(),
+            expense.updatedAt || new Date().toISOString(),
+          ]);
+
+          await localDB.query(
+            `INSERT INTO expenses (id, user_id, name, amount, frequency, start_month, end_month, budget_period_id, monthly_amounts, created_at, updated_at)
+           VALUES ${expenseValuesClauses}
+           ON CONFLICT (id) DO UPDATE SET
+             name = EXCLUDED.name,
+             amount = EXCLUDED.amount,
+             frequency = EXCLUDED.frequency,
+             start_month = EXCLUDED.start_month,
+             end_month = EXCLUDED.end_month,
+             budget_period_id = EXCLUDED.budget_period_id,
+             monthly_amounts = EXCLUDED.monthly_amounts,
+             updated_at = EXCLUDED.updated_at`,
+            expenseValues
+          );
+        }
+
+        // Sync restored data to main cloud file
+        logger.log('☁️ Syncing restored data to cloud...');
+        await syncToCloud(data.expenses, data.budgetPeriods);
+
+        // Update sync status
+        updateSyncStatus('synced');
+        updateLastSyncTime(new Date());
+
+        logger.log('✅ Backup restored successfully');
+        return { success: true };
+      } catch (error) {
+        logger.error('❌ Backup restore failed:', error);
+        updateSyncStatus('error');
+        updateSyncError('Restore failed');
+
+        return {
+          success: false,
+          error: error.message || 'Ukendt fejl',
+        };
+      } finally {
+        // Always clear syncing flag
+        isSyncingRef.current = false;
+      }
+    },
+    [
+      user,
+      isOnline,
+      syncToCloud,
+      updateSyncStatus,
+      updateLastSyncTime,
+      updateSyncError,
+    ]
   );
 
   // Context value
@@ -828,6 +1123,12 @@ export const SyncProvider = ({ user, children }) => {
     immediateSyncExpenses,
     immediateSyncBudgetPeriods,
     immediateSyncSettings,
+
+    // Backup management
+    createManualBackup,
+    listAvailableBackups,
+    getBackupPreview,
+    restoreFromBackup,
 
     // Utility
     checkAndDownloadUpdates,

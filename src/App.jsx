@@ -21,9 +21,10 @@ import YearSelector from './components/YearSelector';
 import CreateYearModal from './components/CreateYearModal';
 import YearComparison from './components/YearComparison';
 import Auth from './components/Auth';
-import { useAlert } from './hooks/useAlert';
+import { useAlertContext } from './hooks/useAlertContext';
 import { useAuth } from './hooks/useAuth';
 import { useViewportSize } from './hooks/useViewportSize';
+import { AlertProvider } from './contexts/AlertProvider';
 import { SyncProvider } from './contexts/SyncContext';
 import { useSyncContext } from './hooks/useSyncContext';
 import { ModalProvider } from './contexts/ModalProvider';
@@ -67,7 +68,7 @@ const ExpensesTabContent = memo(
       addExpense,
     } = useExpenseContext();
     const { openAddExpenseModal } = useModal();
-    const { showAlert } = useAlert();
+    const { showAlert } = useAlertContext();
 
     // State for MonthlyAmountsModal
     const [monthlyAmountsModal, setMonthlyAmountsModal] = useState({
@@ -230,7 +231,8 @@ function AppContent() {
     immediateSyncBudgetPeriods,
   } = useSyncContext();
 
-  const { alert, showAlert } = useAlert();
+  // Alert from centralized context
+  const { alert, showAlert } = useAlertContext();
 
   // Loading state management
   const { setLoadingStage } = useLoadingContext();
@@ -613,13 +615,15 @@ function AppRouter({
 
   // Wrap AppContent with all providers in correct order
   return (
-    <SyncProvider user={user}>
-      <BudgetPeriodProvider userId={user?.id}>
-        <ModalProvider>
-          <AppContentWrapper />
-        </ModalProvider>
-      </BudgetPeriodProvider>
-    </SyncProvider>
+    <AlertProvider>
+      <SyncProvider user={user}>
+        <BudgetPeriodProvider userId={user?.id}>
+          <ModalProvider>
+            <AppContentWrapper />
+          </ModalProvider>
+        </BudgetPeriodProvider>
+      </SyncProvider>
+    </AlertProvider>
   );
 }
 

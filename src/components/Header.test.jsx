@@ -31,10 +31,8 @@ describe('Header', () => {
   const mockUser = {
     id: 'user-123',
     email: 'test@example.com',
-    user_metadata: {
-      full_name: 'Test User',
-      avatar_url: 'https://example.com/avatar.jpg',
-    },
+    name: 'Test User',
+    picture: 'https://example.com/avatar.jpg',
   };
 
   const mockOnOpenSettings = vi.fn();
@@ -80,10 +78,10 @@ describe('Header', () => {
       expect(screen.getByText('Test User')).toBeInTheDocument();
     });
 
-    it('should display user email as name when full_name not available', () => {
+    it('should display user email as name when name not available', () => {
       const userWithoutName = {
-        ...mockUser,
-        user_metadata: {},
+        id: 'user-123',
+        email: 'test@example.com',
       };
 
       render(
@@ -111,12 +109,11 @@ describe('Header', () => {
       expect(avatar).toHaveAttribute('loading', 'lazy');
     });
 
-    it('should display fallback avatar when no avatar_url', () => {
+    it('should display fallback avatar when no picture', () => {
       const userWithoutAvatar = {
-        ...mockUser,
-        user_metadata: {
-          full_name: 'Test User',
-        },
+        id: 'user-123',
+        email: 'test@example.com',
+        name: 'Test User',
       };
 
       render(
@@ -144,8 +141,8 @@ describe('Header', () => {
 
     it('should use email first letter for fallback when no name', () => {
       const userWithoutName = {
-        ...mockUser,
-        user_metadata: {},
+        id: 'user-123',
+        email: 'test@example.com',
       };
 
       render(
@@ -342,7 +339,6 @@ describe('Header', () => {
       const minimalUser = {
         id: 'user-123',
         email: 'minimal@example.com',
-        user_metadata: {},
       };
 
       render(<Header user={minimalUser} onOpenSettings={mockOnOpenSettings} />);
@@ -350,7 +346,7 @@ describe('Header', () => {
       expect(screen.getByText('minimal@example.com')).toBeInTheDocument();
     });
 
-    it('should handle undefined user_metadata', () => {
+    it('should handle undefined name property', () => {
       const userWithoutMetadata = {
         id: 'user-123',
         email: 'test@example.com',
@@ -368,10 +364,9 @@ describe('Header', () => {
 
     it('should capitalize fallback avatar letter', () => {
       const userLowerCase = {
-        ...mockUser,
-        user_metadata: {
-          full_name: 'test user', // lowercase
-        },
+        id: 'user-123',
+        email: 'test@example.com',
+        name: 'test user', // lowercase
       };
 
       render(

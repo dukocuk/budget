@@ -15,6 +15,7 @@ import { validateDownloadedData } from '../utils/validators';
 
 const FOLDER_NAME = 'BudgetTracker';
 const FILE_NAME = 'budget-data.json';
+const BACKUP_FOLDER_NAME = 'backups';
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const DISCOVERY_DOCS = [
   'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest',
@@ -23,9 +24,11 @@ const DISCOVERY_DOCS = [
 // File metadata cache
 let folderIdCache = null;
 let fileIdCache = null;
+let backupFolderIdCache = null;
 
 // Promise lock to prevent concurrent folder creation
 let folderCreationPromise = null;
+let backupFolderCreationPromise = null;
 
 /**
  * Initialize Google Drive API client
@@ -179,6 +182,91 @@ export async function ensureBudgetFolder() {
 }
 
 /**
+ * Ensure backups subfolder exists within BudgetTracker folder
+ * Creates /BudgetTracker/backups/ if it doesn't exist
+ *
+ * @returns {Promise<string>} Backup folder ID
+ */
+export async function ensureBackupFolder() {
+  try {
+    // Return cached backup folder ID if available
+    if (backupFolderIdCache) {
+      logger.log('Using cached backup folder ID:', backupFolderIdCache);
+      return backupFolderIdCache;
+    }
+
+    // If backup folder creation is already in progress, wait for it
+    if (backupFolderCreationPromise) {
+      logger.log('⏳ Backup folder creation in progress, waiting...');
+      return await backupFolderCreationPromise;
+    }
+
+    // Create promise lock and start backup folder creation process
+    backupFolderCreationPromise = (async () => {
+      try {
+        // Ensure parent BudgetTracker folder exists first
+        const parentFolderId = await ensureBudgetFolder();
+        logger.log('Searching for backups subfolder...');
+
+        // Search for ALL existing backup folders with this name
+        const response = await window.gapi.client.drive.files.list({
+          q: `name='${BACKUP_FOLDER_NAME}' and '${parentFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+          fields: 'files(id, name, createdTime)',
+          spaces: 'drive',
+          orderBy: 'createdTime', // Oldest first
+        });
+
+        const existingFolders = response.result.files || [];
+
+        if (existingFolders.length > 0) {
+          // Use the oldest folder (first in sorted list)
+          backupFolderIdCache = existingFolders[0].id;
+
+          // Log warning if multiple folders exist
+          if (existingFolders.length > 1) {
+            logger.warn(
+              `⚠️ Found ${existingFolders.length} backup folders. Using oldest:`,
+              backupFolderIdCache
+            );
+            logger.warn(
+              'Consider manually deleting duplicate folders in Google Drive'
+            );
+          } else {
+            logger.log('✅ Found existing backup folder:', backupFolderIdCache);
+          }
+
+          return backupFolderIdCache;
+        }
+
+        // Create backup folder ONLY if none exist
+        logger.log('Creating backups subfolder (none found)...');
+        const createResponse = await window.gapi.client.drive.files.create({
+          resource: {
+            name: BACKUP_FOLDER_NAME,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: [parentFolderId],
+          },
+          fields: 'id',
+        });
+
+        backupFolderIdCache = createResponse.result.id;
+        logger.log('✅ Created backup folder:', backupFolderIdCache);
+        return backupFolderIdCache;
+      } finally {
+        // Clear the promise lock when done (success or failure)
+        backupFolderCreationPromise = null;
+      }
+    })();
+
+    return await backupFolderCreationPromise;
+  } catch (error) {
+    logger.error('❌ Error ensuring backup folder:', error);
+    backupFolderCreationPromise = null; // Clear lock on error
+    throw error;
+  }
+}
+
+/**
  * Get budget data file metadata
  *
  * @returns {Promise<{fileId: string, lastModified: string}|null>} File metadata or null if not found
@@ -217,7 +305,7 @@ export async function getBudgetFileMetadata() {
 /**
  * Download budget data from Google Drive
  *
- * @returns {Promise<{expenses: Array, budgetPeriods: Array, settings: Object, lastModified: string}|null>} Budget data or null if file doesn't exist
+ * @returns {Promise<{expenses: Array, budgetPeriods: Array, lastModified: string}|null>} Budget data or null if file doesn't exist
  */
 export async function downloadBudgetData() {
   try {
@@ -274,7 +362,6 @@ export async function downloadBudgetData() {
  * @param {Object} data - Budget data to upload
  * @param {Array} data.expenses - Expense array
  * @param {Array} data.budgetPeriods - Budget periods array
- * @param {Object} data.settings - Settings object (optional, for backward compatibility)
  * @returns {Promise<{success: boolean, fileId: string, lastModified: string}>} Upload result
  */
 export async function uploadBudgetData(data) {
@@ -288,7 +375,6 @@ export async function uploadBudgetData(data) {
       lastModified: new Date().toISOString(),
       expenses: data.expenses || [],
       budgetPeriods: data.budgetPeriods || [],
-      settings: data.settings || {}, // For backward compatibility
     };
 
     const content = JSON.stringify(dataToUpload, null, 2);
@@ -416,12 +502,221 @@ export async function checkForUpdates(lastKnownModified) {
 }
 
 /**
+ * Create timestamped backup file in /BudgetTracker/backups/ folder
+ *
+ * @param {Object} data - Budget data to backup
+ * @param {Array} data.expenses - Expense array
+ * @param {Array} data.budgetPeriods - Budget periods array
+ * @returns {Promise<{success: boolean, fileId: string, filename: string, timestamp: string}>}
+ */
+export async function createBackup(data) {
+  try {
+    const backupFolderId = await ensureBackupFolder();
+
+    // Generate timestamped filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `backup-${timestamp}.json`;
+
+    logger.log(`Creating backup file: ${filename}...`);
+
+    // Prepare backup data with metadata
+    const backupData = {
+      version: '1.0.0',
+      timestamp: new Date().toISOString(),
+      expenses: data.expenses || [],
+      budgetPeriods: data.budgetPeriods || [],
+    };
+
+    const content = JSON.stringify(backupData, null, 2);
+
+    // Use multipart upload (same pattern as uploadBudgetData)
+    const boundary = '-------314159265358979323846';
+    const delimiter = '\r\n--' + boundary + '\r\n';
+    const closeDelimiter = '\r\n--' + boundary + '--';
+
+    const fileMetadata = {
+      name: filename,
+      mimeType: 'application/json',
+      parents: [backupFolderId],
+    };
+
+    const multipartRequestBody =
+      delimiter +
+      'Content-Type: application/json\r\n\r\n' +
+      JSON.stringify(fileMetadata) +
+      delimiter +
+      'Content-Type: application/json\r\n\r\n' +
+      content +
+      closeDelimiter;
+
+    const response = await window.gapi.client.request({
+      path: '/upload/drive/v3/files',
+      method: 'POST',
+      params: {
+        uploadType: 'multipart',
+        fields: 'id',
+      },
+      headers: {
+        'Content-Type': 'multipart/related; boundary="' + boundary + '"',
+      },
+      body: multipartRequestBody,
+    });
+
+    logger.log('✅ Backup created successfully:', response.result.id);
+
+    return {
+      success: true,
+      fileId: response.result.id,
+      filename,
+      timestamp: backupData.timestamp,
+    };
+  } catch (error) {
+    logger.error('❌ Error creating backup:', error);
+    throw error;
+  }
+}
+
+/**
+ * List all backups in /BudgetTracker/backups/ folder
+ * Returns sorted by date (newest first)
+ *
+ * @returns {Promise<Array<{fileId: string, filename: string, modifiedTime: string, size: number}>>}
+ */
+export async function listBackups() {
+  try {
+    const backupFolderId = await ensureBackupFolder();
+
+    logger.log('Listing backup files...');
+
+    // Search for backup files
+    const response = await window.gapi.client.drive.files.list({
+      q: `'${backupFolderId}' in parents and trashed=false and mimeType='application/json'`,
+      fields: 'files(id, name, modifiedTime, size)',
+      spaces: 'drive',
+      orderBy: 'modifiedTime desc', // Newest first
+    });
+
+    const files = response.result.files || [];
+    logger.log(`✅ Found ${files.length} backup files`);
+
+    return files.map(file => ({
+      fileId: file.id,
+      filename: file.name,
+      modifiedTime: file.modifiedTime,
+      size: parseInt(file.size) || 0,
+    }));
+  } catch (error) {
+    logger.error('❌ Error listing backups:', error);
+    // Return empty array on error (don't throw)
+    return [];
+  }
+}
+
+/**
+ * Download specific backup file by ID
+ * Validates data structure before returning
+ *
+ * @param {string} fileId - Google Drive file ID
+ * @returns {Promise<{expenses: Array, budgetPeriods: Array, timestamp: string}>}
+ */
+export async function downloadBackup(fileId) {
+  try {
+    logger.log('Downloading backup file:', fileId);
+
+    // Download file content
+    const response = await window.gapi.client.drive.files.get({
+      fileId,
+      alt: 'media',
+    });
+
+    const data = JSON.parse(response.body);
+
+    logger.log('✅ Downloaded backup data:', {
+      version: data.version,
+      expensesCount: data.expenses?.length || 0,
+      periodsCount: data.budgetPeriods?.length || 0,
+      timestamp: data.timestamp,
+    });
+
+    // Validate downloaded data before returning
+    const validation = validateDownloadedData(data);
+    if (!validation.valid) {
+      logger.error('❌ Backup data validation failed:', validation.errors);
+      validation.errors.forEach(error => logger.warn(error));
+
+      // Return data anyway but log warnings (allow app to handle gracefully)
+      logger.warn(
+        '⚠️ Proceeding with potentially invalid backup data - check console for details'
+      );
+    }
+
+    return {
+      expenses: data.expenses || [],
+      budgetPeriods: data.budgetPeriods || [],
+      timestamp: data.timestamp || new Date().toISOString(),
+    };
+  } catch (error) {
+    logger.error('❌ Error downloading backup:', error);
+    throw error;
+  }
+}
+
+/**
+ * Delete oldest backups when count exceeds limit
+ * Keeps only the last N backups (sorted by date)
+ *
+ * @param {number} keepCount - Number of backups to retain (default: 7)
+ * @returns {Promise<{deleted: number, errors: number}>}
+ */
+export async function deleteOldBackups(keepCount = 7) {
+  try {
+    // Get all backups (already sorted newest first)
+    const backups = await listBackups();
+
+    if (backups.length <= keepCount) {
+      logger.log(
+        `Backup count (${backups.length}) within limit (${keepCount}), no cleanup needed`
+      );
+      return { deleted: 0, errors: 0 };
+    }
+
+    // Get backups to delete (oldest ones beyond keepCount)
+    const toDelete = backups.slice(keepCount);
+    logger.log(
+      `Deleting ${toDelete.length} old backups (keeping ${keepCount} newest)...`
+    );
+
+    // Batch delete files in parallel
+    const results = await Promise.allSettled(
+      toDelete.map(backup =>
+        window.gapi.client.drive.files.delete({ fileId: backup.fileId })
+      )
+    );
+
+    // Count successes and failures
+    const successCount = results.filter(r => r.status === 'fulfilled').length;
+    const errorCount = results.filter(r => r.status === 'rejected').length;
+
+    logger.log(
+      `✅ Deleted ${successCount} old backups${errorCount > 0 ? ` (${errorCount} failed)` : ''}`
+    );
+
+    return { deleted: successCount, errors: errorCount };
+  } catch (error) {
+    logger.error('❌ Error deleting old backups:', error);
+    return { deleted: 0, errors: 1 };
+  }
+}
+
+/**
  * Clear cache (for testing or troubleshooting)
  */
 export function clearCache() {
   folderIdCache = null;
   fileIdCache = null;
+  backupFolderIdCache = null;
   folderCreationPromise = null;
+  backupFolderCreationPromise = null;
   logger.log('🗑️ Drive API cache cleared');
 }
 

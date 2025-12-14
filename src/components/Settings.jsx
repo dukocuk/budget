@@ -4,8 +4,10 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { useSyncContext } from '../hooks/useSyncContext';
+import { useAlertContext } from '../hooks/useAlertContext';
 import { parseDanishNumber } from '../utils/localeHelpers';
 import { PaymentModeConfirmation } from './PaymentModeConfirmation';
+import { BackupManagerModal } from './BackupManagerModal';
 import './Settings.css';
 
 export const Settings = ({
@@ -26,9 +28,22 @@ export const Settings = ({
   // Template management
   onOpenTemplateManager,
 }) => {
-  // Get sync status from isolated context (won't trigger parent re-renders)
-  const { syncStatus, lastSyncTime, syncError, isOnline } = useSyncContext();
+  // Get sync status and backup methods from isolated context
+  const {
+    syncStatus,
+    lastSyncTime,
+    syncError,
+    isOnline,
+    createManualBackup,
+    listAvailableBackups,
+    getBackupPreview,
+    restoreFromBackup,
+  } = useSyncContext();
+  const { showAlert } = useAlertContext();
   const fileInputRef = useRef(null);
+
+  // Backup modal state
+  const [showBackupManager, setShowBackupManager] = useState(false);
 
   // Local state for input fields to prevent sync spam
   const [localMonthlyPayment, setLocalMonthlyPayment] =
@@ -72,6 +87,25 @@ export const Settings = ({
       // Reset input so same file can be selected again
       event.target.value = '';
     }
+  };
+
+  // Handler for creating manual backup
+  const handleCreateBackup = async () => {
+    try {
+      const result = await createManualBackup();
+      if (result.success) {
+        showAlert('Backup oprettet!', 'success');
+      } else {
+        showAlert(`Backup fejl: ${result.error}`, 'error');
+      }
+    } catch (error) {
+      showAlert(`Backup fejl: ${error.message}`, 'error');
+    }
+  };
+
+  // Handler for opening backup manager modal
+  const handleOpenBackupManager = () => {
+    setShowBackupManager(true);
   };
 
   // Handler for payment mode toggle
@@ -172,6 +206,13 @@ export const Settings = ({
         mode={pendingMode}
         onConfirm={handleConfirmModeChange}
         onCancel={handleCancelModeChange}
+      />
+      <BackupManagerModal
+        isOpen={showBackupManager}
+        onClose={() => setShowBackupManager(false)}
+        listBackups={listAvailableBackups}
+        getPreview={getBackupPreview}
+        restoreBackup={restoreFromBackup}
       />
       <section className="settings-section">
         <h2>⚙️ Indstillinger</h2>
@@ -398,13 +439,47 @@ export const Settings = ({
         <div className="settings-actions">
           <h3>Data håndtering</h3>
           <div className="settings-buttons">
-            <button className="btn btn-success" onClick={onExport}>
+            <button
+              className="btn btn-success"
+              onClick={onExport}
+              title="Eksporter dine udgifter til CSV-fil til brug i Excel eller andre programmer"
+            >
               <span className="btn-icon">📊</span>
               <span>Eksporter CSV</span>
             </button>
-            <button className="btn btn-info" onClick={handleImportClick}>
+            <button
+              className="btn btn-info"
+              onClick={handleImportClick}
+              title="Importer udgifter fra en CSV-fil til den aktuelle budgetperiode"
+            >
               <span className="btn-icon">📥</span>
               <span>Importer CSV</span>
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={handleCreateBackup}
+              disabled={!isOnline}
+              title={
+                !isOnline
+                  ? 'Kræver internetforbindelse'
+                  : 'Opret et komplet backup af alle dine data med versionering'
+              }
+            >
+              <span className="btn-icon">📦</span>
+              <span>Opret backup</span>
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={handleOpenBackupManager}
+              disabled={!isOnline}
+              title={
+                !isOnline
+                  ? 'Kræver internetforbindelse'
+                  : 'Gendan alle dine data fra et tidligere backup med versionsoversigt'
+              }
+            >
+              <span className="btn-icon">📋</span>
+              <span>Gendan fra backup</span>
             </button>
             <input
               ref={fileInputRef}
@@ -416,8 +491,14 @@ export const Settings = ({
             />
           </div>
           <p className="settings-note">
-            💡 Dine data gemmes automatisk til skyen. CSV-eksport er kun til
-            backup.
+            💡 <strong>Automatisk:</strong> Dine data gemmes automatisk til
+            skyen.
+            <br />
+            📊 <strong>CSV:</strong> Eksporter/importer til Excel og andre
+            programmer.
+            <br />
+            📦 <strong>Backup:</strong> Versionerede snapshots med komplet
+            gendannelse.
           </p>
         </div>
       </section>
