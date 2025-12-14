@@ -300,7 +300,7 @@ export function useAuth() {
 
       if (!tokenResponse.ok) {
         const errorData = await tokenResponse.json();
-        console.error('❌ Token exchange failed:', {
+        logger.error('❌ Token exchange failed:', {
           status: tokenResponse.status,
           statusText: tokenResponse.statusText,
           error: errorData.error,
@@ -375,7 +375,7 @@ export function useAuth() {
       setUser(session.user);
 
       // Initialize Google Drive API
-      console.log('☁️ Attempting Google Drive initialization...');
+      logger.log('☁️ Attempting Google Drive initialization...');
       setLoadingState({
         isLoading: true,
         stage: 'connecting',
@@ -412,8 +412,7 @@ export function useAuth() {
         // Continue anyway - local DB still works
       }
     } catch (err) {
-      console.error('❌ CRITICAL ERROR in handleGoogleSignIn:', err);
-      logger.error('Error during Google Sign-In:', err);
+      logger.error('❌ CRITICAL ERROR in handleGoogleSignIn:', err);
       setError(err.message || 'Login fejlede. Prøv venligst igen.');
       setLoadingState({
         isLoading: false,
@@ -424,12 +423,12 @@ export function useAuth() {
       });
     } finally {
       // ✅ Always clear loading state immediately after login
-      console.log('🔄 Finally block: clearing loading state');
+      logger.log('🔄 Finally block: clearing loading state');
       setLoadingState(prev => ({
         ...prev,
         isLoading: false,
       }));
-      console.log('✅ Loading state cleared');
+      logger.log('✅ Loading state cleared');
     }
   };
 

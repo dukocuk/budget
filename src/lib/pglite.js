@@ -1,4 +1,5 @@
 import { PGlite } from '@electric-sql/pglite';
+import { logger } from '../utils/logger';
 
 // Create local PostgreSQL database in browser with IndexedDB persistence
 // Using IndexedDB ensures data persists and avoids filesystem bundle issues
@@ -136,13 +137,13 @@ export async function initLocalDB() {
       CREATE INDEX IF NOT EXISTS idx_expenses_frequency ON expenses(frequency);
     `);
 
-    console.log('✅ Local PGlite database initialized successfully');
-    console.log(
+    logger.log('✅ Local PGlite database initialized successfully');
+    logger.log(
       '  📦 Schema migrations applied: budget_period_id (003), templates (004), monthly_amounts (005)'
     );
     return true;
   } catch (error) {
-    console.error('❌ Error initializing local database:', error);
+    logger.error('❌ Error initializing local database:', error);
     throw error;
   }
 }
@@ -155,9 +156,9 @@ export async function clearLocalDB() {
     await localDB.exec('DROP TABLE IF EXISTS settings CASCADE');
     await localDB.exec('DROP TABLE IF EXISTS sync_metadata CASCADE');
     await initLocalDB();
-    console.log('✅ Local database cleared and reinitialized');
+    logger.log('✅ Local database cleared and reinitialized');
   } catch (error) {
-    console.error('❌ Error clearing local database:', error);
+    logger.error('❌ Error clearing local database:', error);
     throw error;
   }
 }
@@ -168,7 +169,7 @@ export async function clearLocalDB() {
  */
 export async function migrateToBudgetPeriods(userId) {
   try {
-    console.log('🔄 Starting local database migration to budget periods...');
+    logger.log('🔄 Starting local database migration to budget periods...');
 
     // Check if migration is needed (check if there are expenses without budget_period_id)
     const needsMigration = await localDB.query(
@@ -177,7 +178,7 @@ export async function migrateToBudgetPeriods(userId) {
     );
 
     if (needsMigration.rows[0].count === 0) {
-      console.log(
+      logger.log(
         '✅ Migration not needed - all expenses already linked to periods'
       );
       return true;
@@ -228,12 +229,12 @@ export async function migrateToBudgetPeriods(userId) {
       [actualPeriodId, userId]
     );
 
-    console.log(
+    logger.log(
       '✅ Local database migrated successfully to budget periods (2025)'
     );
     return true;
   } catch (error) {
-    console.error('❌ Error migrating local database:', error);
+    logger.error('❌ Error migrating local database:', error);
     throw error;
   }
 }

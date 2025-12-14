@@ -82,7 +82,7 @@ export async function initGoogleDrive(accessToken) {
     return true;
   } catch (error) {
     logger.error('❌ Error initializing Google Drive API:', error);
-    console.error('💥 Full error details:', {
+    logger.error('💥 Full error details:', {
       message: error.message,
       stack: error.stack,
       gapi: !!window.gapi,

@@ -1,25 +1,26 @@
 import { createRoot } from 'react-dom/client';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { initLocalDB } from './lib/pglite';
+import { logger } from './utils/logger';
 // import './index.css'
 import App from './App.jsx';
 
 // Initialize PGlite database before rendering app
 initLocalDB()
   .then(() => {
-    console.log('✅ Database ready, rendering app...');
+    logger.log('✅ Database ready, rendering app...');
 
     // Validate Google OAuth configuration
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     const apiKey = import.meta.env.VITE_GOOGLE_API_KEY;
 
     if (!clientId || !apiKey) {
-      console.error('❌ Missing Google OAuth configuration!');
-      console.error(
+      logger.error('❌ Missing Google OAuth configuration!');
+      logger.error(
         'VITE_GOOGLE_CLIENT_ID:',
         clientId ? '✅ Set' : '❌ Missing'
       );
-      console.error('VITE_GOOGLE_API_KEY:', apiKey ? '✅ Set' : '❌ Missing');
+      logger.error('VITE_GOOGLE_API_KEY:', apiKey ? '✅ Set' : '❌ Missing');
 
       createRoot(document.getElementById('root')).render(
         <div style={{ padding: '20px', textAlign: 'center' }}>
@@ -48,7 +49,7 @@ initLocalDB()
     );
   })
   .catch(error => {
-    console.error('❌ Failed to initialize database:', error);
+    logger.error('❌ Failed to initialize database:', error);
     // Still render app, but show error state
     createRoot(document.getElementById('root')).render(
       <div style={{ padding: '20px', textAlign: 'center' }}>

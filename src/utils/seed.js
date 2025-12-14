@@ -3,6 +3,8 @@
  * DO NOT use in production - this is for dev/testing only
  */
 
+import { log, warn } from './logger';
+
 /**
  * Sample test expenses for development and testing
  * These are minimal, simple expenses to verify functionality
@@ -68,32 +70,10 @@ export const SEED_EXPENSES = [
 export function loadSeedData() {
   // Environment check - only allow in development
   if (import.meta.env.PROD) {
-    console.warn('Seed data is disabled in production');
+    warn('Seed data is disabled in production');
     return [];
   }
 
-  console.log(
-    '📦 Loading seed data (dev only):',
-    SEED_EXPENSES.length,
-    'expenses'
-  );
+  log('📦 Loading seed data (dev only):', SEED_EXPENSES.length, 'expenses');
   return [...SEED_EXPENSES];
-}
-
-/**
- * Get a single seed expense by ID
- * @param {string} id - Expense ID
- * @returns {Object|undefined} Expense object or undefined if not found
- */
-export function getSeedExpense(id) {
-  return SEED_EXPENSES.find(expense => expense.id === id);
-}
-
-/**
- * Check if an expense is from seed data
- * @param {string} id - Expense ID
- * @returns {boolean} True if expense is from seed data
- */
-export function isSeedExpense(id) {
-  return id?.startsWith('seed-');
 }

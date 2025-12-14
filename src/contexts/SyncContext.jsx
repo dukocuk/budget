@@ -21,7 +21,7 @@ import {
   deleteOldBackups,
 } from '../lib/googleDrive';
 import { localDB } from '../lib/pglite';
-import { validateCloudData } from '../utils/validators';
+import { validateCloudData, validateDownloadedData } from '../utils/validators';
 import { logger } from '../utils/logger';
 import { SyncCoordinator } from '../lib/syncCoordinator';
 
@@ -648,7 +648,7 @@ export const SyncProvider = ({ user, children }) => {
    * Uses SyncCoordinator for centralized queue management
    */
   const syncSettings = useCallback(
-    (monthlyPayment, previousBalance, monthlyPayments) => {
+    (_monthlyPayment, _previousBalance, _monthlyPayments) => {
       if (!user || !isOnline) return;
 
       // Use coordinator for debounced sync
@@ -760,7 +760,7 @@ export const SyncProvider = ({ user, children }) => {
   );
 
   const immediateSyncSettings = useCallback(
-    async (monthlyPayment, previousBalance, monthlyPayments) => {
+    async (_monthlyPayment, _previousBalance, _monthlyPayments) => {
       if (!user) return;
 
       // Use coordinator for immediate sync

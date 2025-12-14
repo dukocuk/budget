@@ -29,8 +29,6 @@ export const FREQUENCY_LABELS = {
   [FREQUENCY_TYPES.YEARLY]: 'Årlig',
 };
 
-export const QUARTER_MONTHS = [1, 4, 7, 10];
-
 export const DEFAULT_EXPENSE = {
   name: 'Ny udgift',
   amount: 100,
@@ -53,8 +51,6 @@ export const ALERT_TYPES = {
 export const ALERT_DURATION = 3000;
 
 export const STORAGE_KEY = 'budgetData';
-
-export const INITIAL_EXPENSES = [];
 
 /**
  * Debounce delays for various operations (in milliseconds)
