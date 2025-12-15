@@ -3,7 +3,7 @@
 Personal budget tracker in Danish (da-DK) for managing fixed expenses in DKK. React SPA with offline-first PGlite storage and Google Drive sync.
 
 ## Tech Stack
-React 19.1.1 • Vite 7.1.7 • Vitest 3.0.4 • @testing-library/react • PGlite 0.3.10 • @react-oauth/google • Recharts 3.2.1
+React 19.1.1 • Vite 7.1.7 • Vitest 3.2.4 • @testing-library/react • PGlite 0.3.10 • @react-oauth/google • Recharts 3.2.1
 
 ## Commands
 ```bash
@@ -19,18 +19,25 @@ npm run lint         # ESLint
 
 **Offline-First Architecture**: PGlite (PostgreSQL in browser) as primary storage → Google Drive backup/sync
 **Multi-Year Budgets**: Budget periods with complete data isolation, archived years read-only
-**State Management**: Context-based architecture with 4 centralized providers (ExpenseProvider, BudgetPeriodProvider, ModalProvider, SyncContext)
+**State Management**: Context-based architecture with 6 centralized providers (ExpenseProvider, BudgetPeriodProvider, ModalProvider, SyncContext, AlertProvider, LoadingProvider)
 **Language**: Danish (da-DK), comma decimal separator (1.234,56)
 **Cloud Sync**: Automatic Google Drive sync (debounced 1s), 30s polling for multi-device
 
 ## Directory Structure
 ```
 src/
-├── components/  # 30+ UI components (Header, Dashboard, Modals, etc.)
-├── hooks/       # 10 custom hooks (useExpenses, useAuth, useBudgetPeriods, etc.)
+├── components/
+│   ├── cards/      # SummaryCards, MonthlyCard, ExpenseCard
+│   ├── charts/     # BalanceChart, YearComparisonCharts
+│   ├── common/     # Alert, ErrorBoundary, TabView, UnifiedLoadingScreen, etc.
+│   ├── core/       # Auth, Dashboard, Header, Layout
+│   ├── features/   # ExpenseManager, Settings, TemplateManager, MonthlyOverview
+│   ├── modals/     # All modal components
+│   └── tables/     # ExpensesTable, MonthlyView
+├── hooks/       # 20 custom hooks
 ├── utils/       # 10 utility modules (calculations, validators, localeHelpers, etc.)
 ├── lib/         # External integrations (pglite.js, googleDrive.js)
-└── contexts/    # 4 React contexts (ExpenseProvider, BudgetPeriodProvider, ModalProvider, SyncContext)
+└── contexts/    # 6 React contexts (.js) and providers (.jsx)
 ```
 
 ## Hook API Reference
@@ -42,24 +49,35 @@ src/
 | **useBudgetPeriods** | createPeriod(), archivePeriod(), calculateEndingBalance() | periods, activePeriod | Multi-year management |
 | **useSyncContext** | syncExpenses(), syncSettings(), loadExpenses() | syncStatus, lastSyncTime, isOnline | Centralized sync state |
 | **useExpenseFilters** | setSearchText(), setFrequencyFilter(), clearFilters() | filteredExpenses, hasActiveFilters | Search & filtering |
-| **useSettings** | updateSettings() | settings, loading | Settings with dual persistence |
-| **useAlert** | showAlert() | alert | Notification system |
+| **useAlertContext** | showAlert() | alert, hideAlert | Alert context consumer |
 | **useDebounce** | - | debouncedValue | Debounce utility |
 | **useOnlineStatus** | - | isOnline | Network detection |
 | **useViewportSize** | - | width, height | Responsive layout |
+| **useExpenseContext** | - | expenses, addExpense, updateExpense, deleteExpense | Expense context consumer |
+| **useBudgetPeriodContext** | - | periods, activePeriod, createPeriod | Budget period context consumer |
+| **useModal** | - | openModal, closeModal | Modal context consumer |
+| **useLoadingContext** | - | loading, loadingStage, progress | Loading state access |
+| **useDataInitialization** | initializeData() | isInitialized, error | Cloud data initialization |
+| **useDeleteConfirmation** | confirmDelete() | showConfirmation, handleDelete | Delete confirmation logic |
+| **useKeyboardShortcuts** | registerShortcut() | shortcuts | Keyboard shortcut management |
+| **useCSVOperations** | importCSV(), exportCSV() | isProcessing | CSV import/export |
+| **useYearManagement** | createYear(), archiveYear() | years | Multi-year operations |
+| **useSettingsHandlers** | handleChange() | handlers | Settings handlers |
 
 ## Centralized State Management
 
-The app uses a **context-based architecture** with 4 core providers for centralized state management:
+The app uses a **context-based architecture** with 6 core providers for centralized state management:
 
 ### Provider Hierarchy
 ```
 App (useAuth)
-└─ SyncProvider (user)
-   └─ BudgetPeriodProvider (userId)
-      └─ ModalProvider
-         └─ ExpenseProvider (userId, periodId)
-            └─ AppContent
+└─ LoadingProvider
+   └─ SyncProvider (user)
+      └─ BudgetPeriodProvider (userId)
+         └─ AlertProvider
+            └─ ModalProvider
+               └─ ExpenseProvider (userId, periodId)
+                  └─ AppContent
 ```
 
 ### Context Providers
@@ -70,6 +88,8 @@ App (useAuth)
 | **BudgetPeriodProvider** | periods, activePeriod, loading, error | useBudgetPeriodContext() | Multi-year budget management |
 | **ModalProvider** | Modal open/close states for all modals | useModal() | Centralized modal coordination |
 | **SyncContext** | syncStatus, lastSyncTime, isOnline | useSyncContext() | Cloud sync orchestration |
+| **AlertProvider** | alert, showAlert, hideAlert | useAlertContext() | Toast notification system |
+| **LoadingProvider** | loading, loadingStage, progress | useLoadingContext() | Unified loading state (auth→budget→data→complete) |
 
 ### Key Patterns
 
@@ -96,18 +116,39 @@ import { useExpenses } from '../hooks/useExpenses'; // Don't call directly!
 - **Centralize**: Cross-component state (expenses, periods, modals, sync)
 - **Keep Local**: Transient UI state (form inputs, search filters, debounced values)
 
+**4. Context/Provider Separation**
+- Contexts defined in `.js` files (ExpenseContext.js, BudgetPeriodContext.js, etc.)
+- Providers implemented in `.jsx` files (ExpenseProvider.jsx, BudgetPeriodProvider.jsx, etc.)
+- Separation enables React Fast Refresh for better dev experience
+
 ## Component Map
 
-### Core UI
-- **Header** - User info, sync status, year selector
+### Core (core/)
 - **Auth** - Google OAuth login screen
-- **Layout** - Main app layout with navigation
 - **Dashboard** - Charts, stats, summary cards
-- **ExpenseManager** - Expense table with inline editing
-- **MonthlyView** - 12-month breakdown table
-- **Settings** - Configuration and sync controls
+- **Header** - User info, sync status, year selector
+- **Layout** - Main app layout with navigation
 
-### Modals
+### Features (features/)
+- **ExpenseManager** - Expense table with inline editing
+- **Settings** - Configuration and sync controls
+- **TemplateManager** - Template CRUD
+- **MonthlyOverview** - Monthly totals view
+
+### Tables (tables/)
+- **ExpensesTable** - Filterable expense table
+- **MonthlyView** - 12-month breakdown table
+
+### Charts (charts/)
+- **BalanceChart** - Monthly balance visualization
+- **YearComparisonCharts** - Multi-year charts
+
+### Cards (cards/)
+- **SummaryCards** - 4 budget metric cards
+- **MonthlyCard** - Mobile monthly view card
+- **ExpenseCard** - Mobile expense card
+
+### Modals (modals/)
 - **AddExpenseModal** - Add/edit expense form
 - **CreateYearModal** - Create new budget year
 - **DeleteConfirmation** - Confirm delete operations
@@ -116,23 +157,17 @@ import { useExpenses } from '../hooks/useExpenses'; // Don't call directly!
 - **MonthlyAmountsModal** - Variable monthly payments
 - **SwitchToFixedModal** - Switch to fixed payments
 - **TemplateManagerModal** - Budget templates
+- **BackupManagerModal** - List, preview, restore backups
 
-### Supporting Components
+### Common (common/)
 - **Alert** - Toast notifications
 - **ErrorBoundary** - Error handling wrapper
 - **TabView** - Tabbed navigation
-- **SummaryCards** - 4 budget metric cards
-- **BalanceChart** - Monthly balance visualization
-- **ExpensesTable** - Filterable expense table
 - **YearSelector** - Year dropdown selector
 - **YearComparison** - Year-over-year comparison
-- **YearComparisonCharts** - Multi-year charts
-- **TemplateManager** - Template CRUD
-- **MonthlyCard** - Mobile monthly view card
-- **ExpenseCard** - Mobile expense card
 - **BottomSheet** - Mobile bottom sheet
 - **BottomTabBar** - Mobile navigation
-- **MonthlyOverview** - Monthly totals view
+- **UnifiedLoadingScreen** - Unified loading with progress stages
 
 ## Utils Reference
 
@@ -145,7 +180,7 @@ import { useExpenses } from '../hooks/useExpenses'; // Don't call directly!
 | **exportHelpers.js** | generateCSV(), downloadCSV() | CSV export (UTF-8 BOM) |
 | **yearComparison.js** | compareYears(), calculateYoY() | Year-over-year comparisons |
 | **logger.js** | log(), error(), warn() | Logging utility |
-| **uuid.js** | generateId(), isValidUUID() | UUID helpers for offline-first |
+| **uuid.js** | generateId() | UUID helpers for offline-first |
 | **constants.js** | MONTH_NAMES, FREQUENCIES | App constants |
 | **seed.js** | generateTestData() | Test seed data (dev only) |
 
@@ -205,7 +240,7 @@ npm run test:coverage   # Coverage report
 ## Quick Reference
 
 ### Stats
-- **Components**: 30+ | **Hooks**: 10 | **Utils**: 10
+- **Components**: 32 | **Hooks**: 20 | **Utils**: 10
 - **Tests**: 595+ passing | **Coverage**: Comprehensive
 - **Performance**: <50ms operations | **Console logs**: 22 strategic
 - **Build**: ~280KB (~85KB compressed)
@@ -231,6 +266,7 @@ npm run test:coverage   # Coverage report
 ## Extended Documentation
 
 For detailed information, see:
+- `PROJECT_INDEX.md` - Comprehensive project structure and component reference
 - `docs/ARCHITECTURE.md` - Full architecture, state management, sync mechanisms
 - `docs/MULTI_YEAR.md` - Complete multi-year workflows and best practices
 - `docs/COMPONENTS.md` - Detailed component documentation and UI patterns
