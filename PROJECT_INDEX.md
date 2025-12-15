@@ -1,9 +1,9 @@
 # Project Index: Budget Tracker
 
-**Generated:** 2025-12-14
+**Generated:** 2025-12-15
 **Type:** React SPA • Offline-First • Multi-Year Budget Management
 **Language:** Danish (da-DK)
-**Size:** 30+ components • 10+ hooks • 10 utils • 595+ tests
+**Size:** 32 components • 20 hooks • 10 utils • 595+ tests
 
 ---
 
@@ -12,8 +12,8 @@
 | Metric | Value |
 |--------|-------|
 | **Tech Stack** | React 19.1.1 • Vite 7.1.7 • PGlite 0.3.10 |
-| **Components** | 30+ React components with tests |
-| **Hooks** | 10+ custom hooks (useExpenses, useAuth, useBudgetPeriods) |
+| **Components** | 32 React components with tests |
+| **Hooks** | 20 custom hooks (useExpenses, useAuth, useBudgetPeriods, etc.) |
 | **Utilities** | 10 modules (calculations, validators, localeHelpers) |
 | **Tests** | 595+ passing tests (Vitest + @testing-library/react) |
 | **Build Size** | ~280KB (~85KB compressed) |
@@ -38,7 +38,7 @@
 ```
 budget/
 ├── src/
-│   ├── components/     # 30+ UI components
+│   ├── components/     # 32 UI components
 │   │   ├── Auth.jsx                    # Google OAuth login screen
 │   │   ├── Header.jsx                  # App header with sync status
 │   │   ├── Dashboard.jsx               # Main dashboard with charts
@@ -53,23 +53,40 @@ budget/
 │   │   ├── ErrorBoundary.jsx           # Error handling wrapper
 │   │   └── [20+ more components]
 │   │
-│   ├── hooks/          # 10+ custom React hooks
+│   ├── hooks/          # 20 custom React hooks
 │   │   ├── useExpenses.js              # Expense CRUD + undo/redo
 │   │   ├── useAuth.js                  # Google OAuth authentication
 │   │   ├── useBudgetPeriods.js         # Multi-year budget management
 │   │   ├── useSyncContext.js           # Centralized sync state
 │   │   ├── useExpenseFilters.js        # Search & filtering
-│   │   ├── useSettings.js              # Settings with dual persistence
-│   │   ├── useAlert.js                 # Notification system
+│   │   ├── useAlert.js                 # Alert hook
 │   │   ├── useDebounce.js              # Debounce utility
 │   │   ├── useOnlineStatus.js          # Network detection
-│   │   └── useViewportSize.js          # Responsive layout
+│   │   ├── useViewportSize.js          # Responsive layout
+│   │   ├── useExpenseContext.js        # Expense context consumer
+│   │   ├── useBudgetPeriodContext.js   # Budget period context consumer
+│   │   ├── useModal.js                 # Modal context consumer
+│   │   ├── useLoadingContext.js        # Loading state access
+│   │   ├── useAlertContext.js          # Alert context consumer
+│   │   ├── useDataInitialization.js    # Cloud data initialization
+│   │   ├── useDeleteConfirmation.js    # Delete confirmation logic
+│   │   ├── useKeyboardShortcuts.js     # Keyboard shortcut management
+│   │   ├── useCSVOperations.js         # CSV import/export
+│   │   ├── useYearManagement.js        # Multi-year operations
+│   │   └── useSettingsHandlers.js      # Settings handlers
 │   │
-│   ├── contexts/       # 4 centralized state providers
+│   ├── contexts/       # 6 contexts + 6 providers
+│   │   ├── ExpenseContext.js           # Expense context definition
 │   │   ├── ExpenseProvider.jsx         # Expense state + CRUD operations
+│   │   ├── BudgetPeriodContext.js      # Budget period context definition
 │   │   ├── BudgetPeriodProvider.jsx    # Multi-year budget management
+│   │   ├── ModalContext.js             # Modal context definition
 │   │   ├── ModalProvider.jsx           # Centralized modal coordination
-│   │   └── SyncContext.jsx             # Cloud sync orchestration
+│   │   ├── SyncContext.jsx             # Cloud sync orchestration (context + provider)
+│   │   ├── AlertContext.js             # Alert context definition
+│   │   ├── AlertProvider.jsx           # Toast notification provider
+│   │   ├── LoadingContext.js           # Loading context definition
+│   │   └── LoadingProvider.jsx         # Unified loading state provider
 │   │
 │   ├── utils/          # 10 utility modules
 │   │   ├── calculations.js             # Budget calculations (8 functions)
@@ -117,21 +134,27 @@ budget/
 **Provider Hierarchy:**
 ```
 App (useAuth)
-└─ SyncProvider (user)
-   └─ BudgetPeriodProvider (userId)
-      └─ ModalProvider
-         └─ ExpenseProvider (userId, periodId)
-            └─ AppContent
+└─ LoadingProvider
+   └─ SyncProvider (user)
+      └─ BudgetPeriodProvider (userId)
+         └─ AlertProvider
+            └─ ModalProvider
+               └─ ExpenseProvider (userId, periodId)
+                  └─ AppContent
 ```
 
-**4 Core Contexts:**
+**6 Core Contexts:**
 
-| Context | Consumer Hook | Manages | Key Methods |
-|---------|---------------|---------|-------------|
-| **ExpenseProvider** | useExpenseContext() | expenses, selectedExpenses, undo/redo | addExpense(), updateExpense(), deleteExpense(), undo(), redo() |
-| **BudgetPeriodProvider** | useBudgetPeriodContext() | periods, activePeriod | createPeriod(), archivePeriod(), calculateEndingBalance() |
-| **ModalProvider** | useModal() | Modal open/close states | openModal(), closeModal() |
-| **SyncContext** | useSyncContext() | syncStatus, lastSyncTime, isOnline | syncExpenses(), syncSettings(), loadExpenses() |
+| Context | Context File | Consumer Hook | Manages | Key Methods |
+|---------|-------------|---------------|---------|-------------|
+| **ExpenseProvider** | ExpenseContext.js | useExpenseContext() | expenses, selectedExpenses, undo/redo | addExpense(), updateExpense(), deleteExpense(), undo(), redo() |
+| **BudgetPeriodProvider** | BudgetPeriodContext.js | useBudgetPeriodContext() | periods, activePeriod | createPeriod(), archivePeriod(), calculateEndingBalance() |
+| **ModalProvider** | ModalContext.js | useModal() | Modal open/close states | openModal(), closeModal() |
+| **SyncContext** | SyncContext.jsx | useSyncContext() | syncStatus, lastSyncTime, isOnline | syncExpenses(), syncSettings(), loadExpenses() |
+| **AlertProvider** | AlertContext.js | useAlertContext() | alert, showAlert, hideAlert | showAlert(), hideAlert() |
+| **LoadingProvider** | LoadingContext.js | useLoadingContext() | loading, loadingStage, progress | Unified loading state (auth→budget→data→complete) |
+
+**Context Pattern:** Contexts defined in `.js` files, Providers implemented in `.jsx` files (enables React Fast Refresh)
 
 ### Offline-First Data Flow
 
@@ -147,6 +170,33 @@ User Action → PGlite (instant) → Debounce (1s) → Google Drive → Poll (30
 - Multi-device polling every 30s
 - Full offline functionality
 - Conflict resolution: last-write-wins
+
+---
+
+## 🎣 Complete Hooks Reference (20 Total)
+
+| Hook | Returns | Purpose | Used By |
+|------|---------|---------|---------|
+| **useAuth** | user, loading, error, signInWithGoogle(), signOut() | Google OAuth authentication | App, Header, Auth |
+| **useExpenses** | expenses, addExpense(), updateExpense(), deleteExpense(), undo(), redo() | Expense CRUD + undo/redo + sync | ExpenseProvider (internal) |
+| **useBudgetPeriods** | periods, activePeriod, createPeriod(), archivePeriod() | Multi-year budget management | BudgetPeriodProvider (internal) |
+| **useSyncContext** | syncStatus, lastSyncTime, isOnline, syncExpenses(), loadExpenses() | Cloud sync state consumer | Header, Settings, ExpenseProvider |
+| **useExpenseFilters** | filteredExpenses, setSearchText(), setFrequencyFilter(), clearFilters() | Search & filtering logic | ExpenseManager, ExpensesTable |
+| **useAlertContext** | alert, showAlert(), hideAlert() | Alert context consumer | All components needing notifications |
+| **useDebounce** | debouncedValue | Debounce utility (1s delay) | SyncContext, search inputs |
+| **useOnlineStatus** | isOnline | Network status detection | Header, SyncContext |
+| **useViewportSize** | width, height | Responsive layout breakpoints | Layout, responsive components |
+| **useExpenseContext** | expenses, addExpense(), updateExpense(), deleteExpense() | Expense context consumer | ExpenseManager, Dashboard, MonthlyView |
+| **useBudgetPeriodContext** | periods, activePeriod, createPeriod() | Budget period context consumer | Header, CreateYearModal, YearSelector |
+| **useModal** | openModal(), closeModal() | Modal context consumer | All components with modals |
+| **useLoadingContext** | loading, loadingStage, progress | Loading state access | App, UnifiedLoadingScreen |
+| **useDataInitialization** | initializeData(), isInitialized, error | Cloud data initialization | App (on auth success) |
+| **useDeleteConfirmation** | confirmDelete(), showConfirmation, handleDelete() | Delete confirmation logic | ExpenseManager, ExpensesTable |
+| **useKeyboardShortcuts** | registerShortcut(), shortcuts | Keyboard shortcut management (Ctrl+N, Ctrl+Z) | App (global shortcuts) |
+| **useCSVOperations** | importCSV(), exportCSV(), isProcessing | CSV import/export operations | Settings, ExpenseManager |
+| **useYearManagement** | createYear(), archiveYear(), years | Multi-year budget operations | Header, CreateYearModal |
+| **useSettingsHandlers** | handleChange(), handlers | Settings form handlers | SettingsModal |
+| **useAlert** | showAlert() | Alert hook (alternative to useAlertContext) | Legacy components |
 
 ---
 
