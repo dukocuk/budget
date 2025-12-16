@@ -139,11 +139,22 @@ const ExpensesTabContent = memo(
               setMonthlyAmountsModal({ isOpen: false, expense: null })
             }
             onSave={async monthlyAmounts => {
-              await updateExpense(monthlyAmountsModal.expense.id, {
-                monthlyAmounts,
-              });
-              setMonthlyAmountsModal({ isOpen: false, expense: null });
-              showAlert('✅ Variable beløb opdateret', 'success');
+              // Handle switch to fixed amount
+              if (monthlyAmounts?.type === 'switch-to-fixed') {
+                await updateExpense(monthlyAmountsModal.expense.id, {
+                  monthlyAmounts: null, // Clear variable amounts
+                  amount: monthlyAmounts.amount, // Set new fixed amount
+                });
+                setMonthlyAmountsModal({ isOpen: false, expense: null });
+                showAlert('✅ Skiftet til fast beløb', 'success');
+              } else {
+                // Normal variable amounts save
+                await updateExpense(monthlyAmountsModal.expense.id, {
+                  monthlyAmounts,
+                });
+                setMonthlyAmountsModal({ isOpen: false, expense: null });
+                showAlert('✅ Variable beløb opdateret', 'success');
+              }
             }}
           />
         )}

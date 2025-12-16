@@ -59,18 +59,51 @@ export const Settings = ({
   const [showModeConfirmation, setShowModeConfirmation] = useState(false);
   const [pendingMode, setPendingMode] = useState(null);
 
+  // Refs to check actual DOM focus state (prevents polling overwrites)
+  const monthlyPaymentRef = useRef(null);
+  const previousBalanceRef = useRef(null);
+  const monthlyPaymentsRefs = useRef([]);
+
   // Sync local state when props change (e.g., loaded from cloud)
   useEffect(() => {
+    // Don't overwrite if this input is currently focused
+    if (document.activeElement === monthlyPaymentRef.current) {
+      return;
+    }
     setLocalMonthlyPayment(monthlyPayment);
   }, [monthlyPayment]);
 
   useEffect(() => {
+    // Don't overwrite if this input is currently focused
+    if (document.activeElement === previousBalanceRef.current) {
+      return;
+    }
     setLocalPreviousBalance(previousBalance);
   }, [previousBalance]);
 
   useEffect(() => {
-    setLocalMonthlyPayments(monthlyPayments || Array(12).fill(monthlyPayment));
-  }, [monthlyPayments, monthlyPayment]);
+    if (monthlyPayments) {
+      // Don't overwrite if ANY month input is currently focused
+      const isEditingAnyMonth = monthlyPaymentsRefs.current.some(
+        ref => document.activeElement === ref
+      );
+      if (isEditingAnyMonth) {
+        return;
+      }
+
+      // Variable mode: use the monthly payments array
+      // Only update if values actually changed (prevent race condition from database reload)
+      const valuesChanged =
+        JSON.stringify(monthlyPayments) !==
+        JSON.stringify(localMonthlyPayments);
+      if (valuesChanged) {
+        setLocalMonthlyPayments(monthlyPayments);
+      }
+    } else if (localPaymentMode === 'fixed' && !monthlyPayments) {
+      // Fixed mode: initialize with fixed amount
+      setLocalMonthlyPayments(Array(12).fill(monthlyPayment));
+    }
+  }, [monthlyPayments, monthlyPayment, localPaymentMode]);
 
   useEffect(() => {
     setLocalPaymentMode(useVariablePayments ? 'variable' : 'fixed');
@@ -335,6 +368,7 @@ export const Settings = ({
               {localPaymentMode === 'fixed' && (
                 <div className="fixed-payment-input">
                   <input
+                    ref={monthlyPaymentRef}
                     type="text"
                     id="monthlyPayment"
                     value={localMonthlyPayment}
@@ -390,6 +424,7 @@ export const Settings = ({
                     <div key={month} className="month-payment-item">
                       <label htmlFor={`month-${index}`}>{month}</label>
                       <input
+                        ref={el => (monthlyPaymentsRefs.current[index] = el)}
                         type="text"
                         id={`month-${index}`}
                         value={localMonthlyPayments[index]}
@@ -410,6 +445,7 @@ export const Settings = ({
           <div className="settings-item">
             <label htmlFor="previousBalance">Overført fra sidste år:</label>
             <input
+              ref={previousBalanceRef}
               type="text"
               id="previousBalance"
               value={localPreviousBalance}

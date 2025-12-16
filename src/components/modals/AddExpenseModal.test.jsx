@@ -147,7 +147,7 @@ describe('AddExpenseModal', () => {
       fireEvent.change(amountInput, { target: { value: '-100' } });
 
       expect(
-        screen.getByText('Beløbet skal være mindst 0 kr.')
+        screen.getByText('Beløbet skal være mindst 1 kr.')
       ).toBeInTheDocument();
     });
 
@@ -166,25 +166,25 @@ describe('AddExpenseModal', () => {
       expect(mockOnAdd).not.toHaveBeenCalled();
     });
 
-    it('should accept zero as valid amount', () => {
+    it('should show error for zero amount', () => {
       render(<AddExpenseModal {...defaultProps} />);
 
       const amountInput = screen.getByLabelText(/Beløb/);
       fireEvent.change(amountInput, { target: { value: '0' } });
 
       expect(
-        screen.queryByText('Beløbet skal være mindst 0 kr.')
-      ).not.toBeInTheDocument();
+        screen.getByText('Beløbet skal være mindst 1 kr.')
+      ).toBeInTheDocument();
     });
 
-    it('should accept decimal amounts', () => {
+    it('should accept decimal amounts >= 1', () => {
       render(<AddExpenseModal {...defaultProps} />);
 
       const amountInput = screen.getByLabelText(/Beløb/);
       fireEvent.change(amountInput, { target: { value: '99.99' } });
 
       expect(
-        screen.queryByText('Beløbet skal være mindst 0 kr.')
+        screen.queryByText('Beløbet skal være mindst 1 kr.')
       ).not.toBeInTheDocument();
     });
   });

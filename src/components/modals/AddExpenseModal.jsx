@@ -113,8 +113,8 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd, editingExpense }) => {
 
       // Only show error if value is invalid and not empty
       const parsedValue = parseDanishNumber(value);
-      if (value !== '' && parsedValue < 0) {
-        setErrors({ ...errors, amount: 'Beløbet skal være mindst 0 kr.' });
+      if (value !== '' && parsedValue < 1) {
+        setErrors({ ...errors, amount: 'Beløbet skal være mindst 1 kr.' });
       } else {
         // Remove amount error if it exists
         const newErrors = { ...errors };
@@ -163,8 +163,8 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd, editingExpense }) => {
     }
 
     const amount = parseDanishNumber(formData.amount);
-    if (formData.amount === '' || amount < 0) {
-      newErrors.amount = 'Beløbet skal være mindst 0 kr.';
+    if (formData.amount === '' || amount < 1) {
+      newErrors.amount = 'Beløbet skal være mindst 1 kr.';
     }
 
     setErrors(newErrors);
@@ -180,7 +180,7 @@ export const AddExpenseModal = ({ isOpen, onClose, onAdd, editingExpense }) => {
       const submissionData = {
         ...formData,
         amount:
-          paymentMode === 'fixed' ? parseDanishNumber(formData.amount) || 0 : 0,
+          paymentMode === 'fixed' ? parseDanishNumber(formData.amount) || 0 : 1, // Use 1 as placeholder for variable mode (DB constraint requires amount > 0)
         monthlyAmounts: paymentMode === 'variable' ? monthlyAmounts : null,
       };
 

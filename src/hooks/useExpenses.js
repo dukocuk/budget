@@ -376,7 +376,7 @@ export const useExpenses = (userId, periodId) => {
         }
         if (updates.amount !== undefined) {
           updateFields.push(`amount = $${paramIndex++}`);
-          values.push(Math.max(0, parseFloat(updates.amount) || 0));
+          values.push(Math.max(1, parseFloat(updates.amount) || 1)); // Enforce minimum of 1 (DB constraint: amount > 0)
         }
         if (updates.frequency !== undefined) {
           updateFields.push(`frequency = $${paramIndex++}`);

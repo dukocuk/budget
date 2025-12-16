@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Modal from 'react-modal';
 import { MONTHS } from '../../utils/constants';
 import {
   parseDanishNumber,
   formatDanishNumber,
 } from '../../utils/localeHelpers';
+import { calculateAnnualAmount } from '../../utils/calculations';
 import { SwitchToFixedModal } from './SwitchToFixedModal';
 import './MonthlyAmountsModal.css';
 
@@ -113,8 +114,17 @@ export const MonthlyAmountsModal = ({ isOpen, expense, onClose, onSave }) => {
     setShowSwitchModal(false);
   };
 
-  // Calculate total
-  const total = amounts.reduce((sum, amt) => sum + parseDanishNumber(amt), 0);
+  // Calculate total using same logic as expense table (respects frequency + date range)
+  const total = useMemo(() => {
+    if (!expense) return 0;
+
+    // Create temporary expense object with current monthly amounts
+    const tempExpense = {
+      ...expense,
+      monthlyAmounts: amounts.map(amt => parseDanishNumber(amt) || 0),
+    };
+    return calculateAnnualAmount(tempExpense);
+  }, [amounts, expense]);
 
   const formContent = (
     <div className="monthly-amounts-form">

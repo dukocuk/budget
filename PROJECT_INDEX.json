@@ -3,16 +3,20 @@
     "name": "Budget Tracker",
     "type": "React SPA",
     "language": "Danish (da-DK)",
-    "generated": "2025-12-14",
+    "generated": "2025-12-15",
+    "version": "1.0.0",
     "description": "Offline-first budget tracking application for managing fixed expenses in DKK with cloud sync"
   },
   "stats": {
-    "components": 30,
-    "hooks": 10,
+    "components": 32,
+    "hooks": 20,
     "utils": 10,
-    "tests": 595,
-    "buildSize": "280KB",
-    "buildSizeCompressed": "85KB",
+    "contexts": 6,
+    "tests": "595+",
+    "testFiles": 33,
+    "linesOfCode": "8000+",
+    "buildSize": "~280KB",
+    "buildSizeCompressed": "~85KB",
     "performance": "<50ms operations"
   },
   "techStack": {
@@ -109,31 +113,51 @@
   "contexts": [
     {
       "name": "ExpenseProvider",
-      "path": "src/contexts/ExpenseProvider.jsx",
+      "contextFile": "ExpenseContext.js",
+      "providerFile": "ExpenseProvider.jsx",
       "consumerHook": "useExpenseContext()",
       "manages": ["expenses", "selectedExpenses", "undo/redo"],
       "keyMethods": ["addExpense()", "updateExpense()", "deleteExpense()", "undo()", "redo()"]
     },
     {
       "name": "BudgetPeriodProvider",
-      "path": "src/contexts/BudgetPeriodProvider.jsx",
+      "contextFile": "BudgetPeriodContext.js",
+      "providerFile": "BudgetPeriodProvider.jsx",
       "consumerHook": "useBudgetPeriodContext()",
       "manages": ["periods", "activePeriod"],
       "keyMethods": ["createPeriod()", "archivePeriod()", "calculateEndingBalance()"]
     },
     {
       "name": "ModalProvider",
-      "path": "src/contexts/ModalProvider.jsx",
+      "contextFile": "ModalContext.js",
+      "providerFile": "ModalProvider.jsx",
       "consumerHook": "useModal()",
       "manages": ["Modal open/close states"],
       "keyMethods": ["openModal()", "closeModal()"]
     },
     {
       "name": "SyncContext",
-      "path": "src/contexts/SyncContext.jsx",
+      "contextFile": "SyncContext.jsx",
+      "providerFile": "SyncContext.jsx",
       "consumerHook": "useSyncContext()",
       "manages": ["syncStatus", "lastSyncTime", "isOnline"],
       "keyMethods": ["syncExpenses()", "syncSettings()", "loadExpenses()"]
+    },
+    {
+      "name": "AlertProvider",
+      "contextFile": "AlertContext.js",
+      "providerFile": "AlertProvider.jsx",
+      "consumerHook": "useAlertContext()",
+      "manages": ["alert", "showAlert", "hideAlert"],
+      "keyMethods": ["showAlert()", "hideAlert()"]
+    },
+    {
+      "name": "LoadingProvider",
+      "contextFile": "LoadingContext.js",
+      "providerFile": "LoadingProvider.jsx",
+      "consumerHook": "useLoadingContext()",
+      "manages": ["loading", "loadingStage", "progress"],
+      "keyMethods": ["setLoadingStage()"]
     }
   ],
   "components": {
@@ -180,15 +204,20 @@
     "useBudgetPeriods",
     "useSyncContext",
     "useExpenseFilters",
-    "useSettings",
     "useAlert",
+    "useAlertContext",
     "useDebounce",
     "useOnlineStatus",
     "useViewportSize",
+    "useExpenseContext",
+    "useBudgetPeriodContext",
+    "useModal",
+    "useLoadingContext",
+    "useDataInitialization",
+    "useDeleteConfirmation",
     "useKeyboardShortcuts",
     "useCSVOperations",
     "useYearManagement",
-    "useDeleteConfirmation",
     "useSettingsHandlers"
   ],
   "utils": [
@@ -278,5 +307,26 @@
     "syncStrategy": "Offline-first with last-write-wins",
     "undoRedo": "50-action history stack",
     "multiYear": "Isolated budget periods with balance carryover"
-  }
+  },
+  "tokenEfficiency": {
+    "fullCodebaseScan": "58000 tokens",
+    "indexRead": "3000 tokens",
+    "reduction": "94%",
+    "tokensSaved": "55000 per session",
+    "roi": {
+      "10sessions": "550000 tokens",
+      "100sessions": "5500000 tokens"
+    },
+    "breakEvenPoint": "1 session"
+  },
+  "providerHierarchy": [
+    "App (useAuth)",
+    "└─ LoadingProvider",
+    "   └─ SyncProvider (user)",
+    "      └─ BudgetPeriodProvider (userId)",
+    "         └─ AlertProvider",
+    "            └─ ModalProvider",
+    "               └─ ExpenseProvider (userId, periodId)",
+    "                  └─ AppContent"
+  ]
 }
