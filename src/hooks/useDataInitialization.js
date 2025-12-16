@@ -36,7 +36,7 @@ export function useDataInitialization({
   showAlert,
   isInitialLoadRef,
 }) {
-  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   useEffect(() => {
     if (user && activePeriod && !isInitialized) {

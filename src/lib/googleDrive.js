@@ -337,12 +337,12 @@ export async function downloadBudgetData() {
     const validation = validateDownloadedData(data);
     if (!validation.valid) {
       logger.error('❌ Downloaded data validation failed:', validation.errors);
-      validation.errors.forEach(error => logger.warn(error));
+      throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
+    }
 
-      // Return data anyway but log warnings (allow app to handle gracefully)
-      logger.warn(
-        '⚠️ Proceeding with potentially invalid data - check console for details'
-      );
+    // Log warnings but continue (data has been cleaned)
+    if (validation.warnings?.length > 0) {
+      validation.warnings.forEach(warning => logger.log(warning));
     }
 
     return {

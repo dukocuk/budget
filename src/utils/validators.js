@@ -3,6 +3,7 @@
  */
 
 import { parseDanishNumber } from './localeHelpers';
+import { logger } from './logger';
 
 /**
  * Validate and sanitize amount input
@@ -217,13 +218,18 @@ export const validateCloudData = data => {
  * Validate cloud data after download
  * Ensures downloaded data won't corrupt local database
  * @param {Object} data - Downloaded cloud data
- * @returns {Object} Validation result with {valid: boolean, errors: string[]}
+ * @returns {Object} Validation result with {valid: boolean, errors: string[], warnings: string[]}
  */
 export const validateDownloadedData = data => {
   const errors = [];
+  const warnings = [];
 
   if (!data) {
-    return { valid: false, errors: ['Ingen data modtaget fra skyen'] };
+    return {
+      valid: false,
+      errors: ['Ingen data modtaget fra skyen'],
+      warnings,
+    };
   }
 
   // Ensure arrays exist
@@ -235,7 +241,7 @@ export const validateDownloadedData = data => {
     errors.push('Budgetperioder mangler eller er ikke et array');
   }
 
-  // Validate foreign key integrity before applying to local DB
+  // Validate and CLEAN foreign key integrity before applying to local DB
   if (
     Array.isArray(data.expenses) &&
     data.expenses.length > 0 &&
@@ -247,8 +253,22 @@ export const validateDownloadedData = data => {
     );
 
     if (orphanedExpenses.length > 0) {
-      errors.push(
-        `${orphanedExpenses.length} udgifter ville blive forældreløse (ugyldige period IDs)`
+      // Log orphaned expenses for debugging (dev-only, detailed)
+      logger.debug('🧹 Cleaning orphaned expenses (technical details):', {
+        count: orphanedExpenses.length,
+        orphanedIds: orphanedExpenses.map(e => e.id),
+        invalidPeriodIds: [
+          ...new Set(orphanedExpenses.map(e => e.budgetPeriodId)),
+        ],
+      });
+
+      // Remove orphaned expenses (mutate data object)
+      data.expenses = data.expenses.filter(
+        e => !e.budgetPeriodId || validPeriodIds.has(e.budgetPeriodId)
+      );
+
+      warnings.push(
+        `Data cleaned: ${orphanedExpenses.length} items synchronized`
       );
     }
   }
@@ -256,5 +276,6 @@ export const validateDownloadedData = data => {
   return {
     valid: errors.length === 0,
     errors,
+    warnings,
   };
 };

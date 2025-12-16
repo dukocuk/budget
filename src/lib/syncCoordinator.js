@@ -54,6 +54,21 @@ export class SyncCoordinator {
       () => this.processQueue(),
       SYNC_DEBOUNCE_DELAY
     );
+    // ✅ Phase 2: Track processed operations to prevent Strict Mode duplicates
+    this.processedOperations = new Set();
+    this.cleanupTimer = null;
+  }
+
+  /**
+   * Create simple operation ID for deduplication
+   * @param {Function} operation - Operation function
+   * @returns {string} Operation ID
+   */
+  _createOperationId(operation) {
+    // Use function string representation + timestamp bucket (100ms) for ID
+    const funcStr = operation.toString().slice(0, 100);
+    const timeBucket = Math.floor(Date.now() / 100);
+    return `${funcStr}_${timeBucket}`;
   }
 
   /**
@@ -63,21 +78,35 @@ export class SyncCoordinator {
    * @returns {Promise<void>}
    */
   enqueue(operation, immediate = false) {
+    // ✅ Phase 2: Deduplication - Skip if recently processed
+    const opId = this._createOperationId(operation);
+
+    if (this.processedOperations.has(opId) && !immediate) {
+      logger.log(
+        '⏭️ Skipping duplicate sync operation (Strict Mode protection)'
+      );
+      return Promise.resolve();
+    }
+
     if (immediate) {
-      return this.executeImmediate(operation);
+      return this.executeImmediate(operation, opId);
     }
 
     // Add to queue and debounce
-    this.queue.push(operation);
+    this.queue.push({ operation, opId });
     this.debouncedProcess();
+
+    // ✅ Schedule cleanup of processed operations (prevent memory leak)
+    this._scheduleCleanup();
   }
 
   /**
    * Execute operation immediately (bypasses queue and debounce)
    * @param {Function} operation - Async function to execute
+   * @param {string} opId - Operation ID for deduplication tracking
    * @returns {Promise<void>}
    */
-  async executeImmediate(operation) {
+  async executeImmediate(operation, opId) {
     if (this.syncing) {
       logger.log('⏳ Sync already in progress, queuing immediate operation...');
       // Wait for current sync to finish, then execute
@@ -95,6 +124,8 @@ export class SyncCoordinator {
     try {
       logger.log('⚡ Executing immediate sync...');
       await operation();
+      // ✅ Mark operation as processed
+      this.processedOperations.add(opId);
       logger.log('✅ Immediate sync completed');
     } catch (error) {
       logger.error('❌ Immediate sync failed:', error);
@@ -121,9 +152,13 @@ export class SyncCoordinator {
     try {
       logger.log(`🔄 Processing sync queue (${batch.length} operations)...`);
 
-      // Execute all operations in parallel (they all call the same sync endpoint anyway)
-      // The SyncContext will handle merging and uploading complete data
-      await Promise.all(batch.map(op => op()));
+      // ✅ Execute operations and mark as processed
+      await Promise.all(
+        batch.map(async ({ operation, opId }) => {
+          await operation();
+          this.processedOperations.add(opId);
+        })
+      );
 
       logger.log('✅ Queue processed successfully');
     } catch (error) {
@@ -135,6 +170,26 @@ export class SyncCoordinator {
   }
 
   /**
+   * Schedule cleanup of processed operations Set
+   * Prevents memory leak by clearing old operation IDs after 5 seconds
+   */
+  _scheduleCleanup() {
+    // Only schedule one cleanup timer at a time
+    if (this.cleanupTimer) {
+      return;
+    }
+
+    this.cleanupTimer = setTimeout(() => {
+      const size = this.processedOperations.size;
+      this.processedOperations.clear();
+      this.cleanupTimer = null;
+      if (size > 0) {
+        logger.log(`🧹 Cleared ${size} processed operation IDs from memory`);
+      }
+    }, 5000);
+  }
+
+  /**
    * Check if sync is currently in progress
    * @returns {boolean}
    */
@@ -143,11 +198,16 @@ export class SyncCoordinator {
   }
 
   /**
-   * Clear all queued operations
+   * Clear all queued operations and processed operation tracking
    */
   clearQueue() {
     this.queue = [];
-    logger.log('🧹 Sync queue cleared');
+    this.processedOperations.clear();
+    if (this.cleanupTimer) {
+      clearTimeout(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
+    logger.log('🧹 Sync queue and operation history cleared');
   }
 
   /**

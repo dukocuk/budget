@@ -11,6 +11,12 @@ import { logger } from '../utils/logger';
 
 const STORAGE_KEY = 'google_auth_session';
 
+// Module-level singleton for token refresh timer (prevents Strict Mode duplication)
+let globalTokenRefreshTimer = null;
+
+// ✅ Phase 3: Module-level singleton for session initialization guard (prevents Strict Mode duplication)
+let globalSessionInitialized = false;
+
 /**
  * Hook for managing user authentication with Google
  *
@@ -117,6 +123,17 @@ export function useAuth() {
   // Check for existing session on mount
   useEffect(() => {
     const loadSession = async () => {
+      // ✅ Phase 3: Module-level guard (shared across all hook instances)
+      if (globalSessionInitialized) {
+        logger.log(
+          '⏭️ Skipping duplicate session load (Strict Mode protection)'
+        );
+        return;
+      }
+
+      // Mark as initialized at module level (persists across ALL instances)
+      globalSessionInitialized = true;
+
       try {
         const savedSession = localStorage.getItem(STORAGE_KEY);
 
@@ -476,13 +493,22 @@ export function useAuth() {
   };
 
   // Background token refresh timer - refreshes 5 minutes before expiration
+  // ✅ Uses singleton pattern to prevent Strict Mode duplication
   useEffect(() => {
     if (!user) return;
+
+    // ✅ Singleton Guard: Only create ONE global timer
+    if (globalTokenRefreshTimer) {
+      logger.log(
+        '⏭️ Token refresh timer already running (Strict Mode protection)'
+      );
+      return;
+    }
 
     logger.log('🕐 Starting background token refresh timer');
 
     // Check token expiration every minute
-    const checkTokenExpiry = setInterval(() => {
+    globalTokenRefreshTimer = setInterval(() => {
       const savedSession = localStorage.getItem(STORAGE_KEY);
       if (savedSession) {
         const session = JSON.parse(savedSession);
@@ -502,8 +528,11 @@ export function useAuth() {
     }, 60000); // Check every minute
 
     return () => {
-      logger.log('🛑 Stopping background token refresh timer');
-      clearInterval(checkTokenExpiry);
+      if (globalTokenRefreshTimer) {
+        logger.log('🛑 Stopping background token refresh timer');
+        clearInterval(globalTokenRefreshTimer);
+        globalTokenRefreshTimer = null;
+      }
     };
   }, [user]);
 

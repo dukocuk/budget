@@ -31,6 +31,10 @@ export const SyncContext = createContext(null);
 const SYNC_DEBOUNCE_DELAY = 1000; // 1 second
 const POLLING_INTERVAL = 30000; // 30 seconds
 
+// Module-level flags to prevent duplicate initialization in Strict Mode
+let pollingInitialized = false;
+let onlineListenersRegistered = false;
+
 /**
  * SyncProvider - Manages Google Drive sync state
  * @param {Object} props - Component props
@@ -151,7 +155,18 @@ export const SyncProvider = ({ user, children }) => {
   }, []);
 
   // Monitor online/offline status
+  // ✅ Uses module-level flag to prevent Strict Mode duplication
   useEffect(() => {
+    // ✅ Strict Mode Guard: Only register listeners once
+    if (onlineListenersRegistered) {
+      logger.log(
+        '⏭️ Online/offline listeners already registered (Strict Mode protection)'
+      );
+      return;
+    }
+
+    onlineListenersRegistered = true;
+
     const handleOnline = () => {
       setIsOnline(true);
       updateSyncStatus('idle');
@@ -170,6 +185,7 @@ export const SyncProvider = ({ user, children }) => {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      onlineListenersRegistered = false;
     };
   }, [updateSyncStatus]);
 
@@ -297,8 +313,11 @@ export const SyncProvider = ({ user, children }) => {
             lastModified: data.lastModified,
           });
 
-          // 💾 Save downloaded data to PGlite for persistence (BATCH INSERT)
+          // 💾 Save downloaded data to PGlite for persistence (BATCH INSERT with TRANSACTION)
           try {
+            // ✅ Phase 2: Wrap batch operations in transaction for atomicity and performance
+            await localDB.query('BEGIN');
+
             // 1. Batch save budget periods to PGlite
             if (data.budgetPeriods?.length > 0) {
               const periods = data.budgetPeriods;
@@ -395,7 +414,19 @@ export const SyncProvider = ({ user, children }) => {
                 count: expenses.length,
               });
             }
+
+            // ✅ Phase 2: Commit transaction
+            await localDB.query('COMMIT');
+            logger.log('✅ Database transaction committed successfully');
           } catch (dbError) {
+            // ✅ Phase 2: Rollback on error
+            try {
+              await localDB.query('ROLLBACK');
+              logger.warn('⏮️ Database transaction rolled back due to error');
+            } catch (rollbackError) {
+              logger.error('❌ Rollback failed:', rollbackError);
+            }
+
             // Log error but continue - data will still be in React state for this session
             logger.error(
               '⚠️ Failed to save to PGlite (data still in memory):',
@@ -456,8 +487,11 @@ export const SyncProvider = ({ user, children }) => {
             periods: data.budgetPeriods?.length || 0,
           });
 
-          // 💾 Save downloaded updates to PGlite for persistence (BATCH INSERT)
+          // 💾 Save downloaded updates to PGlite for persistence (BATCH INSERT with TRANSACTION)
           try {
+            // ✅ Phase 2: Wrap batch operations in transaction
+            await localDB.query('BEGIN');
+
             // 1. Batch save budget periods to PGlite
             if (data.budgetPeriods?.length > 0) {
               const periods = data.budgetPeriods;
@@ -491,7 +525,7 @@ export const SyncProvider = ({ user, children }) => {
               await localDB.query(
                 `INSERT INTO budget_periods (id, user_id, year, monthly_payment, previous_balance, monthly_payments, status, is_template, template_name, template_description, created_at, updated_at)
                  VALUES ${valuesClauses}
-                 ON CONFLICT (id) DO UPDATE SET
+                 ON CONFLICT (user_id, year) DO UPDATE SET
                    monthly_payment = EXCLUDED.monthly_payment,
                    previous_balance = EXCLUDED.previous_balance,
                    monthly_payments = EXCLUDED.monthly_payments,
@@ -552,7 +586,23 @@ export const SyncProvider = ({ user, children }) => {
                 count: expenses.length,
               });
             }
+
+            // ✅ Phase 2: Commit transaction
+            await localDB.query('COMMIT');
+            logger.log(
+              '✅ Polling: Database transaction committed successfully'
+            );
           } catch (dbError) {
+            // ✅ Phase 2: Rollback on error
+            try {
+              await localDB.query('ROLLBACK');
+              logger.warn(
+                '⏮️ Polling: Database transaction rolled back due to error'
+              );
+            } catch (rollbackError) {
+              logger.error('❌ Polling: Rollback failed:', rollbackError);
+            }
+
             // Log error but continue - data will still be returned to React state
             logger.error(
               '⚠️ Polling: Failed to save to PGlite (data still in memory):',
@@ -573,18 +623,27 @@ export const SyncProvider = ({ user, children }) => {
 
   /**
    * Start polling for remote updates (multi-device sync)
+   * ✅ Uses module-level flag to prevent Strict Mode duplication
    */
   useEffect(() => {
     if (!user || !isOnline) {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
+        pollingInitialized = false;
         logger.log('⏸️ Polling stopped');
       }
       return;
     }
 
+    // ✅ Strict Mode Guard: Only start polling once
+    if (pollingInitialized) {
+      logger.log('⏭️ Polling already initialized (Strict Mode protection)');
+      return;
+    }
+
     // Start polling
+    pollingInitialized = true;
     logger.log('▶️ Starting polling for remote updates (30s interval)');
     pollingIntervalRef.current = setInterval(
       checkAndDownloadUpdates,
@@ -595,6 +654,7 @@ export const SyncProvider = ({ user, children }) => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
+        pollingInitialized = false;
         logger.log('⏹️ Polling stopped');
       }
     };
