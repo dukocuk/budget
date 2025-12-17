@@ -103,6 +103,9 @@ export const Settings = ({
       // Fixed mode: initialize with fixed amount
       setLocalMonthlyPayments(Array(12).fill(monthlyPayment));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Note: localMonthlyPayments intentionally excluded to prevent infinite loop
+    // We only initialize when props (monthlyPayments, monthlyPayment, localPaymentMode) change
   }, [monthlyPayments, monthlyPayment, localPaymentMode]);
 
   useEffect(() => {

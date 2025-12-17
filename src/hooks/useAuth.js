@@ -18,6 +18,15 @@ let globalTokenRefreshTimer = null;
 let globalSessionInitialized = false;
 
 /**
+ * Reset module-level singletons (for testing only)
+ * @private
+ */
+export function resetAuthSingletons() {
+  globalSessionInitialized = false;
+  globalTokenRefreshTimer = null;
+}
+
+/**
  * Hook for managing user authentication with Google
  *
  * Features:

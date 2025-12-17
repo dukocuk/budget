@@ -23,6 +23,7 @@ vi.mock('../utils/logger', () => ({
   logger: {
     log: vi.fn(),
     error: vi.fn(),
+    debug: vi.fn(),
   },
 }));
 
@@ -55,10 +56,17 @@ delete window.location;
 window.location = { ...originalLocation, reload: vi.fn() };
 
 describe('useAuth', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     localStorageStore = {};
     mockInitGoogleDrive.mockResolvedValue(undefined);
+
+    // ✅ CRITICAL: Reset module-level singleton guard before each test
+    // This allows each test to initialize sessions independently
+    const { resetAuthSingletons } = await import('./useAuth');
+    if (resetAuthSingletons) {
+      resetAuthSingletons();
+    }
 
     // Mock token exchange endpoint (first call)
     // Mock userinfo endpoint (second call)
