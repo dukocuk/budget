@@ -1,9 +1,9 @@
 # Project Index: Budget Tracker
 
-**Generated:** 2025-12-15
+**Generated:** 2025-12-17
 **Type:** React SPA • Offline-First • Multi-Year Budget Management
 **Language:** Danish (da-DK)
-**Size:** 32 components • 20 hooks • 10 utils • 595+ tests
+**Size:** 32 components • 20 hooks • 10 utils • 679 tests
 
 ---
 
@@ -12,10 +12,10 @@
 | Metric | Value |
 |--------|-------|
 | **Tech Stack** | React 19.1.1 • Vite 7.1.7 • PGlite 0.3.10 |
-| **Components** | 32 React components with tests |
+| **Components** | 32 React components with comprehensive tests |
 | **Hooks** | 20 custom hooks (useExpenses, useAuth, useBudgetPeriods, etc.) |
-| **Utilities** | 10 modules (calculations, validators, localeHelpers) |
-| **Tests** | 595+ passing tests (Vitest + @testing-library/react) |
+| **Utilities** | 10 modules (calculations, validators, localeHelpers, logger) |
+| **Tests** | 679 passing tests (Vitest + @testing-library/react) |
 | **Build Size** | ~280KB (~85KB compressed) |
 | **Performance** | <50ms operations |
 
@@ -95,7 +95,7 @@ budget/
 │   │   ├── importHelpers.js            # CSV import with validation
 │   │   ├── exportHelpers.js            # CSV export (UTF-8 BOM)
 │   │   ├── yearComparison.js           # Year-over-year comparisons
-│   │   ├── logger.js                   # Logging utility
+│   │   ├── logger.js                   # Logging utility (log, error, warn, debug, perf)
 │   │   ├── uuid.js                     # UUID helpers for offline-first
 │   │   ├── constants.js                # App constants (MONTH_NAMES, FREQUENCIES)
 │   │   └── seed.js                     # Test seed data (dev only)
@@ -314,10 +314,10 @@ User Action → PGlite (instant) → Debounce (1s) → Google Drive → Poll (30
 
 | Category | Files | Tests | Coverage |
 |----------|-------|-------|----------|
-| **Components** | 15 test files | 300+ tests | Component behavior, user interactions |
-| **Hooks** | 12 test files | 200+ tests | State management, CRUD operations |
-| **Utils** | 8 test files | 95+ tests | Calculations, validation, locale |
-| **Total** | **35+ test files** | **595+ tests** | **Comprehensive** |
+| **Components** | 15 test files | 350+ tests | Component behavior, user interactions |
+| **Hooks** | 12 test files | 220+ tests | State management, CRUD operations |
+| **Utils** | 8 test files | 109 tests | Calculations, validation, locale |
+| **Total** | **35 test files** | **679 tests** | **Comprehensive** |
 
 **Key Test Files:**
 - `src/hooks/useExpenses.test.js` - Expense CRUD + undo/redo
@@ -456,6 +456,21 @@ For detailed information, see:
 - **docs/MULTI_YEAR.md** - Multi-year workflows and best practices
 - **docs/COMPONENTS.md** - Detailed component documentation and UI patterns
 - **docs/HISTORY.md** - Project phases, improvements, and standards
+
+### Recent Improvements (December 2025)
+
+**Console Noise Reduction & Loading Fix:**
+- Added `logger.debug()` method for dev-only technical logging (src/utils/logger.js:45-54)
+- Converted orphaned expense cleaning warnings to debug logs (src/utils/validators.js:257)
+- Simplified user-facing messages ("Data cleaned: N items synchronized")
+- Fixed loading screen hang by correcting `useDataInitialization` initial state (src/hooks/useDataInitialization.js:39)
+- Result: Clean startup console output with proper loading screen behavior
+
+**Test Infrastructure:**
+- Fixed module-level singleton pollution in tests with `resetAuthSingletons()` (src/hooks/useAuth.js:24-27)
+- All 679 tests passing (previously 676/679 due to singleton state leaking between tests)
+- Added ESLint disable comments for intentional dependency exclusions
+- Improved test isolation and reliability
 
 ---
 
