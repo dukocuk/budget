@@ -34,6 +34,7 @@ import { useExpenseContext } from './hooks/useExpenseContext';
 import { BudgetPeriodProvider } from './contexts/BudgetPeriodProvider';
 import { useBudgetPeriodContext } from './hooks/useBudgetPeriodContext';
 import { LoadingProvider } from './contexts/LoadingProvider';
+import { AuthProvider } from './contexts/AuthProvider';
 import { useLoadingContext } from './hooks/useLoadingContext';
 import { UnifiedLoadingScreen } from './components/common/UnifiedLoadingScreen';
 import { useDeleteConfirmation } from './hooks/useDeleteConfirmation';
@@ -552,9 +553,23 @@ function AppContent() {
 }
 
 /**
- * App - Wrapper component that provides SyncContext
+ * App - Root component with AuthProvider at the top level
  */
 function App() {
+  return (
+    <AuthProvider>
+      <LoadingProvider>
+        <UnifiedLoadingScreen />
+        <AppRouterWrapper />
+      </LoadingProvider>
+    </AuthProvider>
+  );
+}
+
+/**
+ * AppRouterWrapper - Consumes auth context and passes to AppRouter
+ */
+function AppRouterWrapper() {
   const {
     user,
     loading: authLoading,
@@ -565,20 +580,16 @@ function App() {
     retryAuth,
   } = useAuth();
 
-  // Wrap entire app with LoadingProvider for unified loading screen
   return (
-    <LoadingProvider>
-      <UnifiedLoadingScreen />
-      <AppRouter
-        authLoading={authLoading}
-        user={user}
-        loadingState={loadingState}
-        error={error}
-        handleGoogleSignIn={handleGoogleSignIn}
-        signOut={signOut}
-        retryAuth={retryAuth}
-      />
-    </LoadingProvider>
+    <AppRouter
+      authLoading={authLoading}
+      user={user}
+      loadingState={loadingState}
+      error={error}
+      handleGoogleSignIn={handleGoogleSignIn}
+      signOut={signOut}
+      retryAuth={retryAuth}
+    />
   );
 }
 

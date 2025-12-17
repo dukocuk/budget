@@ -53,7 +53,7 @@ function Dashboard() {
       : {
           summary: true, // Summary cards - visible by default
           pieChart: false, // Udgiftsfordeling - collapsed by default
-          barChart: false, // Månedlig sammenligning - collapsed by default
+          barChart: true, // Månedlig sammenligning - VISIBLE by default (critical data)
           lineChart: false, // Balance udvikling - collapsed by default
           quickStats: false, // Udgiftsoversigt - collapsed by default
         };
@@ -99,6 +99,24 @@ function Dashboard() {
     () => groupExpensesByFrequency(expenses),
     [expenses]
   );
+
+  // Debug logging - Understanding chart data flow
+  React.useEffect(() => {
+    console.log('📊 Dashboard Data Debug:', {
+      expenseCount: expenses.length,
+      monthlyTotals,
+      hasExpenseData: monthlyTotals.some(total => total > 0),
+      paymentValue,
+      hasVariablePayments: Array.isArray(paymentValue),
+      firstFewExpenses: expenses.slice(0, 3).map(e => ({
+        name: e.name,
+        amount: e.amount,
+        frequency: e.frequency,
+        startMonth: e.startMonth,
+        endMonth: e.endMonth,
+      })),
+    });
+  }, [expenses, monthlyTotals, paymentValue]);
 
   // Prepare data for charts (memoized)
   // Handle variable monthly payments: use array if available, otherwise use fixed value
@@ -277,19 +295,48 @@ function Dashboard() {
         {(!isMobile || expandedSections.barChart) && (
           <div className="chart-card">
             <h3>Månedlige udgifter vs. indbetaling</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip
-                  formatter={value => `${value.toLocaleString('da-DK')} kr.`}
-                />
-                <Legend />
-                <Bar dataKey="udgifter" fill="#ef4444" name="Udgifter" />
-                <Bar dataKey="indbetaling" fill="#10b981" name="Indbetaling" />
-              </BarChart>
-            </ResponsiveContainer>
+            {monthlyTotals.some(t => t > 0) ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip
+                    formatter={value => `${value.toLocaleString('da-DK')} kr.`}
+                  />
+                  <Legend />
+                  <Bar dataKey="udgifter" fill="#ef4444" name="Udgifter" />
+                  <Bar
+                    dataKey="indbetaling"
+                    fill="#10b981"
+                    name="Indbetaling"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div
+                className="empty-chart-message"
+                style={{
+                  textAlign: 'center',
+                  padding: '60px 20px',
+                  color: '#6b7280',
+                }}
+              >
+                <p style={{ fontSize: '48px', margin: '0 0 16px 0' }}>📊</p>
+                <p
+                  style={{
+                    fontSize: '16px',
+                    fontWeight: '500',
+                    margin: '0 0 8px 0',
+                  }}
+                >
+                  Ingen udgiftsdata for dette år
+                </p>
+                <p style={{ fontSize: '14px', margin: 0 }}>
+                  Tilføj udgifter for at se månedlig sammenligning
+                </p>
+              </div>
+            )}
           </div>
         )}
 

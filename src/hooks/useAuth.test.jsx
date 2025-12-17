@@ -8,9 +8,11 @@
  * - initGoogleDrive for Drive API initialization
  */
 
+import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { useAuth } from './useAuth';
+import { AuthProvider } from '../contexts/AuthProvider';
 
 // Mock Google Drive initialization
 const mockInitGoogleDrive = vi.fn();
@@ -54,6 +56,9 @@ global.fetch = vi.fn();
 const originalLocation = window.location;
 delete window.location;
 window.location = { ...originalLocation, reload: vi.fn() };
+
+// Wrapper for testing hooks that require AuthProvider
+const wrapper = ({ children }) => <AuthProvider>{children}</AuthProvider>;
 
 describe('useAuth', () => {
   beforeEach(async () => {
@@ -107,7 +112,7 @@ describe('useAuth', () => {
 
   describe('Initialization', () => {
     it('should initialize with correct default values', async () => {
-      const { result } = renderHook(() => useAuth());
+      const { result } = renderHook(() => useAuth(), { wrapper });
 
       // Wait for initialization to complete
       await waitFor(() => {
@@ -120,7 +125,7 @@ describe('useAuth', () => {
     });
 
     it('should check localStorage for existing session on mount', async () => {
-      renderHook(() => useAuth());
+      renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
         expect(localStorageMock.getItem).toHaveBeenCalledWith(
@@ -130,7 +135,7 @@ describe('useAuth', () => {
     });
 
     it('should finish loading with no user when no session exists', async () => {
-      const { result } = renderHook(() => useAuth());
+      const { result } = renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -152,7 +157,7 @@ describe('useAuth', () => {
       };
       localStorageStore['google_auth_session'] = JSON.stringify(mockSession);
 
-      const { result } = renderHook(() => useAuth());
+      const { result } = renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -171,7 +176,7 @@ describe('useAuth', () => {
       };
       localStorageStore['google_auth_session'] = JSON.stringify(expiredSession);
 
-      const { result } = renderHook(() => useAuth());
+      const { result } = renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -186,7 +191,7 @@ describe('useAuth', () => {
 
   describe('loadingState', () => {
     it('should have loadingState object with correct properties', () => {
-      const { result } = renderHook(() => useAuth());
+      const { result } = renderHook(() => useAuth(), { wrapper });
 
       expect(result.current.loadingState).toHaveProperty('isLoading');
       expect(result.current.loadingState).toHaveProperty('stage');
@@ -197,7 +202,7 @@ describe('useAuth', () => {
     it('should start with complete stage when no saved session', () => {
       // Clear any saved session to test default state
       localStorage.removeItem('google_auth_session');
-      const { result } = renderHook(() => useAuth());
+      const { result } = renderHook(() => useAuth(), { wrapper });
 
       expect(result.current.loadingState.stage).toBe('complete');
       expect(result.current.loadingState.isLoading).toBe(false);
@@ -214,7 +219,7 @@ describe('useAuth', () => {
         })
       );
 
-      const { result } = renderHook(() => useAuth());
+      const { result } = renderHook(() => useAuth(), { wrapper });
 
       // Stage should be either 'initializing' or 'connecting' (as it processes quickly)
       expect(['initializing', 'connecting']).toContain(
@@ -226,7 +231,7 @@ describe('useAuth', () => {
 
   describe('handleGoogleSignIn', () => {
     it('should process token response and store session', async () => {
-      const { result } = renderHook(() => useAuth());
+      const { result } = renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -269,7 +274,7 @@ describe('useAuth', () => {
         });
       });
 
-      const { result } = renderHook(() => useAuth());
+      const { result } = renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -316,7 +321,7 @@ describe('useAuth', () => {
         });
       });
 
-      const { result } = renderHook(() => useAuth());
+      const { result } = renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -340,7 +345,7 @@ describe('useAuth', () => {
     it('should continue even if Google Drive init fails', async () => {
       mockInitGoogleDrive.mockRejectedValueOnce(new Error('Drive init failed'));
 
-      const { result } = renderHook(() => useAuth());
+      const { result } = renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -374,7 +379,7 @@ describe('useAuth', () => {
       };
       localStorageStore['google_auth_session'] = JSON.stringify(mockSession);
 
-      const { result } = renderHook(() => useAuth());
+      const { result } = renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.user).not.toBe(null);
@@ -392,7 +397,7 @@ describe('useAuth', () => {
 
   describe('retryAuth', () => {
     it('should reset loading state and reload', async () => {
-      const { result } = renderHook(() => useAuth());
+      const { result } = renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);
@@ -409,7 +414,7 @@ describe('useAuth', () => {
 
   describe('Return Values', () => {
     it('should return all required properties', async () => {
-      const { result } = renderHook(() => useAuth());
+      const { result } = renderHook(() => useAuth(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.loading).toBe(false);

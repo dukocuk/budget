@@ -67,12 +67,6 @@ export const Header = ({ user, onOpenSettings }) => {
 
               {user && (
                 <div className="header-mobile-actions">
-                  <div
-                    className={`connection-status-compact ${connectionStatus.className}`}
-                  >
-                    <span className="status-icon">{connectionStatus.icon}</span>
-                  </div>
-
                   <button
                     className="header-expand-toggle"
                     onClick={() => setIsExpanded(!isExpanded)}

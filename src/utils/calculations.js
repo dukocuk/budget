@@ -71,8 +71,18 @@ export function calculateAnnualAmount(expense) {
 export function getMonthlyAmount(expense, month) {
   if (month < 1 || month > 12) return 0;
 
-  const startMonth = expense.start_month || expense.startMonth;
-  const endMonth = expense.end_month || expense.endMonth;
+  const startMonth = expense.start_month || expense.startMonth || 1;
+  const endMonth = expense.end_month || expense.endMonth || 12;
+
+  // Validate month range
+  if (startMonth < 1 || startMonth > 12 || endMonth < 1 || endMonth > 12) {
+    console.warn('⚠️ Invalid month range for expense:', {
+      name: expense.name,
+      startMonth,
+      endMonth,
+    });
+    return 0;
+  }
 
   // Outside date range
   if (month < startMonth || month > endMonth) return 0;
@@ -96,7 +106,13 @@ export function getMonthlyAmount(expense, month) {
   }
 
   // Fallback to fixed amount (existing logic)
-  if (!expense.amount || expense.amount <= 0) return 0;
+  if (!expense.amount || expense.amount <= 0) {
+    console.warn('⚠️ Missing or invalid amount for expense:', {
+      name: expense.name,
+      amount: expense.amount,
+    });
+    return 0;
+  }
 
   if (expense.frequency === 'yearly') {
     return month === startMonth ? expense.amount : 0;
