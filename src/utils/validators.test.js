@@ -8,6 +8,9 @@ import {
   validateMonthRange,
   validateExpense,
   sanitizeExpense,
+  validateMonthlyAmounts,
+  validateCloudData,
+  validateDownloadedData,
 } from './validators';
 
 describe('validateAmount', () => {
@@ -286,5 +289,367 @@ describe('sanitizeExpense', () => {
     expect(result.id).toBe(123);
     expect(result.userId).toBe('user_1');
     expect(result.customField).toBe('value');
+  });
+
+  it('handles null monthlyAmounts', () => {
+    const expense = {
+      name: 'Test',
+      amount: 100,
+      frequency: 'monthly',
+      startMonth: 1,
+      endMonth: 12,
+      monthlyAmounts: null,
+    };
+
+    const result = sanitizeExpense(expense);
+    expect(result.monthlyAmounts).toBeNull();
+  });
+
+  it('sanitizes valid monthlyAmounts array', () => {
+    const monthlyAmounts = Array(12).fill(100);
+    const expense = {
+      name: 'Test',
+      amount: 100,
+      frequency: 'monthly',
+      startMonth: 1,
+      endMonth: 12,
+      monthlyAmounts,
+    };
+
+    const result = sanitizeExpense(expense);
+    expect(result.monthlyAmounts).toEqual(monthlyAmounts);
+  });
+
+  it('sanitizes invalid monthlyAmounts values', () => {
+    const expense = {
+      name: 'Test',
+      amount: 100,
+      frequency: 'monthly',
+      startMonth: 1,
+      endMonth: 12,
+      monthlyAmounts: [
+        -50,
+        'invalid',
+        100,
+        null,
+        undefined,
+        200,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+      ],
+    };
+
+    const result = sanitizeExpense(expense);
+    expect(result.monthlyAmounts).toEqual([
+      0, 0, 100, 0, 0, 200, 0, 0, 0, 0, 0, 0,
+    ]);
+  });
+
+  it('converts invalid monthlyAmounts to null', () => {
+    const expense = {
+      name: 'Test',
+      amount: 100,
+      frequency: 'monthly',
+      startMonth: 1,
+      endMonth: 12,
+      monthlyAmounts: 'invalid',
+    };
+
+    const result = sanitizeExpense(expense);
+    expect(result.monthlyAmounts).toBeNull();
+  });
+});
+
+describe('validateMonthlyAmounts', () => {
+  it('validates null as valid (fixed amount)', () => {
+    const result = validateMonthlyAmounts(null);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('validates array with 12 valid amounts', () => {
+    const amounts = [
+      100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200,
+    ];
+    const result = validateMonthlyAmounts(amounts);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('rejects non-array values', () => {
+    const result = validateMonthlyAmounts('invalid');
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('Månedlige beløb skal være en array');
+  });
+
+  it('rejects array with wrong length', () => {
+    const result = validateMonthlyAmounts([100, 200, 300]);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain(
+      'Månedlige beløb skal have præcis 12 værdier'
+    );
+  });
+
+  it('rejects array with non-numeric values', () => {
+    const amounts = [
+      100,
+      'invalid',
+      300,
+      400,
+      500,
+      600,
+      700,
+      800,
+      900,
+      1000,
+      1100,
+      1200,
+    ];
+    const result = validateMonthlyAmounts(amounts);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('Måned 2: Beløb skal være et tal');
+  });
+
+  it('rejects array with negative values', () => {
+    const amounts = [
+      100, 200, -300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200,
+    ];
+    const result = validateMonthlyAmounts(amounts);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('Måned 3: Beløb skal være mindst 0 kr.');
+  });
+
+  it('accepts array with zero values', () => {
+    const amounts = Array(12).fill(0);
+    const result = validateMonthlyAmounts(amounts);
+    expect(result.valid).toBe(true);
+  });
+
+  it('collects multiple errors', () => {
+    const amounts = [
+      100,
+      -200,
+      'invalid',
+      null,
+      500,
+      600,
+      700,
+      800,
+      900,
+      1000,
+      1100,
+      1200,
+    ];
+    const result = validateMonthlyAmounts(amounts);
+    expect(result.valid).toBe(false);
+    expect(result.errors.length).toBeGreaterThan(2);
+  });
+});
+
+describe('validateCloudData', () => {
+  it('validates valid cloud data', () => {
+    const data = {
+      expenses: [],
+      budgetPeriods: [],
+    };
+    const result = validateCloudData(data);
+    expect(result.valid).toBe(true);
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it('rejects null data', () => {
+    const result = validateCloudData(null);
+    expect(result.valid).toBe(false);
+    expect(result.warnings).toContain('Data objekt mangler');
+  });
+
+  it('warns when expenses is not an array', () => {
+    const data = {
+      expenses: 'invalid',
+      budgetPeriods: [],
+    };
+    const result = validateCloudData(data);
+    expect(result.warnings).toContain('Udgifter er ikke et array');
+  });
+
+  it('warns when budgetPeriods is not an array', () => {
+    const data = {
+      expenses: [],
+      budgetPeriods: 'invalid',
+    };
+    const result = validateCloudData(data);
+    expect(result.warnings).toContain('Budgetperioder er ikke et array');
+  });
+
+  it('warns critically when syncing expenses without periods', () => {
+    const data = {
+      expenses: [{ id: 1, name: 'Test' }],
+      budgetPeriods: [],
+    };
+    const result = validateCloudData(data);
+    expect(result.valid).toBe(false);
+    expect(result.warnings.some(w => w.includes('KRITISK'))).toBe(true);
+  });
+
+  it('validates foreign key integrity', () => {
+    const data = {
+      expenses: [
+        { id: 1, budgetPeriodId: 1 },
+        { id: 2, budgetPeriodId: 2 },
+        { id: 3, budgetPeriodId: 999 }, // orphaned
+      ],
+      budgetPeriods: [
+        { id: 1, year: 2024 },
+        { id: 2, year: 2025 },
+      ],
+    };
+    const result = validateCloudData(data);
+    expect(result.valid).toBe(false);
+    expect(
+      result.warnings.some(w => w.includes('ugyldige budgetperioder'))
+    ).toBe(true);
+  });
+
+  it('accepts data with valid foreign keys', () => {
+    const data = {
+      expenses: [
+        { id: 1, budgetPeriodId: 1 },
+        { id: 2, budgetPeriodId: 2 },
+      ],
+      budgetPeriods: [
+        { id: 1, year: 2024 },
+        { id: 2, year: 2025 },
+      ],
+    };
+    const result = validateCloudData(data);
+    expect(result.valid).toBe(true);
+  });
+});
+
+describe('validateDownloadedData', () => {
+  it('validates valid downloaded data', () => {
+    const data = {
+      expenses: [],
+      budgetPeriods: [],
+    };
+    const result = validateDownloadedData(data);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it('rejects null data', () => {
+    const result = validateDownloadedData(null);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('Ingen data modtaget fra skyen');
+  });
+
+  it('rejects missing expenses array', () => {
+    const data = {
+      budgetPeriods: [],
+    };
+    const result = validateDownloadedData(data);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('Udgifter mangler eller er ikke et array');
+  });
+
+  it('rejects missing budgetPeriods array', () => {
+    const data = {
+      expenses: [],
+    };
+    const result = validateDownloadedData(data);
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain(
+      'Budgetperioder mangler eller er ikke et array'
+    );
+  });
+
+  it('cleans orphaned expenses and warns', () => {
+    const data = {
+      expenses: [
+        { id: 1, budgetPeriodId: 1 },
+        { id: 2, budgetPeriodId: 999 }, // orphaned
+        { id: 3, budgetPeriodId: 1 },
+      ],
+      budgetPeriods: [{ id: 1, year: 2024 }],
+    };
+    const result = validateDownloadedData(data);
+    expect(result.valid).toBe(true);
+    expect(data.expenses).toHaveLength(2);
+    expect(result.warnings.some(w => w.includes('cleaned'))).toBe(true);
+  });
+
+  it('preserves expenses without budgetPeriodId', () => {
+    const data = {
+      expenses: [
+        { id: 1, budgetPeriodId: 1 },
+        { id: 2 }, // no budgetPeriodId
+      ],
+      budgetPeriods: [{ id: 1, year: 2024 }],
+    };
+    const result = validateDownloadedData(data);
+    expect(result.valid).toBe(true);
+    expect(data.expenses).toHaveLength(2);
+  });
+
+  it('handles data with valid foreign keys', () => {
+    const data = {
+      expenses: [
+        { id: 1, budgetPeriodId: 1 },
+        { id: 2, budgetPeriodId: 2 },
+      ],
+      budgetPeriods: [
+        { id: 1, year: 2024 },
+        { id: 2, year: 2025 },
+      ],
+    };
+    const result = validateDownloadedData(data);
+    expect(result.valid).toBe(true);
+    expect(result.warnings).toHaveLength(0);
+  });
+});
+
+describe('validateExpense with monthlyAmounts', () => {
+  const validExpense = {
+    name: 'Test',
+    amount: 100,
+    frequency: 'monthly',
+    startMonth: 1,
+    endMonth: 12,
+  };
+
+  it('validates expense with null monthlyAmounts', () => {
+    const expense = { ...validExpense, monthlyAmounts: null };
+    const result = validateExpense(expense);
+    expect(result.valid).toBe(true);
+  });
+
+  it('validates expense with valid monthlyAmounts', () => {
+    const expense = {
+      ...validExpense,
+      monthlyAmounts: Array(12).fill(100),
+    };
+    const result = validateExpense(expense);
+    expect(result.valid).toBe(true);
+  });
+
+  it('rejects expense with invalid monthlyAmounts', () => {
+    const expense = {
+      ...validExpense,
+      monthlyAmounts: [100, 200, 300], // wrong length
+    };
+    const result = validateExpense(expense);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('12 værdier'))).toBe(true);
+  });
+
+  it('handles expense without monthlyAmounts field', () => {
+    const expense = { ...validExpense };
+    const result = validateExpense(expense);
+    expect(result.valid).toBe(true);
   });
 });
