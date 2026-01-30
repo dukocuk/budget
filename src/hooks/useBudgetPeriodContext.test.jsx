@@ -2,7 +2,7 @@
  * Tests for useBudgetPeriodContext consumer hook
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useBudgetPeriodContext } from './useBudgetPeriodContext';
 import { BudgetPeriodProvider } from '../contexts/BudgetPeriodProvider';

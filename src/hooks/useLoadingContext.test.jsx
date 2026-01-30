@@ -2,7 +2,7 @@
  * Tests for useLoadingContext consumer hook
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useLoadingContext } from './useLoadingContext';
 import { LoadingProvider } from '../contexts/LoadingProvider';

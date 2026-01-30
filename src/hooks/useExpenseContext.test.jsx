@@ -2,7 +2,7 @@
  * Tests for useExpenseContext consumer hook
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useExpenseContext } from './useExpenseContext';
 import { ExpenseProvider } from '../contexts/ExpenseProvider';
