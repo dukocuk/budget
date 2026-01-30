@@ -3,7 +3,7 @@
 **Generated:** 2025-12-17
 **Type:** React SPA • Offline-First • Multi-Year Budget Management
 **Language:** Danish (da-DK)
-**Size:** 32 components • 20 hooks • 10 utils • 679 tests
+**Size:** 32 components (7 subdirectories) • 30 hooks • 10 utils • 679 tests
 
 ---
 
@@ -12,8 +12,8 @@
 | Metric | Value |
 |--------|-------|
 | **Tech Stack** | React 19.1.1 • Vite 7.1.7 • PGlite 0.3.10 |
-| **Components** | 32 React components with comprehensive tests |
-| **Hooks** | 20 custom hooks (useExpenses, useAuth, useBudgetPeriods, etc.) |
+| **Components** | 32 React components organized in 7 subdirectories |
+| **Hooks** | 30 hook files (10 core + 20 consumer hooks) |
 | **Utilities** | 10 modules (calculations, validators, localeHelpers, logger) |
 | **Tests** | 679 passing tests (Vitest + @testing-library/react) |
 | **Build Size** | ~280KB (~85KB compressed) |
@@ -38,22 +38,54 @@
 ```
 budget/
 ├── src/
-│   ├── components/     # 32 UI components
-│   │   ├── Auth.jsx                    # Google OAuth login screen
-│   │   ├── Header.jsx                  # App header with sync status
-│   │   ├── Dashboard.jsx               # Main dashboard with charts
-│   │   ├── ExpenseManager.jsx          # Expense CRUD table
-│   │   ├── MonthlyView.jsx             # 12-month breakdown
-│   │   ├── AddExpenseModal.jsx         # Add/edit expense form
-│   │   ├── CreateYearModal.jsx         # Create new budget year
-│   │   ├── TemplateManager.jsx         # Budget templates
-│   │   ├── YearComparison.jsx          # Year-over-year analysis
-│   │   ├── SettingsModal.jsx           # Settings dialog
-│   │   ├── Alert.jsx                   # Toast notifications
-│   │   ├── ErrorBoundary.jsx           # Error handling wrapper
-│   │   └── [20+ more components]
+│   ├── components/                 # 32 UI components in 7 subdirectories
+│   │   ├── cards/                  # 3 components
+│   │   │   ├── SummaryCards.jsx    # Budget metric cards
+│   │   │   ├── MonthlyCard.jsx     # Mobile monthly view
+│   │   │   └── ExpenseCard.jsx     # Mobile expense view
+│   │   │
+│   │   ├── charts/                 # 2 components
+│   │   │   ├── BalanceChart.jsx    # Monthly balance visualization
+│   │   │   └── YearComparisonCharts.jsx  # Multi-year comparison
+│   │   │
+│   │   ├── common/                 # 9 components
+│   │   │   ├── Alert.jsx           # Toast notifications
+│   │   │   ├── ErrorBoundary.jsx   # Error handling wrapper
+│   │   │   ├── TabView.jsx         # Tabbed navigation
+│   │   │   ├── YearSelector.jsx    # Year dropdown
+│   │   │   ├── YearComparison.jsx  # Year-over-year comparison
+│   │   │   ├── BottomSheet.jsx     # Mobile bottom sheet
+│   │   │   ├── BottomTabBar.jsx    # Mobile navigation
+│   │   │   ├── UnifiedLoadingScreen.jsx  # Loading with progress
+│   │   │   └── MonthlyOverview.jsx # Monthly totals view
+│   │   │
+│   │   ├── core/                   # 4 components
+│   │   │   ├── Auth.jsx            # Google OAuth login
+│   │   │   ├── Dashboard.jsx       # Main dashboard
+│   │   │   ├── Header.jsx          # App header with sync
+│   │   │   └── Layout.jsx          # Main layout
+│   │   │
+│   │   ├── features/               # 3 components
+│   │   │   ├── ExpenseManager.jsx  # Expense CRUD table
+│   │   │   ├── Settings.jsx        # Configuration
+│   │   │   └── TemplateManager.jsx # Budget templates
+│   │   │
+│   │   ├── modals/                 # 9 components
+│   │   │   ├── AddExpenseModal.jsx          # Add/edit expense
+│   │   │   ├── CreateYearModal.jsx          # Create year
+│   │   │   ├── DeleteConfirmation.jsx       # Delete confirm
+│   │   │   ├── SettingsModal.jsx            # Settings dialog
+│   │   │   ├── PaymentModeConfirmation.jsx  # Toggle payment mode
+│   │   │   ├── MonthlyAmountsModal.jsx      # Variable payments
+│   │   │   ├── SwitchToFixedModal.jsx       # Switch to fixed
+│   │   │   ├── TemplateManagerModal.jsx     # Template management
+│   │   │   └── BackupManagerModal.jsx       # Backup management
+│   │   │
+│   │   └── tables/                 # 2 components
+│   │       ├── ExpensesTable.jsx   # Filterable expense table
+│   │       └── MonthlyView.jsx     # 12-month breakdown
 │   │
-│   ├── hooks/          # 20 custom React hooks
+│   ├── hooks/          # 30 hook files (10 core + 20 consumer)
 │   │   ├── useExpenses.js              # Expense CRUD + undo/redo
 │   │   ├── useAuth.js                  # Google OAuth authentication
 │   │   ├── useBudgetPeriods.js         # Multi-year budget management

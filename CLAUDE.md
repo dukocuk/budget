@@ -26,18 +26,18 @@ npm run lint         # ESLint
 ## Directory Structure
 ```
 src/
-├── components/
-│   ├── cards/      # SummaryCards, MonthlyCard, ExpenseCard
-│   ├── charts/     # BalanceChart, YearComparisonCharts
-│   ├── common/     # Alert, ErrorBoundary, TabView, UnifiedLoadingScreen, etc.
-│   ├── core/       # Auth, Dashboard, Header, Layout
-│   ├── features/   # ExpenseManager, Settings, TemplateManager, MonthlyOverview
-│   ├── modals/     # All modal components
-│   └── tables/     # ExpensesTable, MonthlyView
-├── hooks/       # 20 custom hooks
-├── utils/       # 10 utility modules (calculations, validators, localeHelpers, etc.)
-├── lib/         # External integrations (pglite.js, googleDrive.js)
-└── contexts/    # 6 React contexts (.js) and providers (.jsx)
+├── components/         # 32 components organized in 7 subdirectories
+│   ├── cards/          # 3 components: SummaryCards, MonthlyCard, ExpenseCard
+│   ├── charts/         # 2 components: BalanceChart, YearComparisonCharts
+│   ├── common/         # 9 components: Alert, ErrorBoundary, TabView, UnifiedLoadingScreen, etc.
+│   ├── core/           # 4 components: Auth, Dashboard, Header, Layout
+│   ├── features/       # 3 components: ExpenseManager, Settings, TemplateManager
+│   ├── modals/         # 9 components: All modal dialogs and confirmations
+│   └── tables/         # 2 components: ExpensesTable, MonthlyView
+├── hooks/              # 30 hook files (10 core hooks + 20 consumer hooks)
+├── utils/              # 10 utility modules (calculations, validators, localeHelpers, etc.)
+├── lib/                # External integrations (pglite.js, googleDrive.js)
+└── contexts/           # 6 React contexts (.js) and providers (.jsx)
 ```
 
 ## Hook API Reference
@@ -133,7 +133,6 @@ import { useExpenses } from '../hooks/useExpenses'; // Don't call directly!
 - **ExpenseManager** - Expense table with inline editing
 - **Settings** - Configuration and sync controls
 - **TemplateManager** - Template CRUD
-- **MonthlyOverview** - Monthly totals view
 
 ### Tables (tables/)
 - **ExpensesTable** - Filterable expense table
@@ -168,6 +167,7 @@ import { useExpenses } from '../hooks/useExpenses'; // Don't call directly!
 - **BottomSheet** - Mobile bottom sheet
 - **BottomTabBar** - Mobile navigation
 - **UnifiedLoadingScreen** - Unified loading with progress stages
+- **MonthlyOverview** - Monthly totals view
 
 ## Utils Reference
 
@@ -216,10 +216,12 @@ expenses (id, budget_period_id, name, amount, frequency, start_month, end_month)
 ## Development Workflow
 
 ### Authentication Setup
-1. Get OAuth credentials from Google Cloud Console
-2. Add to `.env`: `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY`
-3. Enable Google Drive API
-4. Configure consent screen with `drive.file` scope
+1. Follow comprehensive guide: `docs/OAUTH_GUIDE.md`
+2. Create `.env` with: `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_CLIENT_SECRET`, `VITE_GOOGLE_API_KEY`
+3. Enable Google Drive API and Google+ API in Cloud Console
+4. Configure consent screen with required scopes (`drive.file`, `userinfo.profile`, `userinfo.email`)
+5. Add authorized redirect URIs: `http://localhost:5173` (development)
+6. Add test users for development testing
 
 ### Testing
 ```bash
@@ -269,5 +271,8 @@ For detailed information, see:
 - `PROJECT_INDEX.md` - Comprehensive project structure and component reference
 - `docs/ARCHITECTURE.md` - Full architecture, state management, sync mechanisms
 - `docs/MULTI_YEAR.md` - Complete multi-year workflows and best practices
-- `docs/COMPONENTS.md` - Detailed component documentation and UI patterns
+- `docs/COMPONENTS.md` - Detailed component documentation (32 components in 7 subdirectories)
+- `docs/COMPONENT_ORGANIZATION.md` - Guide for organizing and adding new components
+- `docs/HOOKS_REFERENCE.md` - Complete hooks documentation (20 hooks categorized)
+- `docs/OAUTH_GUIDE.md` - OAuth setup, troubleshooting, and security guide
 - `docs/HISTORY.md` - Project phases, improvements, and standards
