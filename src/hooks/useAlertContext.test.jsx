@@ -2,7 +2,7 @@
  * Tests for useAlertContext consumer hook
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useAlertContext } from './useAlertContext';
 import { AlertProvider } from '../contexts/AlertProvider';
