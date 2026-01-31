@@ -193,6 +193,7 @@ function AppContent() {
   const {
     periods,
     activePeriod,
+    setActivePeriod,
     loading: periodsLoading,
     createPeriod,
     updatePeriod,
@@ -275,6 +276,7 @@ function AppContent() {
     createFromTemplate,
     closeCreateYearModal,
     showAlert,
+    setActivePeriod,
   });
 
   // Track if we're in initial data load to prevent sync triggers

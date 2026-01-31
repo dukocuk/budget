@@ -17,6 +17,7 @@ describe('useYearManagement', () => {
       createFromTemplate: vi.fn().mockResolvedValue({}),
       closeCreateYearModal: vi.fn(),
       showAlert: vi.fn(),
+      setActivePeriod: vi.fn(),
     };
 
     vi.clearAllMocks();
@@ -109,6 +110,7 @@ describe('useYearManagement', () => {
       const { result } = renderHook(() => useYearManagement(mockParams));
       result.current.handleSelectPeriod(period);
 
+      expect(mockParams.setActivePeriod).toHaveBeenCalledWith(period);
       expect(mockParams.showAlert).toHaveBeenCalledWith(
         'Skiftet til budget 2024 ',
         'info'
@@ -121,6 +123,7 @@ describe('useYearManagement', () => {
       const { result } = renderHook(() => useYearManagement(mockParams));
       result.current.handleSelectPeriod(period);
 
+      expect(mockParams.setActivePeriod).toHaveBeenCalledWith(period);
       expect(mockParams.showAlert).toHaveBeenCalledWith(
         'Skiftet til budget 2023 📦 Arkiveret',
         'info'

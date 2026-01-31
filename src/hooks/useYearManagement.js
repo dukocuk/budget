@@ -20,6 +20,7 @@ export function useYearManagement({
   createFromTemplate,
   closeCreateYearModal,
   showAlert,
+  setActivePeriod,
 }) {
   // Create new budget year (from scratch or template)
   const handleCreateYear = async yearData => {
@@ -49,8 +50,11 @@ export function useYearManagement({
   };
 
   // Select budget period with UI feedback
-  // Note: Actual period selection is handled automatically by useBudgetPeriods
   const handleSelectPeriod = period => {
+    // Update the active period state
+    setActivePeriod(period);
+
+    // Show UI feedback
     const status = period.status === 'archived' ? '📦 Arkiveret' : '';
     showAlert(`Skiftet til budget ${period.year} ${status}`, 'info');
   };

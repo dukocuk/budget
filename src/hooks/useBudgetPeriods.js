@@ -754,6 +754,7 @@ export const useBudgetPeriods = userId => {
   return {
     periods,
     activePeriod,
+    setActivePeriod, // NEW: Expose setter for year selection
     loading,
     error,
     createPeriod,

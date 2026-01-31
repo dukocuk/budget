@@ -12,6 +12,7 @@ export function BudgetPeriodProvider({ children, userId }) {
   const {
     periods,
     activePeriod,
+    setActivePeriod,
     loading,
     error,
     createPeriod,
@@ -36,6 +37,7 @@ export function BudgetPeriodProvider({ children, userId }) {
       // State
       periods,
       activePeriod,
+      setActivePeriod,
       loading,
       error,
 
@@ -62,6 +64,7 @@ export function BudgetPeriodProvider({ children, userId }) {
     [
       periods,
       activePeriod,
+      setActivePeriod,
       loading,
       error,
       createPeriod,
