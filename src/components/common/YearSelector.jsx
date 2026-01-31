@@ -122,7 +122,9 @@ export default function YearSelector({
                 >
                   <span className="year-option-label">
                     {period.year}
-                    <span className="year-badge active">Aktiv</span>
+                    {activePeriod?.id === period.id && (
+                      <span className="year-badge active">Aktiv</span>
+                    )}
                   </span>
                   {activePeriod?.id === period.id && (
                     <svg
