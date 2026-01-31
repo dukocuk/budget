@@ -15,7 +15,11 @@ import {
 import { logger } from '../../utils/logger';
 import './YearComparison.css';
 
-export default function YearComparison({ periods, getExpensesForPeriod }) {
+export default function YearComparison({
+  periods,
+  activePeriod,
+  getExpensesForPeriod,
+}) {
   const [selectedYear1, setSelectedYear1] = useState('');
   const [selectedYear2, setSelectedYear2] = useState('');
   const [period1Data, setPeriod1Data] = useState(null);
@@ -156,7 +160,11 @@ export default function YearComparison({ periods, getExpensesForPeriod }) {
             {sortedPeriods.map(period => (
               <option key={period.id} value={period.id}>
                 {period.year}{' '}
-                {period.status === 'archived' ? '(Arkiveret)' : '(Aktiv)'}
+                {period.status === 'archived'
+                  ? '(Arkiveret)'
+                  : activePeriod?.id === period.id
+                    ? '(Aktiv)'
+                    : ''}
               </option>
             ))}
           </select>
@@ -184,7 +192,11 @@ export default function YearComparison({ periods, getExpensesForPeriod }) {
             {sortedPeriods.map(period => (
               <option key={period.id} value={period.id}>
                 {period.year}{' '}
-                {period.status === 'archived' ? '(Arkiveret)' : '(Aktiv)'}
+                {period.status === 'archived'
+                  ? '(Arkiveret)'
+                  : activePeriod?.id === period.id
+                    ? '(Aktiv)'
+                    : ''}
               </option>
             ))}
           </select>

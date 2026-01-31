@@ -131,6 +131,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={[]}
+          activePeriod={null}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -147,6 +148,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={[mockPeriods[0]]}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -163,6 +165,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -177,6 +180,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -194,6 +198,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -220,6 +225,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -249,6 +255,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -264,6 +271,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -280,6 +288,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -294,6 +303,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -314,6 +324,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -330,6 +341,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -349,6 +361,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -362,6 +375,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -397,6 +411,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -441,6 +456,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -458,6 +474,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -485,6 +502,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -522,6 +540,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -537,6 +556,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -552,6 +572,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -577,6 +598,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -597,6 +619,7 @@ describe('YearComparison', () => {
       const { rerender } = render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -612,6 +635,7 @@ describe('YearComparison', () => {
       rerender(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -626,6 +650,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -652,6 +677,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );
@@ -674,6 +700,7 @@ describe('YearComparison', () => {
       render(
         <YearComparison
           periods={mockPeriods}
+          activePeriod={mockPeriods[0]}
           getExpensesForPeriod={mockGetExpensesForPeriod}
         />
       );

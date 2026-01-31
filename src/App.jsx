@@ -173,14 +173,17 @@ const MonthlyTabContent = memo(({ totalAnnual }) => {
   );
 });
 
-const ComparisonTabContent = memo(({ periods, getExpensesForPeriod }) => (
-  <div className="tab-content-wrapper">
-    <YearComparison
-      periods={periods}
-      getExpensesForPeriod={getExpensesForPeriod}
-    />
-  </div>
-));
+const ComparisonTabContent = memo(
+  ({ periods, activePeriod, getExpensesForPeriod }) => (
+    <div className="tab-content-wrapper">
+      <YearComparison
+        periods={periods}
+        activePeriod={activePeriod}
+        getExpensesForPeriod={getExpensesForPeriod}
+      />
+    </div>
+  )
+);
 
 /**
  * AppContent - The main application logic (wrapped by SyncProvider)
@@ -437,6 +440,7 @@ function AppContent() {
       content: (
         <ComparisonTabContent
           periods={periods}
+          activePeriod={activePeriod}
           getExpensesForPeriod={getExpensesForPeriod}
         />
       ),

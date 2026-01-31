@@ -1,6 +1,6 @@
 # Project Index: Budget Tracker
 
-**Generated:** 2025-12-17
+**Generated:** 2026-01-31
 **Type:** React SPA • Offline-First • Multi-Year Budget Management
 **Language:** Danish (da-DK)
 **Size:** 32 components (7 subdirectories) • 30 hooks • 10 utils • 679 tests
