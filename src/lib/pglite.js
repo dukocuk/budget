@@ -1,5 +1,5 @@
 import { PGlite } from '@electric-sql/pglite';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logger.js';
 
 // Create local PostgreSQL database in browser with IndexedDB persistence
 // Using IndexedDB ensures data persists and avoids filesystem bundle issues

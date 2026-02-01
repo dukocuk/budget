@@ -15,8 +15,9 @@
  * logger.perf('InitApp', () => initializeApp())
  */
 
-const isDev = import.meta.env.DEV;
-const isProd = import.meta.env.PROD;
+// Safe access to import.meta.env for test environments
+const isDev = import.meta?.env?.DEV ?? false;
+const isProd = import.meta?.env?.PROD ?? false;
 
 // Performance marks storage
 const perfMarks = new Map();
