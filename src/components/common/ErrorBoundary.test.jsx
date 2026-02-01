@@ -5,6 +5,35 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+
+// Mock logger before importing ErrorBoundary
+// Use factory function to avoid hoisting issues
+vi.mock('../../utils/logger', () => ({
+  logger: {
+    log: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    info: vi.fn(),
+    perf: vi.fn().mockResolvedValue(undefined),
+    perfStart: vi.fn(),
+    perfEnd: vi.fn(),
+  },
+}));
+
+vi.mock('../../utils/logger.js', () => ({
+  logger: {
+    log: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    info: vi.fn(),
+    perf: vi.fn().mockResolvedValue(undefined),
+    perfStart: vi.fn(),
+    perfEnd: vi.fn(),
+  },
+}));
+
 import { ErrorBoundary } from './ErrorBoundary';
 
 // Component that throws an error
@@ -106,10 +135,17 @@ describe('ErrorBoundary', () => {
     expect(screen.getByText(/Hvis problemet fortsætter/)).toBeInTheDocument();
   });
 
-  it('logs error to console', () => {
+  it('logs error to console', async () => {
+    // Mock console.error to suppress React's error logging
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => {});
+
+    // Import the mocked logger to verify calls
+    const { logger } = await import('../../utils/logger');
+
+    // Clear previous calls
+    vi.clearAllMocks();
 
     render(
       <ErrorBoundary>
@@ -117,7 +153,8 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>
     );
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
+    // Verify ErrorBoundary logged via logger.error
+    expect(logger.error).toHaveBeenCalledWith(
       'Error caught by boundary:',
       expect.any(Error),
       expect.any(Object)

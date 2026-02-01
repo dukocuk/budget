@@ -2,7 +2,7 @@
  * Tests for validator utilities
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   validateAmount,
   validateMonthRange,
@@ -12,6 +12,21 @@ import {
   validateCloudData,
   validateDownloadedData,
 } from './validators';
+
+// Mock logger to prevent console noise in tests
+vi.mock('./logger', () => ({
+  logger: {
+    log: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('validateAmount', () => {
   it('parses valid numeric strings', () => {

@@ -49,6 +49,11 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
+// CRITICAL: Mock logger FIRST before anything that might import it
+// This prevents "Cannot find module" errors when pglite.js tries to import logger
+vi.mock('../utils/logger.js');
+vi.mock('../utils/logger');
+
 // Mock PGlite to prevent IndexedDB sync errors in tests
 vi.mock('@electric-sql/pglite', () => ({
   PGlite: vi.fn().mockImplementation(() => ({
@@ -59,17 +64,8 @@ vi.mock('@electric-sql/pglite', () => ({
 }));
 
 // Mock local PGlite database
-vi.mock('../lib/pglite.js', () => ({
-  localDB: {
-    exec: vi.fn().mockResolvedValue({ rows: [] }),
-    query: vi.fn().mockResolvedValue({ rows: [] }),
-    close: vi.fn().mockResolvedValue(undefined),
-  },
-  initLocalDB: vi.fn().mockResolvedValue(true),
-  clearLocalDB: vi.fn().mockResolvedValue(undefined),
-  migrateSettingsTable: vi.fn().mockResolvedValue(undefined),
-  migrateExpensesToUUID: vi.fn().mockResolvedValue(undefined),
-}));
+vi.mock('../lib/pglite.js');
+vi.mock('../lib/pglite');
 
 // Suppress React 19 act() warnings and React-Modal warnings in test output
 // Tests are properly structured with act() but React 19 is more strict about warnings
