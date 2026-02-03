@@ -4,7 +4,7 @@
  * Provides a reusable test wrapper that includes all 6 context providers
  * with customizable mock values for testing complete workflows.
  *
- * NOTE: Helper functions moved to testUtils.js to enable React Fast Refresh.
+ * NOTE: Helper functions moved to testUtils.jsx to enable React Fast Refresh.
  * This file now only exports React components.
  */
 
@@ -15,7 +15,7 @@ import { ModalContext } from '../../../contexts/ModalContext';
 import { SyncContext } from '../../../contexts/SyncContext';
 import { AlertContext } from '../../../contexts/AlertContext';
 import { LoadingContext } from '../../../contexts/LoadingContext';
-import { createDefaultMockValues } from './testUtils';
+import { createDefaultMockValues } from './testUtils.jsx';
 
 /**
  * Test Provider Wrapper Component
