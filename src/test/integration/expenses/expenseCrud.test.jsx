@@ -69,6 +69,7 @@ const ExpenseTestHarness = ({ children, onExpensesChange }) => {
 describe('Integration: Expense CRUD Operations', () => {
   let user;
   let mockSyncContext;
+  let expenseOperations;
 
   beforeEach(() => {
     vi.clearAllMocks();

@@ -17,7 +17,6 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, waitFor, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 
 // Enable automatic mocking
 vi.mock('../../../utils/logger');
