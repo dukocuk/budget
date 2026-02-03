@@ -54,6 +54,33 @@ Object.defineProperty(window, 'matchMedia', {
 vi.mock('../utils/logger.js');
 vi.mock('../utils/logger');
 
+// Provide minimal IndexedDB stub for PGlite's internal IDBFS
+// jsdom doesn't include IndexedDB, causing PGlite's Emscripten filesystem
+// code to crash with "Cannot read properties of undefined (reading 'open')"
+// The stub is inert (never fires callbacks) so PGlite's syncfs simply no-ops.
+if (!globalThis.indexedDB) {
+  const createMockIDBRequest = () => ({
+    result: null,
+    error: null,
+    source: null,
+    transaction: null,
+    readyState: 'pending',
+    onsuccess: null,
+    onerror: null,
+    onupgradeneeded: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  });
+
+  globalThis.indexedDB = {
+    open: vi.fn(() => createMockIDBRequest()),
+    deleteDatabase: vi.fn(() => createMockIDBRequest()),
+    cmp: vi.fn(() => 0),
+    databases: vi.fn(() => Promise.resolve([])),
+  };
+}
+
 // Mock PGlite to prevent IndexedDB sync errors in tests
 vi.mock('@electric-sql/pglite', () => ({
   PGlite: vi.fn().mockImplementation(() => ({

@@ -50,8 +50,8 @@ export const setupGoogleApiMocks = (options = {}) => {
       });
     }
 
-    // UserInfo endpoint
-    if (url.includes('www.googleapis.com/oauth2/v2/userinfo')) {
+    // UserInfo endpoint (supports both v2 and v3)
+    if (url.includes('userinfo')) {
       if (shouldFailAuth) {
         return Promise.resolve({
           ok: false,

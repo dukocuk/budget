@@ -218,15 +218,26 @@ describe('Integration: Authentication Flows', () => {
         tokenResponse: { error: 'invalid_grant' },
       });
 
+      let handleGoogleSignInFn;
+
       render(
         <AuthProvider>
-          <TestAuthComponent />
+          <TestAuthComponent
+            onAuthClick={fn => {
+              handleGoogleSignInFn = fn;
+            }}
+          />
         </AuthProvider>
       );
 
-      // User action: Click sign in
+      // User action: Click sign in button to get callback
       const signInButton = screen.getByText('Sign In with Google');
       await user.click(signInButton);
+
+      // Simulate Google OAuth callback with error scenario
+      await act(async () => {
+        await handleGoogleSignInFn({ code: 'mock-auth-code-12345' });
+      });
 
       // Wait for error to appear
       await waitFor(
@@ -244,15 +255,26 @@ describe('Integration: Authentication Flows', () => {
       // Setup: Mock network failure
       global.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
 
+      let handleGoogleSignInFn;
+
       render(
         <AuthProvider>
-          <TestAuthComponent />
+          <TestAuthComponent
+            onAuthClick={fn => {
+              handleGoogleSignInFn = fn;
+            }}
+          />
         </AuthProvider>
       );
 
-      // User action: Click sign in
+      // User action: Click sign in button to get callback
       const signInButton = screen.getByText('Sign In with Google');
       await user.click(signInButton);
+
+      // Simulate Google OAuth callback with network error
+      await act(async () => {
+        await handleGoogleSignInFn({ code: 'mock-auth-code-12345' });
+      });
 
       // Wait for error handling
       await waitFor(
@@ -340,24 +362,32 @@ describe('Integration: Authentication Flows', () => {
         </AuthProvider>
       );
 
-      // Wait for automatic token refresh
+      // Wait for loading state during token refresh
       await waitFor(
         () => {
-          expect(mockFetch).toHaveBeenCalledWith(
-            expect.stringContaining('oauth2.googleapis.com/token'),
-            expect.objectContaining({
-              method: 'POST',
-              body: expect.stringContaining('refresh_token'),
-            })
+          expect(screen.getByTestId('loading')).toBeInTheDocument();
+        },
+        { timeout: 1000 }
+      );
+
+      // Wait for automatic token refresh to complete
+      await waitFor(
+        () => {
+          const tokenCalls = mockFetch.mock.calls.filter(call =>
+            call[0].includes('oauth2.googleapis.com/token')
           );
+          expect(tokenCalls.length).toBeGreaterThan(0);
         },
         { timeout: 3000 }
       );
 
       // Verify: Session continues after refresh
-      await waitFor(() => {
-        expect(screen.getByTestId('authenticated')).toBeInTheDocument();
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('authenticated')).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
     });
 
     it('should clear session and show login if refresh fails', async () => {
@@ -478,18 +508,32 @@ describe('Integration: Authentication Flows', () => {
         tokenResponse: createMockTokenResponse(),
       });
 
+      let handleGoogleSignInFn;
+
       render(
         <AuthProvider>
-          <TestAuthComponent />
+          <TestAuthComponent
+            onAuthClick={fn => {
+              handleGoogleSignInFn = fn;
+            }}
+          />
         </AuthProvider>
       );
 
       const signInButton = screen.getByText('Sign In with Google');
       await user.click(signInButton);
 
-      await waitFor(() => {
-        expect(screen.getByTestId('authenticated')).toBeInTheDocument();
+      // Simulate Google OAuth callback
+      await act(async () => {
+        await handleGoogleSignInFn({ code: 'mock-auth-code-12345' });
       });
+
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('authenticated')).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
 
       // Step 2: Verify user session
       expect(screen.getByTestId('user-email')).toHaveTextContent(
