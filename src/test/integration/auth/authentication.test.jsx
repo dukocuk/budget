@@ -20,9 +20,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { resetAuthSession } from '../../../contexts/authUtils';
 import {
   setupGoogleApiMocks,
-  setupGoogleIdentityMock,
   setupLocalStorageMock,
-  resetAllMocks,
   mockUser,
   createMockTokenResponse,
 } from '../shared';
@@ -503,7 +501,7 @@ describe('Integration: Authentication Flows', () => {
   describe('Integration: Full authentication lifecycle', () => {
     it('should support complete auth lifecycle: sign in → use app → sign out', async () => {
       // Step 1: Sign in
-      const mockFetch = setupGoogleApiMocks({
+      setupGoogleApiMocks({
         userInfoResponse: mockUser,
         tokenResponse: createMockTokenResponse(),
       });

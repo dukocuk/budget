@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, waitFor, cleanup, act } from '@testing-library/react';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 // Enable automatic mocking from __mocks__ directories
@@ -68,7 +68,6 @@ const ExpenseTestHarness = ({ children, onExpensesChange }) => {
 
 describe('Integration: Expense CRUD Operations', () => {
   let user;
-  let mockDB;
   let mockSyncContext;
   let expenseOperations;
 
@@ -79,7 +78,6 @@ describe('Integration: Expense CRUD Operations', () => {
 
     // Setup mock database
     const { mockQuery, mockExec } = setupMockDatabase();
-    mockDB = { query: mockQuery, exec: mockExec };
 
     // Mock PGlite
     const pglite = require('../../../lib/pglite');

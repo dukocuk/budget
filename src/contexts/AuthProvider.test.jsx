@@ -27,9 +27,6 @@ vi.mock('../lib/googleDrive', () => ({
   initGoogleDrive: vi.fn(),
 }));
 
-// Store original localStorage
-const originalLocalStorage = global.localStorage;
-
 describe('AuthProvider Integration Tests', () => {
   let mockFetch;
 

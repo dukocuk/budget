@@ -59,14 +59,12 @@ const AuthTestHarness = ({ children, onAuthChange }) => {
 };
 
 describe('Integration: Token Refresh and Session Management', () => {
-  let user;
   let mockFetch;
   let authOperations;
 
   beforeEach(() => {
     vi.clearAllMocks();
     cleanup();
-    user = userEvent.setup();
 
     // Reset session initialization guard between tests
     resetAuthSession();
@@ -414,7 +412,7 @@ describe('Integration: Token Refresh and Session Management', () => {
 
       // First attempt fails, second succeeds
       let refreshAttempts = 0;
-      mockFetch = vi.fn((url, config) => {
+      mockFetch = vi.fn((url, _config) => {
         if (url.includes('oauth2.googleapis.com/token')) {
           refreshAttempts++;
           if (refreshAttempts === 1) {

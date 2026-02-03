@@ -11,7 +11,6 @@ import {
   initGoogleDrive,
   ensureBudgetFolder,
   ensureBackupFolder,
-  getBudgetFileMetadata,
   downloadBudgetData,
   uploadBudgetData,
   checkForUpdates,
