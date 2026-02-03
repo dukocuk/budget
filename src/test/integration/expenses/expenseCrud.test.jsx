@@ -69,7 +69,6 @@ const ExpenseTestHarness = ({ children, onExpensesChange }) => {
 describe('Integration: Expense CRUD Operations', () => {
   let user;
   let mockSyncContext;
-  let expenseOperations;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -137,11 +136,7 @@ describe('Integration: Expense CRUD Operations', () => {
         <SyncContext.Provider value={mockSyncContext}>
           <AlertProvider>
             <ExpenseProvider userId={mockUser.id} periodId={mockPeriod2025.id}>
-              <ExpenseTestHarness
-                onExpensesChange={ops => {
-                  expenseOperations = ops;
-                }}
-              >
+              <ExpenseTestHarness>
                 <AddExpenseModal
                   isOpen={isModalOpen}
                   onClose={handleClose}
