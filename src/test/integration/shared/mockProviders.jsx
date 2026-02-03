@@ -3,96 +3,19 @@
  *
  * Provides a reusable test wrapper that includes all 6 context providers
  * with customizable mock values for testing complete workflows.
+ *
+ * NOTE: Helper functions moved to testUtils.js to enable React Fast Refresh.
+ * This file now only exports React components.
  */
 
 import React from 'react';
-import { vi } from 'vitest';
 import { ExpenseContext } from '../../../contexts/ExpenseContext';
 import { BudgetPeriodContext } from '../../../contexts/BudgetPeriodContext';
 import { ModalContext } from '../../../contexts/ModalContext';
 import { SyncContext } from '../../../contexts/SyncContext';
 import { AlertContext } from '../../../contexts/AlertContext';
 import { LoadingContext } from '../../../contexts/LoadingContext';
-import { mockUser, mockPeriod2025, mockMonthlyExpense } from './mockData';
-
-/**
- * Default mock values for contexts
- */
-export const createDefaultMockValues = (overrides = {}) => {
-  return {
-    auth: {
-      user: mockUser,
-      loading: false,
-      error: null,
-      signInWithGoogle: vi.fn(),
-      signOut: vi.fn(),
-      ...overrides.auth,
-    },
-    expense: {
-      expenses: [mockMonthlyExpense],
-      selectedExpenses: [],
-      loading: false,
-      error: null,
-      canUndo: false,
-      canRedo: false,
-      addExpense: vi.fn(),
-      updateExpense: vi.fn(),
-      deleteExpense: vi.fn(),
-      bulkDeleteExpenses: vi.fn(),
-      selectExpense: vi.fn(),
-      clearSelection: vi.fn(),
-      undo: vi.fn(),
-      redo: vi.fn(),
-      ...overrides.expense,
-    },
-    budgetPeriod: {
-      periods: [mockPeriod2025],
-      activePeriod: mockPeriod2025,
-      loading: false,
-      error: null,
-      createPeriod: vi.fn(),
-      updatePeriod: vi.fn(),
-      archivePeriod: vi.fn(),
-      setActivePeriod: vi.fn(),
-      deletePeriod: vi.fn(),
-      ...overrides.budgetPeriod,
-    },
-    modal: {
-      isOpen: false,
-      modalType: null,
-      modalProps: {},
-      openModal: vi.fn(),
-      closeModal: vi.fn(),
-      ...overrides.modal,
-    },
-    sync: {
-      syncStatus: 'idle',
-      lastSyncTime: null,
-      isOnline: true,
-      isSyncing: false,
-      error: null,
-      syncExpenses: vi.fn(),
-      syncSettings: vi.fn(),
-      loadExpenses: vi.fn(),
-      ...overrides.sync,
-    },
-    alert: {
-      alert: null,
-      showAlert: vi.fn(),
-      hideAlert: vi.fn(),
-      ...overrides.alert,
-    },
-    loading: {
-      loading: false,
-      loadingStage: 'complete',
-      progress: 100,
-      setLoading: vi.fn(),
-      setLoadingStage: vi.fn(),
-      setProgress: vi.fn(),
-      ...overrides.loading,
-    },
-  };
-};
+import { createDefaultMockValues } from './testUtils';
 
 /**
  * Test Provider Wrapper Component
@@ -129,25 +52,6 @@ export const TestProviderWrapper = ({ children, initialState = {} }) => {
       </SyncContext.Provider>
     </LoadingContext.Provider>
   );
-};
-
-/**
- * Create a test wrapper with custom render function for @testing-library/react
- *
- * Usage:
- * const { render } = createTestWrapper({ initialState: { ... } });
- * render(<MyComponent />);
- */
-export const createTestWrapper = (options = {}) => {
-  const { initialState = {} } = options;
-
-  return {
-    wrapper: ({ children }) => (
-      <TestProviderWrapper initialState={initialState}>
-        {children}
-      </TestProviderWrapper>
-    ),
-  };
 };
 
 /**

@@ -16,7 +16,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 // Enable automatic mocking
@@ -78,7 +78,6 @@ const PeriodOnlyTestHarness = ({ children, onContextChange, syncContext }) => {
 };
 
 describe('Integration: Offline Mode and Sync Queue', () => {
-  let user;
   let mockDB;
   let mockSyncContext;
   let operations;
@@ -86,7 +85,6 @@ describe('Integration: Offline Mode and Sync Queue', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     cleanup();
-    user = userEvent.setup();
 
     // Setup mock database
     const { mockQuery, mockExec } = setupMockDatabase();

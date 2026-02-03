@@ -69,7 +69,6 @@ const ExpenseTestHarness = ({ children, onExpensesChange }) => {
 describe('Integration: Expense CRUD Operations', () => {
   let user;
   let mockSyncContext;
-  let expenseOperations;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -606,18 +605,6 @@ describe('Integration: Expense CRUD Operations', () => {
   });
 
   describe('Integration: Complete CRUD workflows with all providers', () => {
-    it('should handle add → edit → delete lifecycle', async () => {
-      const operations = {
-        added: null,
-        edited: null,
-        deleted: false,
-      };
-
-      // This test would require a more complex setup with actual providers
-      // For now, we verify the individual operations work correctly
-      expect(true).toBe(true);
-    });
-
     it('should trigger sync after each CRUD operation', async () => {
       // Verify sync is called after add/edit/delete
       // This would be tested with the full provider stack

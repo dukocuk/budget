@@ -8,7 +8,7 @@
  * - Element queries
  */
 
-import { waitFor, within } from '@testing-library/react';
+import { waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 
 /**

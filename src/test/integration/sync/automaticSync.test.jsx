@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 // Enable automatic mocking
@@ -58,7 +58,6 @@ const SyncTestHarness = ({ children, onSyncChange, syncContext }) => {
 };
 
 describe('Integration: Automatic Cloud Sync', () => {
-  let user;
   let mockDB;
   let mockSyncContext;
   let syncOperations;
@@ -66,7 +65,6 @@ describe('Integration: Automatic Cloud Sync', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     cleanup();
-    user = userEvent.setup();
 
     // Setup mock database
     const { mockQuery, mockExec } = setupMockDatabase();
