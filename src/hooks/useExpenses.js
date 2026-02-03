@@ -246,6 +246,9 @@ export const useExpenses = (userId, periodId) => {
               budgetPeriodId: row.budget_period_id,
               createdAt: row.created_at,
               updatedAt: row.updated_at,
+              monthlyAmounts: row.monthly_amounts
+                ? JSON.parse(row.monthly_amounts)
+                : null,
             }));
             // SyncContext will fetch complete periods/settings automatically
             syncExpenses(expensesToSync);
