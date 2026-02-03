@@ -1,0 +1,149 @@
+/**
+ * SectionHeader Component Styles
+ *
+ * Consistent styling for section headers with icon, title, badge, and subtitle.
+ */
+
+/* Block: Section Header */
+.section-header {
+  margin-bottom: var(--space-xl, 32px);
+  padding-bottom: var(--space-lg, 24px);
+  border-bottom: 2px solid var(--color-border, #e5e7eb);
+}
+
+/* Element: Main Content Row */
+.section-header-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md, 16px);
+  flex-wrap: wrap;
+}
+
+/* Element: Icon */
+.section-header-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Element: Title */
+.section-header-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-text, #1f2937);
+  margin: 0;
+  line-height: 1.3;
+}
+
+/* Element: Badge */
+.section-header-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  box-shadow: var(--elevation-1);
+  transition: transform var(--duration-fast, 150ms) var(--ease-standard);
+}
+
+.section-header-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--elevation-2);
+}
+
+/* Badge Variants */
+.section-header-badge--primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.section-header-badge--success {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.section-header-badge--info {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+}
+
+.section-header-badge--warning {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+}
+
+.section-header-badge--error {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+/* Element: Subtitle */
+.section-header-subtitle {
+  font-size: 0.9375rem;
+  color: var(--color-text-secondary, #6b7280);
+  margin: var(--space-sm, 8px) 0 0 0;
+  line-height: 1.5;
+}
+
+/* Dark Mode Support */
+:root[data-theme='dark'] .section-header {
+  border-bottom-color: var(--color-border, #374151);
+}
+
+:root[data-theme='dark'] .section-header-title {
+  color: var(--color-text, #f9fafb);
+}
+
+:root[data-theme='dark'] .section-header-subtitle {
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+:root[data-theme='dark'] .section-header-badge--primary {
+  background: linear-gradient(135deg, #818cf8 0%, #a78bfa 100%);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .section-header {
+    margin-bottom: var(--space-lg, 24px);
+    padding-bottom: var(--space-md, 16px);
+  }
+
+  .section-header-main {
+    gap: var(--space-sm, 8px);
+  }
+
+  .section-header-icon {
+    font-size: 1.25rem;
+  }
+
+  .section-header-title {
+    font-size: 1.125rem;
+  }
+
+  .section-header-badge {
+    flex-basis: 100%;
+    width: fit-content;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-header-icon {
+    font-size: 1.125rem;
+  }
+
+  .section-header-title {
+    font-size: 1rem;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .section-header-badge {
+    transition: none;
+  }
+}

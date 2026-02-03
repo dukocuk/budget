@@ -1,0 +1,243 @@
+/**
+ * SettingsCard Component Styles
+ *
+ * BEM-inspired architecture with Material Design elevation system
+ * and comprehensive state management (hover, focus, expanded, highlighted).
+ */
+
+/* Block: Base Card */
+.settings-card {
+  background: var(--color-white, #ffffff);
+  border-radius: var(--radius-md, 10px);
+  box-shadow: var(--elevation-2);
+  transition: all var(--duration-normal, 250ms) var(--ease-standard);
+  overflow: hidden;
+  border: 2px solid transparent;
+}
+
+/* Interactive Cards */
+.settings-card--interactive {
+  cursor: pointer;
+}
+
+.settings-card--interactive:hover {
+  box-shadow: var(--elevation-3);
+  transform: translateY(-2px);
+}
+
+.settings-card--interactive:active {
+  transform: translateY(0);
+}
+
+/* Highlighted Cards (Important/Required) */
+.settings-card--highlighted {
+  border-left: 4px solid var(--color-primary, #667eea);
+  background: linear-gradient(
+    to right,
+    rgba(102, 126, 234, 0.03),
+    transparent 30%
+  );
+}
+
+/* Status Variants */
+.settings-card--success {
+  border-left: 4px solid var(--color-success, #10b981);
+}
+
+.settings-card--info {
+  border-left: 4px solid var(--color-info, #3b82f6);
+}
+
+.settings-card--warning {
+  border-left: 4px solid var(--color-warning, #f59e0b);
+}
+
+.settings-card--error {
+  border-left: 4px solid var(--color-error, #ef4444);
+}
+
+/* Element: Header */
+.settings-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--space-lg, 24px);
+  gap: var(--space-md, 16px);
+  transition: background-color var(--duration-fast, 150ms) var(--ease-standard);
+}
+
+.settings-card-header--clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.settings-card-header--clickable:hover {
+  background-color: var(--color-gray-50, #f9fafb);
+}
+
+.settings-card-header--clickable:focus {
+  outline: 2px solid var(--color-primary, #667eea);
+  outline-offset: -2px;
+}
+
+.settings-card-header--clickable:focus-visible {
+  outline: 2px solid var(--color-primary, #667eea);
+  outline-offset: -2px;
+}
+
+/* Element: Header Content */
+.settings-card-header-content {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md, 16px);
+  flex: 1;
+  min-width: 0; /* Allow text truncation */
+}
+
+/* Element: Icon */
+.settings-card-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Element: Title Group */
+.settings-card-title-group {
+  flex: 1;
+  min-width: 0; /* Allow text truncation */
+}
+
+/* Element: Title */
+.settings-card-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-gray-900, #1f2937);
+  margin: 0;
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs, 4px);
+}
+
+/* Element: Required Indicator */
+.settings-card-required {
+  color: var(--color-error, #ef4444);
+  font-weight: 700;
+  font-size: 1.25rem;
+  margin-left: var(--space-xs, 4px);
+}
+
+/* Element: Description */
+.settings-card-description {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary, #6b7280);
+  margin: var(--space-xs, 4px) 0 0 0;
+  line-height: 1.5;
+}
+
+/* Element: Toggle Icon */
+.settings-card-toggle {
+  font-size: 0.875rem;
+  color: var(--color-gray-500, #6b7280);
+  transition: transform var(--duration-fast, 150ms) var(--ease-standard);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.settings-card-toggle.expanded {
+  transform: rotate(180deg);
+}
+
+/* Element: Content */
+.settings-card-content {
+  padding: 0 var(--space-lg, 24px) var(--space-lg, 24px) var(--space-lg, 24px);
+  animation: expandContent var(--duration-normal, 250ms) var(--ease-decelerate);
+}
+
+@keyframes expandContent {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dark Mode Support */
+:root[data-theme='dark'] .settings-card {
+  background: var(--color-surface, #1f2937);
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme='dark'] .settings-card--interactive:hover {
+  box-shadow:
+    0 10px 20px rgba(0, 0, 0, 0.4),
+    0 3px 6px rgba(0, 0, 0, 0.2);
+}
+
+:root[data-theme='dark'] .settings-card-title {
+  color: var(--color-text, #f9fafb);
+}
+
+:root[data-theme='dark'] .settings-card-description {
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+:root[data-theme='dark'] .settings-card-header--clickable:hover {
+  background-color: var(--color-gray-800, #374151);
+}
+
+:root[data-theme='dark'] .settings-card--highlighted {
+  background: linear-gradient(
+    to right,
+    rgba(129, 140, 248, 0.08),
+    transparent 30%
+  );
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .settings-card-header {
+    padding: var(--space-md, 16px);
+  }
+
+  .settings-card-content {
+    padding: 0 var(--space-md, 16px) var(--space-md, 16px) var(--space-md, 16px);
+  }
+
+  .settings-card-icon {
+    font-size: 1.25rem;
+  }
+
+  .settings-card-title {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-card-header-content {
+    gap: var(--space-sm, 8px);
+  }
+
+  .settings-card-icon {
+    font-size: 1.125rem;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .settings-card,
+  .settings-card-toggle,
+  .settings-card-content {
+    transition: none;
+    animation: none;
+  }
+}
