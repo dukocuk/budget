@@ -248,297 +248,305 @@ export const Settings = ({
         getPreview={getBackupPreview}
         restoreBackup={restoreFromBackup}
       />
-      <section className="settings-section">
-        <h2>⚙️ Indstillinger</h2>
+      <div className="settings-container">
+        {/* Budget Settings Section - Per Year */}
+        <section className="settings-section budget-settings-section">
+          <h3 className="settings-section-header">
+            📊 Budgetindstillinger
+            {activePeriod && (
+              <span className="year-badge">{activePeriod.year}</span>
+            )}
+          </h3>
 
-        {/* Sync Status */}
-        <div className="sync-status-container">
-          <h3>☁️ Sky-synkronisering</h3>
-          <div className={`sync-status ${statusDisplay.className}`}>
-            <span className="sync-icon">{statusDisplay.icon}</span>
-            <span className="sync-text">{statusDisplay.text}</span>
-          </div>
-          {lastSyncTime && (
-            <p className="sync-time">
-              Sidst synkroniseret: {lastSyncTime.toLocaleString('da-DK')}
-            </p>
-          )}
-          {syncError && (
-            <div className="sync-error-message">
-              <p>⚠️ {syncError}</p>
+          {/* Year Management */}
+          {activePeriod && (
+            <div className="year-management-container">
+              <div className="year-info">
+                <div className="year-info-item">
+                  <span className="year-info-label">Status:</span>
+                  <span className={`year-status-badge ${activePeriod.status}`}>
+                    {activePeriod.status === 'active'
+                      ? '✅ Aktiv'
+                      : '📦 Arkiveret'}
+                  </span>
+                </div>
+              </div>
+              {activePeriod.status === 'active' && onArchivePeriod && (
+                <div className="year-actions">
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => onArchivePeriod(activePeriod.id)}
+                    title="Arkiver dette budgetår"
+                  >
+                    <span className="btn-icon">📦</span>
+                    <span>Arkiver år {activePeriod.year}</span>
+                  </button>
+                  <p className="year-note">
+                    💡 Arkivering markerer året som historisk data. Du kan
+                    stadig se det, men ikke redigere.
+                  </p>
+                </div>
+              )}
+              {activePeriod.status === 'archived' && onUnarchivePeriod && (
+                <div className="year-actions">
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => onUnarchivePeriod(activePeriod.id)}
+                    title="Genaktiver dette budgetår for redigering"
+                  >
+                    <span className="btn-icon">🔓</span>
+                    <span>Genaktiver år {activePeriod.year}</span>
+                  </button>
+                  <p className="year-note">
+                    💡 Genaktivering gør året redigerbart igen. Du kan arkivere
+                    det senere hvis nødvendigt.
+                  </p>
+                </div>
+              )}
             </div>
           )}
-          <p className="sync-info">
-            💡 Alle ændringer gemmes automatisk til skyen og synkroniseres på
-            tværs af dine enheder.
-          </p>
-        </div>
 
-        {/* Year Management Section */}
-        {activePeriod && (
-          <div className="year-management-container">
-            <h3>📅 Budgetår</h3>
-            <div className="year-info">
-              <div className="year-info-item">
-                <span className="year-info-label">Aktivt år:</span>
-                <span className="year-info-value">{activePeriod.year}</span>
-              </div>
-              <div className="year-info-item">
-                <span className="year-info-label">Status:</span>
-                <span className={`year-status-badge ${activePeriod.status}`}>
-                  {activePeriod.status === 'active'
-                    ? '✅ Aktiv'
-                    : '📦 Arkiveret'}
-                </span>
-              </div>
-            </div>
-            {activePeriod.status === 'active' && onArchivePeriod && (
-              <div className="year-actions">
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => onArchivePeriod(activePeriod.id)}
-                  title="Arkiver dette budgetår"
-                >
-                  <span className="btn-icon">📦</span>
-                  <span>Arkiver år {activePeriod.year}</span>
-                </button>
-                <p className="year-note">
-                  💡 Arkivering markerer året som historisk data. Du kan stadig
-                  se det, men ikke redigere.
-                </p>
-              </div>
-            )}
-            {activePeriod.status === 'archived' && onUnarchivePeriod && (
-              <div className="year-actions">
-                <button
-                  className="btn btn-primary"
-                  onClick={() => onUnarchivePeriod(activePeriod.id)}
-                  title="Genaktiver dette budgetår for redigering"
-                >
-                  <span className="btn-icon">🔓</span>
-                  <span>Genaktiver år {activePeriod.year}</span>
-                </button>
-                <p className="year-note">
-                  💡 Genaktivering gør året redigerbart igen. Du kan arkivere
-                  det senere hvis nødvendigt.
-                </p>
-              </div>
-            )}
-          </div>
-        )}
+          <div className="settings-grid">
+            <div className="settings-item settings-payment-mode">
+              <h3>💰 Månedlige indbetalinger</h3>
 
-        {/* Template Management Section */}
-        <div className="template-management-container">
-          <h3>📋 Skabeloner</h3>
-          <p className="template-description">
-            Gem dit nuværende budget som en genbrugelig skabelon for hurtigere
-            oprettelse af fremtidige år.
-          </p>
-          <div className="template-actions">
-            <button
-              className="btn btn-info"
-              onClick={onOpenTemplateManager}
-              title="Åbn skabelonstyring"
-            >
-              <span className="btn-icon">📋</span>
-              <span>Administrer skabeloner</span>
-            </button>
-            <p className="template-note">
-              💡 Skabeloner lader dig hurtigt oprette nye budgetår med
-              forudkonfigurerede udgifter.
-            </p>
-          </div>
-        </div>
-
-        <div className="settings-grid">
-          <div className="settings-item settings-payment-mode">
-            <h3>💰 Månedlige indbetalinger</h3>
-
-            <div className="payment-mode-selector">
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  name="paymentMode"
-                  value="fixed"
-                  checked={localPaymentMode === 'fixed'}
-                  onChange={() => handlePaymentModeChange('fixed')}
-                />
-                <span className="radio-label">Fast beløb for hele året</span>
-              </label>
-
-              {localPaymentMode === 'fixed' && (
-                <div className="fixed-payment-input">
+              <div className="payment-mode-selector">
+                <label className="radio-option">
                   <input
-                    ref={monthlyPaymentRef}
-                    type="text"
-                    id="monthlyPayment"
-                    value={localMonthlyPayment}
-                    onChange={e => {
-                      const value = e.target.value;
-                      if (value === '') {
-                        setLocalMonthlyPayment(0);
-                      } else {
-                        const parsed = parseDanishNumber(value);
-                        setLocalMonthlyPayment(parsed);
-                      }
-                    }}
-                    onBlur={() => {
-                      if (localMonthlyPayment !== monthlyPayment) {
-                        onMonthlyPaymentChange(localMonthlyPayment);
-                      }
-                    }}
-                    placeholder="f.eks. 5.700,00"
-                    inputMode="decimal"
-                    pattern="[0-9.,]+"
+                    type="radio"
+                    name="paymentMode"
+                    value="fixed"
+                    checked={localPaymentMode === 'fixed'}
+                    onChange={() => handlePaymentModeChange('fixed')}
                   />
-                  <span className="input-suffix">kr./måned</span>
-                </div>
-              )}
+                  <span className="radio-label">Fast beløb for hele året</span>
+                </label>
 
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  name="paymentMode"
-                  value="variable"
-                  checked={localPaymentMode === 'variable'}
-                  onChange={() => handlePaymentModeChange('variable')}
-                />
-                <span className="radio-label">Variabel beløb per måned</span>
-              </label>
-
-              {localPaymentMode === 'variable' && (
-                <div className="monthly-payments-grid">
-                  {[
-                    'Jan',
-                    'Feb',
-                    'Mar',
-                    'Apr',
-                    'Maj',
-                    'Jun',
-                    'Jul',
-                    'Aug',
-                    'Sep',
-                    'Okt',
-                    'Nov',
-                    'Dec',
-                  ].map((month, index) => (
-                    <div key={month} className="month-payment-item">
-                      <label htmlFor={`month-${index}`}>{month}</label>
-                      <input
-                        ref={el => (monthlyPaymentsRefs.current[index] = el)}
-                        type="text"
-                        id={`month-${index}`}
-                        value={localMonthlyPayments[index]}
-                        onChange={e =>
-                          handleMonthPaymentChange(index, e.target.value)
+                {localPaymentMode === 'fixed' && (
+                  <div className="fixed-payment-input">
+                    <input
+                      ref={monthlyPaymentRef}
+                      type="text"
+                      id="monthlyPayment"
+                      value={localMonthlyPayment}
+                      onChange={e => {
+                        const value = e.target.value;
+                        if (value === '') {
+                          setLocalMonthlyPayment(0);
+                        } else {
+                          const parsed = parseDanishNumber(value);
+                          setLocalMonthlyPayment(parsed);
                         }
-                        onBlur={handleMonthPaymentBlur}
-                        placeholder="0,00"
-                        inputMode="decimal"
-                        pattern="[0-9.,]+"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
+                      }}
+                      onBlur={() => {
+                        if (localMonthlyPayment !== monthlyPayment) {
+                          onMonthlyPaymentChange(localMonthlyPayment);
+                        }
+                      }}
+                      placeholder="f.eks. 5.700,00"
+                      inputMode="decimal"
+                      pattern="[0-9.,]+"
+                    />
+                    <span className="input-suffix">kr./måned</span>
+                  </div>
+                )}
+
+                <label className="radio-option">
+                  <input
+                    type="radio"
+                    name="paymentMode"
+                    value="variable"
+                    checked={localPaymentMode === 'variable'}
+                    onChange={() => handlePaymentModeChange('variable')}
+                  />
+                  <span className="radio-label">Variabel beløb per måned</span>
+                </label>
+
+                {localPaymentMode === 'variable' && (
+                  <div className="monthly-payments-grid">
+                    {[
+                      'Jan',
+                      'Feb',
+                      'Mar',
+                      'Apr',
+                      'Maj',
+                      'Jun',
+                      'Jul',
+                      'Aug',
+                      'Sep',
+                      'Okt',
+                      'Nov',
+                      'Dec',
+                    ].map((month, index) => (
+                      <div key={month} className="month-payment-item">
+                        <label htmlFor={`month-${index}`}>{month}</label>
+                        <input
+                          ref={el => (monthlyPaymentsRefs.current[index] = el)}
+                          type="text"
+                          id={`month-${index}`}
+                          value={localMonthlyPayments[index]}
+                          onChange={e =>
+                            handleMonthPaymentChange(index, e.target.value)
+                          }
+                          onBlur={handleMonthPaymentBlur}
+                          placeholder="0,00"
+                          inputMode="decimal"
+                          pattern="[0-9.,]+"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="settings-item">
+              <label htmlFor="previousBalance">Overført fra sidste år:</label>
+              <input
+                ref={previousBalanceRef}
+                type="text"
+                id="previousBalance"
+                value={localPreviousBalance}
+                onChange={e => {
+                  const value = e.target.value;
+                  // Update local state immediately for responsive UI (supports Danish locale)
+                  if (value === '') {
+                    setLocalPreviousBalance(0);
+                  } else {
+                    const parsed = parseDanishNumber(value);
+                    setLocalPreviousBalance(parsed);
+                  }
+                }}
+                placeholder="f.eks. 4.831,00"
+                inputMode="decimal"
+                pattern="[0-9.,]+"
+                onBlur={() => {
+                  // Only trigger parent update (and sync) on blur
+                  if (localPreviousBalance !== previousBalance) {
+                    onPreviousBalanceChange(localPreviousBalance);
+                  }
+                }}
+              />
             </div>
           </div>
-          <div className="settings-item">
-            <label htmlFor="previousBalance">Overført fra sidste år:</label>
-            <input
-              ref={previousBalanceRef}
-              type="text"
-              id="previousBalance"
-              value={localPreviousBalance}
-              onChange={e => {
-                const value = e.target.value;
-                // Update local state immediately for responsive UI (supports Danish locale)
-                if (value === '') {
-                  setLocalPreviousBalance(0);
-                } else {
-                  const parsed = parseDanishNumber(value);
-                  setLocalPreviousBalance(parsed);
-                }
-              }}
-              placeholder="f.eks. 4.831,00"
-              inputMode="decimal"
-              pattern="[0-9.,]+"
-              onBlur={() => {
-                // Only trigger parent update (and sync) on blur
-                if (localPreviousBalance !== previousBalance) {
-                  onPreviousBalanceChange(localPreviousBalance);
-                }
-              }}
-            />
-          </div>
-        </div>
+        </section>
 
-        <div className="settings-actions">
-          <h3>Data håndtering</h3>
-          <div className="settings-buttons">
-            <button
-              className="btn btn-success"
-              onClick={onExport}
-              title="Eksporter dine udgifter til CSV-fil til brug i Excel eller andre programmer"
-            >
-              <span className="btn-icon">📊</span>
-              <span>Eksporter CSV</span>
-            </button>
-            <button
-              className="btn btn-info"
-              onClick={handleImportClick}
-              title="Importer udgifter fra en CSV-fil til den aktuelle budgetperiode"
-            >
-              <span className="btn-icon">📥</span>
-              <span>Importer CSV</span>
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={handleCreateBackup}
-              disabled={!isOnline}
-              title={
-                !isOnline
-                  ? 'Kræver internetforbindelse'
-                  : 'Opret et komplet backup af alle dine data med versionering'
-              }
-            >
-              <span className="btn-icon">📦</span>
-              <span>Opret backup</span>
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={handleOpenBackupManager}
-              disabled={!isOnline}
-              title={
-                !isOnline
-                  ? 'Kræver internetforbindelse'
-                  : 'Gendan alle dine data fra et tidligere backup med versionsoversigt'
-              }
-            >
-              <span className="btn-icon">📋</span>
-              <span>Gendan fra backup</span>
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              onChange={handleFileChange}
-              style={{ display: 'none' }}
-              aria-label="Vælg CSV fil til import"
-            />
+        {/* App Settings Section - Global */}
+        <section className="settings-section app-settings-section">
+          <h3 className="settings-section-header">⚙️ App-indstillinger</h3>
+
+          {/* Sync Status */}
+          <div className="sync-status-container">
+            <h4>☁️ Sky-synkronisering</h4>
+            <div className={`sync-status ${statusDisplay.className}`}>
+              <span className="sync-icon">{statusDisplay.icon}</span>
+              <span className="sync-text">{statusDisplay.text}</span>
+            </div>
+            {lastSyncTime && (
+              <p className="sync-time">
+                Sidst synkroniseret: {lastSyncTime.toLocaleString('da-DK')}
+              </p>
+            )}
+            {syncError && (
+              <div className="sync-error-message">
+                <p>⚠️ {syncError}</p>
+              </div>
+            )}
+            <p className="sync-info">
+              💡 Alle ændringer gemmes automatisk til skyen og synkroniseres på
+              tværs af dine enheder.
+            </p>
           </div>
-          <p className="settings-note">
-            💡 <strong>Automatisk:</strong> Dine data gemmes automatisk til
-            skyen.
-            <br />
-            📊 <strong>CSV:</strong> Eksporter/importer til Excel og andre
-            programmer.
-            <br />
-            📦 <strong>Backup:</strong> Versionerede snapshots med komplet
-            gendannelse.
-          </p>
-        </div>
-      </section>
+
+          {/* Template Management Section */}
+          <div className="template-management-container">
+            <h4>📋 Skabeloner</h4>
+            <p className="template-description">
+              Gem dit nuværende budget som en genbrugelig skabelon for hurtigere
+              oprettelse af fremtidige år.
+            </p>
+            <div className="template-actions">
+              <button
+                className="btn btn-info"
+                onClick={onOpenTemplateManager}
+                title="Åbn skabelonstyring"
+              >
+                <span className="btn-icon">📋</span>
+                <span>Administrer skabeloner</span>
+              </button>
+              <p className="template-note">
+                💡 Skabeloner lader dig hurtigt oprette nye budgetår med
+                forudkonfigurerede udgifter.
+              </p>
+            </div>
+          </div>
+
+          <div className="settings-actions">
+            <h4>📁 Data håndtering</h4>
+            <div className="settings-buttons">
+              <button
+                className="btn btn-success"
+                onClick={onExport}
+                title="Eksporter dine udgifter til CSV-fil til brug i Excel eller andre programmer"
+              >
+                <span className="btn-icon">📊</span>
+                <span>Eksporter CSV</span>
+              </button>
+              <button
+                className="btn btn-info"
+                onClick={handleImportClick}
+                title="Importer udgifter fra en CSV-fil til den aktuelle budgetperiode"
+              >
+                <span className="btn-icon">📥</span>
+                <span>Importer CSV</span>
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleCreateBackup}
+                disabled={!isOnline}
+                title={
+                  !isOnline
+                    ? 'Kræver internetforbindelse'
+                    : 'Opret et komplet backup af alle dine data med versionering'
+                }
+              >
+                <span className="btn-icon">📦</span>
+                <span>Opret backup</span>
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={handleOpenBackupManager}
+                disabled={!isOnline}
+                title={
+                  !isOnline
+                    ? 'Kræver internetforbindelse'
+                    : 'Gendan alle dine data fra et tidligere backup med versionsoversigt'
+                }
+              >
+                <span className="btn-icon">📋</span>
+                <span>Gendan fra backup</span>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleFileChange}
+                style={{ display: 'none' }}
+                aria-label="Vælg CSV fil til import"
+              />
+            </div>
+            <p className="settings-note">
+              💡 <strong>Automatisk:</strong> Dine data gemmes automatisk til
+              skyen.
+              <br />
+              📊 <strong>CSV:</strong> Eksporter/importer til Excel og andre
+              programmer.
+              <br />
+              📦 <strong>Backup:</strong> Versionerede snapshots med komplet
+              gendannelse.
+            </p>
+          </div>
+        </section>
+      </div>
     </>
   );
 };
