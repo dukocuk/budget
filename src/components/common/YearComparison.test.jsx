@@ -587,9 +587,13 @@ describe('YearComparison', () => {
 
   describe('Error Handling', () => {
     it('should handle getExpensesForPeriod error gracefully', async () => {
-      const consoleError = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => {});
+      // Mock logger.error to track error logging
+      const mockLoggerError = vi.fn();
+      const originalLogger = await import('../../utils/logger');
+      vi.spyOn(originalLogger, 'logger', 'get').mockReturnValue({
+        ...originalLogger.logger,
+        error: mockLoggerError,
+      });
 
       mockGetExpensesForPeriod.mockRejectedValue(
         new Error('Failed to load data')
@@ -603,14 +607,18 @@ describe('YearComparison', () => {
         />
       );
 
-      await waitFor(() => {
-        expect(consoleError).toHaveBeenCalledWith(
-          'Error loading period data:',
-          expect.any(Error)
-        );
-      });
+      // Wait for auto-selection to trigger data loading and error handling
+      await waitFor(
+        () => {
+          expect(mockLoggerError).toHaveBeenCalledWith(
+            'Error loading period data:',
+            expect.any(Error)
+          );
+        },
+        { timeout: 3000 }
+      );
 
-      consoleError.mockRestore();
+      vi.restoreAllMocks();
     });
   });
 
