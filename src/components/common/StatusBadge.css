@@ -1,0 +1,189 @@
+/**
+ * StatusBadge Component Styles
+ *
+ * Semantic status indicators with color-coded backgrounds and animations.
+ */
+
+/* Block: Status Badge */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm, 8px);
+  padding: var(--space-sm, 8px) var(--space-lg, 24px);
+  border-radius: var(--radius-full, 9999px);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  box-shadow: var(--elevation-1);
+  transition: all var(--duration-fast, 150ms) var(--ease-standard);
+  border: 1px solid transparent;
+}
+
+/* Size Variants */
+.status-badge--small {
+  padding: var(--space-xs, 4px) var(--space-md, 16px);
+  font-size: 0.8125rem;
+  gap: var(--space-xs, 4px);
+}
+
+.status-badge--large {
+  padding: var(--space-md, 16px) var(--space-xl, 32px);
+  font-size: 1rem;
+  gap: var(--space-md, 16px);
+}
+
+/* Element: Icon */
+.status-badge-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.status-badge--small .status-badge-icon {
+  font-size: 1rem;
+}
+
+.status-badge--large .status-badge-icon {
+  font-size: 1.5rem;
+}
+
+/* Element: Text */
+.status-badge-text {
+  line-height: 1;
+}
+
+/* Modifier: Synced (Success) */
+.status-badge--synced {
+  background: linear-gradient(
+    135deg,
+    var(--status-success-bg, #d1fae5) 0%,
+    #a7f3d0 100%
+  );
+  color: var(--status-success-text, #065f46);
+  border-color: var(--status-success-border, #6ee7b7);
+}
+
+/* Modifier: Syncing (Info with Animation) */
+.status-badge--syncing {
+  background: linear-gradient(
+    135deg,
+    var(--status-info-bg, #dbeafe) 0%,
+    #bfdbfe 100%
+  );
+  color: var(--status-info-text, #1e40af);
+  border-color: var(--status-info-border, #93c5fd);
+}
+
+.status-badge--syncing.status-badge--animated {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.status-badge--syncing.status-badge--animated .status-badge-icon {
+  animation: rotate 2s linear infinite;
+}
+
+/* Modifier: Error */
+.status-badge--error {
+  background: linear-gradient(
+    135deg,
+    var(--status-error-bg, #fee2e2) 0%,
+    #fecaca 100%
+  );
+  color: var(--status-error-text, #991b1b);
+  border-color: var(--status-error-border, #fca5a5);
+}
+
+/* Modifier: Offline */
+.status-badge--offline {
+  background: linear-gradient(
+    135deg,
+    var(--color-gray-100, #f3f4f6) 0%,
+    var(--color-gray-200, #e5e7eb) 100%
+  );
+  color: var(--color-gray-700, #374151);
+  border-color: var(--color-gray-300, #d1d5db);
+}
+
+/* Modifier: Idle */
+.status-badge--idle {
+  background: linear-gradient(
+    135deg,
+    var(--color-gray-100, #f3f4f6) 0%,
+    var(--color-gray-50, #f9fafb) 100%
+  );
+  color: var(--color-gray-600, #4b5563);
+  border-color: var(--color-gray-300, #d1d5db);
+}
+
+/* Animations */
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
+}
+
+/* Dark Mode Support */
+:root[data-theme='dark'] .status-badge--synced {
+  background: linear-gradient(135deg, #065f46 0%, #047857 100%);
+  color: #d1fae5;
+  border-color: #059669;
+}
+
+:root[data-theme='dark'] .status-badge--syncing {
+  background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+  color: #dbeafe;
+  border-color: #3b82f6;
+}
+
+:root[data-theme='dark'] .status-badge--error {
+  background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
+  color: #fee2e2;
+  border-color: #dc2626;
+}
+
+:root[data-theme='dark'] .status-badge--offline,
+:root[data-theme='dark'] .status-badge--idle {
+  background: linear-gradient(
+    135deg,
+    var(--color-gray-700, #374151) 0%,
+    var(--color-gray-600, #4b5563) 100%
+  );
+  color: var(--color-gray-300, #d1d5db);
+  border-color: var(--color-gray-500, #6b7280);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .status-badge {
+    padding: var(--space-xs, 4px) var(--space-md, 16px);
+    font-size: 0.875rem;
+  }
+
+  .status-badge-icon {
+    font-size: 1.125rem;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .status-badge--syncing.status-badge--animated,
+  .status-badge--syncing.status-badge--animated .status-badge-icon {
+    animation: none;
+  }
+}
