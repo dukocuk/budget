@@ -100,16 +100,21 @@ export function useDataInitialization({
               // This prevents charts from re-rendering multiple times during initialization
               startTransition(() => {
                 // Update expenses first (if available)
+                // FIX: Filter expenses to only include those for the active period
+                // This prevents year data mixing when cloud returns expenses for all periods
                 if (
                   expensesResult &&
                   expensesResult.success &&
                   expensesResult.data &&
                   expensesResult.data.length > 0
                 ) {
-                  logger.info(
-                    `✅ Setting ${expensesResult.data.length} expenses in state`
+                  const filteredExpenses = expensesResult.data.filter(
+                    expense => expense.budgetPeriodId === activePeriod.id
                   );
-                  setAllExpenses(expensesResult.data);
+                  logger.info(
+                    `✅ Setting ${filteredExpenses.length} expenses for period ${activePeriod.year} (filtered from ${expensesResult.data.length} total)`
+                  );
+                  setAllExpenses(filteredExpenses);
                 }
 
                 // Settings are loaded from activePeriod (handled by separate useEffect)

@@ -677,7 +677,12 @@ function AppContentWrapper() {
   }
 
   return (
-    <ExpenseProvider userId={user?.id} periodId={activePeriod?.id}>
+    // Key forces clean remount when period changes, preventing stale data mixing
+    <ExpenseProvider
+      key={activePeriod?.id}
+      userId={user?.id}
+      periodId={activePeriod?.id}
+    >
       <AppContent />
     </ExpenseProvider>
   );
