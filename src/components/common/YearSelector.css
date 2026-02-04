@@ -139,8 +139,8 @@
 
 .year-selector-option.selected {
   background: var(--color-primary-light, #eef2ff);
-  color: var(--color-primary, #667eea);
-  font-weight: 500;
+  color: var(--color-gray-800, #1e293b);
+  font-weight: 600;
 }
 
 .year-option-label {
