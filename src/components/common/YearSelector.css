@@ -127,7 +127,8 @@
   border: none;
   border-radius: 0.375rem;
   font-size: 0.95rem;
-  color: var(--color-text-primary, #1e293b);
+  font-weight: 500;
+  color: var(--color-gray-900, #0f172a);
   text-align: left;
   cursor: pointer;
   transition: all 0.15s ease;
