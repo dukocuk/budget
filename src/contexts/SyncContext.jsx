@@ -330,24 +330,26 @@ export const SyncProvider = ({ user, children }) => {
                 })
                 .join(',');
 
-              // Flatten all values into single array with proper defaults
+              // Cloud data uses camelCase field names, map to snake_case for PGlite
               const allValues = periods.flatMap(period => [
                 period.id,
-                period.user_id || user.sub,
+                period.userId || user.sub,
                 period.year || new Date().getFullYear(),
-                typeof period.monthly_payment === 'number'
-                  ? period.monthly_payment
+                typeof period.monthlyPayment === 'number'
+                  ? period.monthlyPayment
                   : 5700,
-                typeof period.previous_balance === 'number'
-                  ? period.previous_balance
+                typeof period.previousBalance === 'number'
+                  ? period.previousBalance
                   : 0,
-                period.monthly_payments || null,
+                period.monthlyPayments
+                  ? JSON.stringify(period.monthlyPayments)
+                  : null,
                 period.status || 'active',
-                period.is_template || 0,
-                period.template_name || null,
-                period.template_description || null,
-                period.created_at || new Date().toISOString(),
-                period.updated_at || new Date().toISOString(),
+                period.isTemplate ? 1 : 0,
+                period.templateName || null,
+                period.templateDescription || null,
+                period.createdAt || new Date().toISOString(),
+                period.updatedAt || new Date().toISOString(),
               ]);
 
               await localDB.query(
@@ -381,18 +383,21 @@ export const SyncProvider = ({ user, children }) => {
                 })
                 .join(',');
 
+              // Cloud data uses camelCase field names, map to snake_case for PGlite
               const allValues = expenses.flatMap(expense => [
                 expense.id,
-                expense.user_id || user.sub,
+                expense.userId || user.sub,
                 expense.name || 'Unknown Expense',
                 typeof expense.amount === 'number' ? expense.amount : 0,
                 expense.frequency || 'monthly',
-                expense.start_month || 1,
-                expense.end_month || 12,
-                expense.budget_period_id,
-                expense.monthly_amounts || null,
-                expense.created_at || new Date().toISOString(),
-                expense.updated_at || new Date().toISOString(),
+                expense.startMonth || 1,
+                expense.endMonth || 12,
+                expense.budgetPeriodId,
+                expense.monthlyAmounts
+                  ? JSON.stringify(expense.monthlyAmounts)
+                  : null,
+                expense.createdAt || new Date().toISOString(),
+                expense.updatedAt || new Date().toISOString(),
               ]);
 
               await localDB.query(
@@ -503,23 +508,26 @@ export const SyncProvider = ({ user, children }) => {
                 })
                 .join(',');
 
+              // Cloud data uses camelCase field names, map to snake_case for PGlite
               const allValues = periods.flatMap(period => [
                 period.id,
-                period.user_id || user.sub,
+                period.userId || user.sub,
                 period.year || new Date().getFullYear(),
-                typeof period.monthly_payment === 'number'
-                  ? period.monthly_payment
+                typeof period.monthlyPayment === 'number'
+                  ? period.monthlyPayment
                   : 5700,
-                typeof period.previous_balance === 'number'
-                  ? period.previous_balance
+                typeof period.previousBalance === 'number'
+                  ? period.previousBalance
                   : 0,
-                period.monthly_payments || null,
+                period.monthlyPayments
+                  ? JSON.stringify(period.monthlyPayments)
+                  : null,
                 period.status || 'active',
-                period.is_template || 0,
-                period.template_name || null,
-                period.template_description || null,
-                period.created_at || new Date().toISOString(),
-                period.updated_at || new Date().toISOString(),
+                period.isTemplate ? 1 : 0,
+                period.templateName || null,
+                period.templateDescription || null,
+                period.createdAt || new Date().toISOString(),
+                period.updatedAt || new Date().toISOString(),
               ]);
 
               await localDB.query(
@@ -553,18 +561,21 @@ export const SyncProvider = ({ user, children }) => {
                 })
                 .join(',');
 
+              // Cloud data uses camelCase field names, map to snake_case for PGlite
               const allValues = expenses.flatMap(expense => [
                 expense.id,
-                expense.user_id || user.sub,
+                expense.userId || user.sub,
                 expense.name || 'Unknown Expense',
                 typeof expense.amount === 'number' ? expense.amount : 0,
                 expense.frequency || 'monthly',
-                expense.start_month || 1,
-                expense.end_month || 12,
-                expense.budget_period_id,
-                expense.monthly_amounts || null,
-                expense.created_at || new Date().toISOString(),
-                expense.updated_at || new Date().toISOString(),
+                expense.startMonth || 1,
+                expense.endMonth || 12,
+                expense.budgetPeriodId,
+                expense.monthlyAmounts
+                  ? JSON.stringify(expense.monthlyAmounts)
+                  : null,
+                expense.createdAt || new Date().toISOString(),
+                expense.updatedAt || new Date().toISOString(),
               ]);
 
               await localDB.query(
