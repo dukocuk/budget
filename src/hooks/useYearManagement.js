@@ -15,6 +15,9 @@
 
 import { logger } from '../utils/logger';
 
+// localStorage key for persisting active period selection
+const ACTIVE_PERIOD_KEY = 'budget_active_period_id';
+
 export function useYearManagement({
   createPeriod,
   createFromTemplate,
@@ -53,6 +56,9 @@ export function useYearManagement({
   const handleSelectPeriod = period => {
     // Update the active period state
     setActivePeriod(period);
+
+    // Save selection to localStorage for persistence across sessions
+    localStorage.setItem(ACTIVE_PERIOD_KEY, period.id);
 
     // Show UI feedback
     const status = period.status === 'archived' ? '📦 Arkiveret' : '';

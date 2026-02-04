@@ -9,6 +9,9 @@ import { useSyncContext } from './useSyncContext';
 import { logger } from '../utils/logger';
 import { generateUUID } from '../utils/uuid';
 
+// localStorage key for persisting active period selection
+const ACTIVE_PERIOD_KEY = 'budget_active_period_id';
+
 /**
  * Hook for managing budget periods (fiscal years)
  *
@@ -115,11 +118,22 @@ export const useBudgetPeriods = userId => {
 
       setPeriods(loadedPeriods);
 
-      // Set active period (most recent 'active' status)
-      let active =
-        loadedPeriods.find(p => p.status === 'active') ||
-        loadedPeriods[0] ||
-        null;
+      // Try to restore previously selected period from localStorage
+      const savedPeriodId = localStorage.getItem(ACTIVE_PERIOD_KEY);
+      let active = null;
+
+      if (savedPeriodId) {
+        // First: Try to find the saved period
+        active = loadedPeriods.find(p => p.id === savedPeriodId);
+      }
+
+      if (!active) {
+        // Fallback: Find first active period or first period
+        active =
+          loadedPeriods.find(p => p.status === 'active') ||
+          loadedPeriods[0] ||
+          null;
+      }
 
       // FALLBACK: If no periods exist, create default 2025 period
       if (!active && loadedPeriods.length === 0) {
@@ -329,12 +343,28 @@ export const useBudgetPeriods = userId => {
 
   /**
    * Archive budget period (make read-only)
+   * Clears localStorage if archiving the currently active period
    */
   const archivePeriod = useCallback(
     async id => {
-      return updatePeriod(id, { status: 'archived' });
+      await updatePeriod(id, { status: 'archived' });
+
+      // If we archived the active period, clear localStorage and switch to first active
+      if (id === activePeriod?.id) {
+        localStorage.removeItem(ACTIVE_PERIOD_KEY);
+
+        // Find first active period after archiving
+        const updatedPeriods = await fetchPeriodsFromDB();
+        const newActive =
+          updatedPeriods.find(p => p.status === 'active') || updatedPeriods[0];
+
+        if (newActive) {
+          setActivePeriod(newActive);
+          localStorage.setItem(ACTIVE_PERIOD_KEY, newActive.id);
+        }
+      }
     },
-    [updatePeriod]
+    [updatePeriod, activePeriod, fetchPeriodsFromDB]
   );
 
   /**
@@ -351,6 +381,7 @@ export const useBudgetPeriods = userId => {
 
   /**
    * Delete budget period and all associated expenses
+   * Clears localStorage if deleting the currently active period
    */
   const deletePeriod = useCallback(
     async id => {
@@ -359,11 +390,19 @@ export const useBudgetPeriods = userId => {
       try {
         setError(null);
 
+        // Check if deleting the active period
+        const isDeletingActive = id === activePeriod?.id;
+
         // Delete period (CASCADE will delete all expenses)
         await localDB.query(
           'DELETE FROM budget_periods WHERE id = $1 AND user_id = $2',
           [id, userId]
         );
+
+        // Clear localStorage if we deleted the active period
+        if (isDeletingActive) {
+          localStorage.removeItem(ACTIVE_PERIOD_KEY);
+        }
 
         // Reload periods
         await loadPeriods();
@@ -379,7 +418,7 @@ export const useBudgetPeriods = userId => {
         throw err;
       }
     },
-    [userId, loadPeriods, fetchPeriodsFromDB, syncBudgetPeriods]
+    [userId, activePeriod, loadPeriods, fetchPeriodsFromDB, syncBudgetPeriods]
   );
 
   /**

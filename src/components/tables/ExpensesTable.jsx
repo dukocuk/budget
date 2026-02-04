@@ -265,6 +265,16 @@ const ExpenseRow = memo(
     );
   },
   (prevProps, nextProps) => {
+    // Check if monthlyAmounts arrays are equal
+    const prevMonthly = prevProps.expense.monthlyAmounts;
+    const nextMonthly = nextProps.expense.monthlyAmounts;
+    const monthlyAmountsEqual =
+      (!prevMonthly && !nextMonthly) || // Both null/undefined
+      (prevMonthly &&
+        nextMonthly &&
+        prevMonthly.length === nextMonthly.length &&
+        prevMonthly.every((val, idx) => val === nextMonthly[idx])); // Deep array comparison
+
     // Custom comparison: only re-render if expense data or selection changed
     return (
       prevProps.expense.id === nextProps.expense.id &&
@@ -273,7 +283,8 @@ const ExpenseRow = memo(
       prevProps.expense.frequency === nextProps.expense.frequency &&
       prevProps.expense.startMonth === nextProps.expense.startMonth &&
       prevProps.expense.endMonth === nextProps.expense.endMonth &&
-      prevProps.isSelected === nextProps.isSelected
+      prevProps.isSelected === nextProps.isSelected &&
+      monthlyAmountsEqual // Include monthlyAmounts in comparison
     );
   }
 );
