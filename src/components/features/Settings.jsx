@@ -1,13 +1,14 @@
 /**
  * Settings Component (Tab-Based Design)
  *
- * Redesigned with clean 3-tab navigation:
- * - Budget: Monthly payments, variable mode, previous balance, year status
- * - Synk: Cloud sync status and info
+ * Redesigned with clean 2-tab navigation:
+ * - Budget: Year badge, monthly payments, variable mode, previous balance, year status, sync status
  * - Data: Export/Import, Backup/Restore, Templates
  *
  * Key Improvements:
  * - Tab-based navigation instead of card-heavy scrolling
+ * - Prominent year context badge at top of Budget tab
+ * - Sync information integrated into Budget tab (no separate Sync tab)
  * - Toggle switch for variable payments (replaces radio buttons)
  * - Clean form groups with subtle styling
  * - Mobile-friendly horizontal tabs
@@ -26,7 +27,6 @@ import './Settings.css';
 // Tab configuration
 const TABS = [
   { id: 'budget', label: 'Budget', icon: '💰' },
-  { id: 'sync', label: 'Synk', icon: '☁️' },
   { id: 'data', label: 'Data', icon: '📁' },
 ];
 
@@ -182,6 +182,19 @@ export const Settings = ({
   // Tab content renderers
   const renderBudgetTab = () => (
     <div className="settings-tab-content">
+      {/* Year Context Badge */}
+      {activePeriod && (
+        <div className="year-context-badge">
+          <span className="year-badge-icon">📅</span>
+          <span className="year-badge-text">
+            Budget för {activePeriod.year}
+          </span>
+          <span className={`year-badge-status ${activePeriod.status}`}>
+            {activePeriod.status === 'active' ? '✅ Aktiv' : '📦 Arkiveret'}
+          </span>
+        </div>
+      )}
+
       {/* Monthly Payment */}
       <div className="settings-group">
         <label htmlFor="monthlyPayment" className="settings-label">
@@ -337,13 +350,10 @@ export const Settings = ({
           )}
         </div>
       )}
-    </div>
-  );
 
-  const renderSyncTab = () => (
-    <div className="settings-tab-content">
+      {/* Sync Status Section */}
       <div className="settings-group">
-        <label className="settings-label">Status</label>
+        <label className="settings-label">Synkronisering</label>
         <StatusBadge status={getSyncStatus()} animated={true} />
 
         {lastSyncTime && (
@@ -500,7 +510,6 @@ export const Settings = ({
           className="settings-panel"
         >
           {activeTab === 'budget' && renderBudgetTab()}
-          {activeTab === 'sync' && renderSyncTab()}
           {activeTab === 'data' && renderDataTab()}
         </div>
       </div>
