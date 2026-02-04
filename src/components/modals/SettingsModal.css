@@ -1,3 +1,12 @@
+/**
+ * Settings Modal Styles
+ *
+ * Updated for tab-based Settings design:
+ * - Cleaner header styling
+ * - Adjusted padding for tab layout
+ * - Removed legacy card overrides
+ */
+
 /* Settings Modal Overlay */
 .settings-modal-overlay {
   position: fixed;
@@ -11,10 +20,10 @@
   justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(4px);
-  animation: fadeIn 0.2s ease-out;
+  animation: settingsModalFadeIn 0.2s ease-out;
 }
 
-@keyframes fadeIn {
+@keyframes settingsModalFadeIn {
   from {
     opacity: 0;
   }
@@ -28,16 +37,18 @@
   background: white;
   border-radius: 16px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  max-width: 800px;
+  max-width: 600px;
   width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-height: 85vh;
+  overflow: hidden;
   position: relative;
-  animation: slideUp 0.3s ease-out;
+  animation: settingsModalSlideUp 0.3s ease-out;
   outline: none;
+  display: flex;
+  flex-direction: column;
 }
 
-@keyframes slideUp {
+@keyframes settingsModalSlideUp {
   from {
     transform: translateY(20px);
     opacity: 0;
@@ -48,84 +59,80 @@
   }
 }
 
-/* Modal Header (reuse from AddExpenseModal.css) */
-.settings-modal .modal-header {
+/* Modal Header */
+.settings-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px 24px 16px;
-  border-bottom: 2px solid #e5e7eb;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
 }
 
-.settings-modal .modal-header h2 {
+.settings-modal-header h2 {
   margin: 0;
-  font-size: 1.5em;
+  font-size: 1.25rem;
+  font-weight: 600;
   color: #374151;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.settings-modal .modal-close-btn {
+.settings-modal-close {
   background: none;
   border: none;
-  font-size: 1.5em;
+  font-size: 1.25rem;
   color: #9ca3af;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.15s ease;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
 }
 
-.settings-modal .modal-close-btn:hover {
+.settings-modal-close:hover {
   background-color: #f3f4f6;
   color: #374151;
 }
 
-.settings-modal .modal-close-btn:focus {
+.settings-modal-close:focus-visible {
   outline: 2px solid #667eea;
   outline-offset: 2px;
 }
 
 /* Modal Body */
-.settings-modal .modal-body {
-  padding: 24px;
+.settings-modal-body {
+  padding: 0 24px 24px;
+  overflow-y: auto;
+  flex: 1;
 }
 
-/* Settings Component Adjustments for Modal Context */
-.settings-modal .settings-section {
-  background: none;
-  padding: 0;
-  border-radius: 0;
-  box-shadow: none;
-  margin: 0;
+/* Dark Mode Support */
+:root[data-theme='dark'] .settings-modal {
+  background: #1f2937;
 }
 
-.settings-modal .settings-section h2 {
-  display: none; /* Header already has title */
+:root[data-theme='dark'] .settings-modal-header {
+  border-bottom-color: #374151;
 }
 
-.settings-modal .settings-section h3 {
-  margin-top: 16px;
-  margin-bottom: 12px;
-  font-size: 1.1em;
+:root[data-theme='dark'] .settings-modal-header h2 {
+  color: #f9fafb;
 }
 
-/* Adjust spacing for modal context */
-.settings-modal .sync-status-container {
-  margin-bottom: 24px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid #e5e7eb;
+:root[data-theme='dark'] .settings-modal-close {
+  color: #9ca3af;
 }
 
-.settings-modal .settings-grid {
-  margin-bottom: 24px;
-}
-
-.settings-modal .settings-actions {
-  padding-top: 24px;
-  border-top: 1px solid #e5e7eb;
+:root[data-theme='dark'] .settings-modal-close:hover {
+  background-color: #374151;
+  color: #f9fafb;
 }
 
 /* Responsive Design */
@@ -133,14 +140,19 @@
   .settings-modal {
     width: 95%;
     max-width: none;
+    max-height: 90vh;
   }
 
-  .settings-modal .modal-header h2 {
-    font-size: 1.25em;
+  .settings-modal-header {
+    padding: 16px 20px 12px;
   }
 
-  .settings-modal .modal-body {
-    padding: 20px;
+  .settings-modal-header h2 {
+    font-size: 1.125rem;
+  }
+
+  .settings-modal-body {
+    padding: 0 20px 20px;
   }
 }
 
@@ -151,11 +163,11 @@
     border-radius: 0;
   }
 
-  .settings-modal .modal-header {
-    padding: 20px 16px 12px;
+  .settings-modal-header {
+    padding: 16px;
   }
 
-  .settings-modal .modal-body {
-    padding: 16px;
+  .settings-modal-body {
+    padding: 0 16px 16px;
   }
 }

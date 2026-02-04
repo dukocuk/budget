@@ -1,18 +1,17 @@
 /**
- * Settings Component (Enhanced UX)
+ * Settings Component (Tab-Based Design)
  *
- * Refactored with card-based architecture, progressive disclosure,
- * and modern design system principles (Material Design, Fluent UI).
+ * Redesigned with clean 3-tab navigation:
+ * - Budget: Monthly payments, variable mode, previous balance, year status
+ * - Synk: Cloud sync status and info
+ * - Data: Export/Import, Backup/Restore, Templates
  *
  * Key Improvements:
- * - Card-based information architecture with SettingsCard
- * - SectionHeader for consistent section styling
- * - StatusBadge for sync status indication
- * - Progressive disclosure for payment mode (collapsed/expanded)
- * - Enhanced visual hierarchy with elevation and colors
- * - Improved accessibility (ARIA labels, keyboard navigation)
- * - Mobile-optimized touch targets (44px+)
- * - Dark mode support
+ * - Tab-based navigation instead of card-heavy scrolling
+ * - Toggle switch for variable payments (replaces radio buttons)
+ * - Clean form groups with subtle styling
+ * - Mobile-friendly horizontal tabs
+ * - Improved accessibility
  */
 
 import { useRef, useState, useEffect } from 'react';
@@ -21,10 +20,15 @@ import { useAlertContext } from '../../hooks/useAlertContext';
 import { parseDanishNumber } from '../../utils/localeHelpers';
 import { PaymentModeConfirmation } from '../modals/PaymentModeConfirmation';
 import { BackupManagerModal } from '../modals/BackupManagerModal';
-import { SettingsCard } from '../common/SettingsCard';
-import { SectionHeader } from '../common/SectionHeader';
 import { StatusBadge } from '../common/StatusBadge';
 import './Settings.css';
+
+// Tab configuration
+const TABS = [
+  { id: 'budget', label: 'Budget', icon: '💰' },
+  { id: 'sync', label: 'Synk', icon: '☁️' },
+  { id: 'data', label: 'Data', icon: '📁' },
+];
 
 export const Settings = ({
   monthlyPayment,
@@ -55,6 +59,9 @@ export const Settings = ({
   const { showAlert } = useAlertContext();
   const fileInputRef = useRef(null);
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState('budget');
+
   // Modal states
   const [showBackupManager, setShowBackupManager] = useState(false);
   const [showModeConfirmation, setShowModeConfirmation] = useState(false);
@@ -67,9 +74,6 @@ export const Settings = ({
     useState(previousBalance);
   const [localMonthlyPayments, setLocalMonthlyPayments] = useState(
     monthlyPayments || Array(12).fill(monthlyPayment)
-  );
-  const [localPaymentMode, setLocalPaymentMode] = useState(
-    useVariablePayments ? 'variable' : 'fixed'
   );
 
   // Refs for focus management
@@ -101,14 +105,15 @@ export const Settings = ({
       if (valuesChanged) {
         setLocalMonthlyPayments(monthlyPayments);
       }
-    } else if (localPaymentMode === 'fixed' && !monthlyPayments) {
+    } else if (!useVariablePayments && !monthlyPayments) {
       setLocalMonthlyPayments(Array(12).fill(monthlyPayment));
     }
-  }, [monthlyPayments, monthlyPayment, localPaymentMode, localMonthlyPayments]);
-
-  useEffect(() => {
-    setLocalPaymentMode(useVariablePayments ? 'variable' : 'fixed');
-  }, [useVariablePayments]);
+  }, [
+    monthlyPayments,
+    monthlyPayment,
+    useVariablePayments,
+    localMonthlyPayments,
+  ]);
 
   // Handlers
   const handleImportClick = () => fileInputRef.current?.click();
@@ -134,14 +139,9 @@ export const Settings = ({
     }
   };
 
-  const handlePaymentModeChange = mode => {
-    if (
-      (mode === 'fixed' && localPaymentMode === 'fixed') ||
-      (mode === 'variable' && localPaymentMode === 'variable')
-    ) {
-      return;
-    }
-    setPendingMode(mode);
+  const handleToggleVariablePayments = () => {
+    const newMode = useVariablePayments ? 'fixed' : 'variable';
+    setPendingMode(newMode);
     setShowModeConfirmation(true);
   };
 
@@ -149,7 +149,6 @@ export const Settings = ({
     setShowModeConfirmation(false);
     const mode = pendingMode;
 
-    setLocalPaymentMode(mode);
     if (mode === 'fixed') {
       if (onMonthlyPaymentsChange) onMonthlyPaymentsChange(null);
       if (onTogglePaymentMode) onTogglePaymentMode(false);
@@ -180,6 +179,277 @@ export const Settings = ({
     return syncStatus || 'idle';
   };
 
+  // Tab content renderers
+  const renderBudgetTab = () => (
+    <div className="settings-tab-content">
+      {/* Monthly Payment */}
+      <div className="settings-group">
+        <label htmlFor="monthlyPayment" className="settings-label">
+          Månedlig indbetaling
+        </label>
+        {!useVariablePayments && (
+          <div className="settings-input-row">
+            <input
+              ref={monthlyPaymentRef}
+              type="text"
+              id="monthlyPayment"
+              className="settings-input"
+              value={localMonthlyPayment}
+              onChange={e => {
+                const value = e.target.value;
+                setLocalMonthlyPayment(
+                  value === '' ? 0 : parseDanishNumber(value)
+                );
+              }}
+              onBlur={() => {
+                if (localMonthlyPayment !== monthlyPayment) {
+                  onMonthlyPaymentChange(localMonthlyPayment);
+                }
+              }}
+              placeholder="f.eks. 5.700,00"
+              inputMode="decimal"
+              pattern="[0-9.,]+"
+              aria-label="Fast månedligt beløb"
+            />
+            <span className="settings-input-suffix">kr./måned</span>
+          </div>
+        )}
+
+        {/* Variable toggle */}
+        <div className="settings-toggle-row">
+          <span className="settings-toggle-label">
+            Variabel beløb per måned
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={useVariablePayments}
+            className={`settings-toggle ${useVariablePayments ? 'active' : ''}`}
+            onClick={handleToggleVariablePayments}
+            aria-label="Skift mellem fast og variabel indbetaling"
+          >
+            <span className="settings-toggle-track">
+              <span className="settings-toggle-thumb" />
+            </span>
+          </button>
+        </div>
+
+        {/* Monthly payments grid */}
+        {useVariablePayments && (
+          <div className="monthly-payments-grid">
+            {[
+              'Jan',
+              'Feb',
+              'Mar',
+              'Apr',
+              'Maj',
+              'Jun',
+              'Jul',
+              'Aug',
+              'Sep',
+              'Okt',
+              'Nov',
+              'Dec',
+            ].map((month, index) => (
+              <div key={month} className="month-payment-item">
+                <label htmlFor={`month-${index}`}>{month}</label>
+                <input
+                  ref={el => (monthlyPaymentsRefs.current[index] = el)}
+                  type="text"
+                  id={`month-${index}`}
+                  value={localMonthlyPayments[index]}
+                  onChange={e =>
+                    handleMonthPaymentChange(index, e.target.value)
+                  }
+                  onBlur={handleMonthPaymentBlur}
+                  placeholder="0,00"
+                  inputMode="decimal"
+                  pattern="[0-9.,]+"
+                  aria-label={`${month} indbetaling`}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Previous Balance */}
+      <div className="settings-group">
+        <label htmlFor="previousBalance" className="settings-label">
+          Overført fra sidste år
+        </label>
+        <div className="settings-input-row">
+          <input
+            ref={previousBalanceRef}
+            type="text"
+            id="previousBalance"
+            className="settings-input"
+            value={localPreviousBalance}
+            onChange={e => {
+              const value = e.target.value;
+              setLocalPreviousBalance(
+                value === '' ? 0 : parseDanishNumber(value)
+              );
+            }}
+            placeholder="f.eks. 4.831,00"
+            inputMode="decimal"
+            pattern="[0-9.,]+"
+            onBlur={() => {
+              if (localPreviousBalance !== previousBalance) {
+                onPreviousBalanceChange(localPreviousBalance);
+              }
+            }}
+            aria-label="Overført balance fra sidste år"
+          />
+          <span className="settings-input-suffix">kr.</span>
+        </div>
+      </div>
+
+      {/* Year Status */}
+      {activePeriod && (
+        <div className="settings-group">
+          <label className="settings-label">År-status</label>
+          <div className="year-status-row">
+            <span className={`year-status-badge ${activePeriod.status}`}>
+              {activePeriod.status === 'active' ? '✅ Aktiv' : '📦 Arkiveret'}
+            </span>
+            <span className="year-label">{activePeriod.year}</span>
+          </div>
+          {activePeriod.status === 'active' && onArchivePeriod && (
+            <button
+              className="settings-btn settings-btn-secondary"
+              onClick={() => onArchivePeriod(activePeriod.id)}
+              title="Arkiver dette budgetår"
+            >
+              <span className="btn-icon">📦</span>
+              Arkiver år
+            </button>
+          )}
+          {activePeriod.status === 'archived' && onUnarchivePeriod && (
+            <button
+              className="settings-btn settings-btn-primary"
+              onClick={() => onUnarchivePeriod(activePeriod.id)}
+              title="Genaktiver dette budgetår"
+            >
+              <span className="btn-icon">🔓</span>
+              Genaktiver år
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderSyncTab = () => (
+    <div className="settings-tab-content">
+      <div className="settings-group">
+        <label className="settings-label">Status</label>
+        <StatusBadge status={getSyncStatus()} animated={true} />
+
+        {lastSyncTime && (
+          <p className="sync-time">
+            Sidst synkroniseret: {lastSyncTime.toLocaleString('da-DK')}
+          </p>
+        )}
+
+        {syncError && (
+          <div className="sync-error-message">
+            <p>⚠️ {syncError}</p>
+          </div>
+        )}
+
+        <p className="sync-info">
+          Alle ændringer gemmes automatisk til skyen og synkroniseres på tværs
+          af dine enheder.
+        </p>
+      </div>
+    </div>
+  );
+
+  const renderDataTab = () => (
+    <div className="settings-tab-content">
+      {/* CSV Operations */}
+      <div className="settings-group">
+        <label className="settings-label">CSV</label>
+        <div className="settings-btn-group">
+          <button
+            className="settings-btn settings-btn-success"
+            onClick={onExport}
+            title="Eksporter dine udgifter til CSV-fil"
+          >
+            <span className="btn-icon">📊</span>
+            Eksporter
+          </button>
+          <button
+            className="settings-btn settings-btn-info"
+            onClick={handleImportClick}
+            title="Importer udgifter fra CSV-fil"
+          >
+            <span className="btn-icon">📥</span>
+            Importer
+          </button>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv"
+          onChange={handleFileChange}
+          style={{ display: 'none' }}
+          aria-label="Vælg CSV fil til import"
+        />
+      </div>
+
+      {/* Backup Operations */}
+      <div className="settings-group">
+        <label className="settings-label">Backup</label>
+        <div className="settings-btn-group">
+          <button
+            className="settings-btn settings-btn-primary"
+            onClick={handleCreateBackup}
+            disabled={!isOnline}
+            title={
+              !isOnline
+                ? 'Kræver internetforbindelse'
+                : 'Opret et komplet backup'
+            }
+          >
+            <span className="btn-icon">📦</span>
+            Opret backup
+          </button>
+          <button
+            className="settings-btn settings-btn-secondary"
+            onClick={() => setShowBackupManager(true)}
+            disabled={!isOnline}
+            title={
+              !isOnline
+                ? 'Kræver internetforbindelse'
+                : 'Gendan fra tidligere backup'
+            }
+          >
+            <span className="btn-icon">📋</span>
+            Gendan
+          </button>
+        </div>
+      </div>
+
+      {/* Templates */}
+      <div className="settings-group">
+        <label className="settings-label">Skabeloner</label>
+        <button
+          className="settings-btn settings-btn-info"
+          onClick={onOpenTemplateManager}
+          title="Åbn skabelonstyring"
+        >
+          <span className="btn-icon">📋</span>
+          Administrer skabeloner
+        </button>
+        <p className="settings-note">
+          Gem dit nuværende budget som en genbrugelig skabelon.
+        </p>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <PaymentModeConfirmation
@@ -200,340 +470,39 @@ export const Settings = ({
       />
 
       <div className="settings-container">
-        {/* Budget Settings Section */}
-        <section
-          className="settings-section budget-settings-section"
-          aria-labelledby="budget-section-title"
+        {/* Tab Navigation */}
+        <nav
+          className="settings-tabs"
+          role="tablist"
+          aria-label="Indstillinger sektioner"
         >
-          <SectionHeader
-            icon="📊"
-            title="Budgetindstillinger"
-            badge={activePeriod?.year}
-            badgeVariant="primary"
-            subtitle={`Konfigurer dit budget for ${activePeriod?.year || 'det aktive år'}`}
-            aria-level={2}
-          />
-
-          {/* Year Management Card */}
-          {activePeriod && (
-            <SettingsCard
-              title="År-styring"
-              icon="📅"
-              description="Administrer dit budgetår"
-              collapsible={true}
-              defaultExpanded={false}
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              aria-controls={`tabpanel-${tab.id}`}
+              id={`tab-${tab.id}`}
+              className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
             >
-              <div className="year-info">
-                <div className="year-info-item">
-                  <span className="year-info-label">Status:</span>
-                  <span className={`year-status-badge ${activePeriod.status}`}>
-                    {activePeriod.status === 'active'
-                      ? '✅ Aktiv'
-                      : '📦 Arkiveret'}
-                  </span>
-                </div>
-              </div>
-              {activePeriod.status === 'active' && onArchivePeriod && (
-                <div className="year-actions">
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => onArchivePeriod(activePeriod.id)}
-                    title="Arkiver dette budgetår"
-                  >
-                    <span className="btn-icon">📦</span>
-                    <span>Arkiver år {activePeriod.year}</span>
-                  </button>
-                  <p className="year-note">
-                    💡 Arkivering markerer året som historisk data. Du kan
-                    stadig se det, men ikke redigere.
-                  </p>
-                </div>
-              )}
-              {activePeriod.status === 'archived' && onUnarchivePeriod && (
-                <div className="year-actions">
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => onUnarchivePeriod(activePeriod.id)}
-                    title="Genaktiver dette budgetår for redigering"
-                  >
-                    <span className="btn-icon">🔓</span>
-                    <span>Genaktiver år {activePeriod.year}</span>
-                  </button>
-                  <p className="year-note">
-                    💡 Genaktivering gør året redigerbart igen. Du kan arkivere
-                    det senere hvis nødvendigt.
-                  </p>
-                </div>
-              )}
-            </SettingsCard>
-          )}
+              <span className="settings-tab-icon">{tab.icon}</span>
+              <span className="settings-tab-label">{tab.label}</span>
+            </button>
+          ))}
+        </nav>
 
-          {/* Payment Configuration Card */}
-          <SettingsCard
-            title="Månedlige indbetalinger"
-            icon="💰"
-            description="Konfigurer dine månedlige indbetalinger"
-            highlight={true}
-            required={true}
-          >
-            <div className="payment-mode-selector">
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  name="paymentMode"
-                  value="fixed"
-                  checked={localPaymentMode === 'fixed'}
-                  onChange={() => handlePaymentModeChange('fixed')}
-                  aria-label="Fast beløb for hele året"
-                />
-                <span className="radio-label">Fast beløb for hele året</span>
-              </label>
-
-              {localPaymentMode === 'fixed' && (
-                <div className="fixed-payment-input">
-                  <input
-                    ref={monthlyPaymentRef}
-                    type="text"
-                    id="monthlyPayment"
-                    value={localMonthlyPayment}
-                    onChange={e => {
-                      const value = e.target.value;
-                      setLocalMonthlyPayment(
-                        value === '' ? 0 : parseDanishNumber(value)
-                      );
-                    }}
-                    onBlur={() => {
-                      if (localMonthlyPayment !== monthlyPayment) {
-                        onMonthlyPaymentChange(localMonthlyPayment);
-                      }
-                    }}
-                    placeholder="f.eks. 5.700,00"
-                    inputMode="decimal"
-                    pattern="[0-9.,]+"
-                    aria-label="Fast månedligt beløb"
-                  />
-                  <span className="input-suffix">kr./måned</span>
-                </div>
-              )}
-
-              <label className="radio-option">
-                <input
-                  type="radio"
-                  name="paymentMode"
-                  value="variable"
-                  checked={localPaymentMode === 'variable'}
-                  onChange={() => handlePaymentModeChange('variable')}
-                  aria-label="Variabel beløb per måned"
-                />
-                <span className="radio-label">Variabel beløb per måned</span>
-              </label>
-
-              {localPaymentMode === 'variable' && (
-                <div className="monthly-payments-grid">
-                  {[
-                    'Jan',
-                    'Feb',
-                    'Mar',
-                    'Apr',
-                    'Maj',
-                    'Jun',
-                    'Jul',
-                    'Aug',
-                    'Sep',
-                    'Okt',
-                    'Nov',
-                    'Dec',
-                  ].map((month, index) => (
-                    <div key={month} className="month-payment-item">
-                      <label htmlFor={`month-${index}`}>{month}</label>
-                      <input
-                        ref={el => (monthlyPaymentsRefs.current[index] = el)}
-                        type="text"
-                        id={`month-${index}`}
-                        value={localMonthlyPayments[index]}
-                        onChange={e =>
-                          handleMonthPaymentChange(index, e.target.value)
-                        }
-                        onBlur={handleMonthPaymentBlur}
-                        placeholder="0,00"
-                        inputMode="decimal"
-                        pattern="[0-9.,]+"
-                        aria-label={`${month} indbetaling`}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </SettingsCard>
-
-          {/* Previous Balance Card */}
-          <SettingsCard
-            title="Overført fra sidste år"
-            icon="📥"
-            description="Startbalance fra forrige budgetår"
-          >
-            <div className="fixed-payment-input">
-              <input
-                ref={previousBalanceRef}
-                type="text"
-                id="previousBalance"
-                value={localPreviousBalance}
-                onChange={e => {
-                  const value = e.target.value;
-                  setLocalPreviousBalance(
-                    value === '' ? 0 : parseDanishNumber(value)
-                  );
-                }}
-                placeholder="f.eks. 4.831,00"
-                inputMode="decimal"
-                pattern="[0-9.,]+"
-                onBlur={() => {
-                  if (localPreviousBalance !== previousBalance) {
-                    onPreviousBalanceChange(localPreviousBalance);
-                  }
-                }}
-                aria-label="Overført balance fra sidste år"
-              />
-              <span className="input-suffix">kr.</span>
-            </div>
-          </SettingsCard>
-        </section>
-
-        {/* App Settings Section */}
-        <section
-          className="settings-section app-settings-section"
-          aria-labelledby="app-section-title"
+        {/* Tab Panels */}
+        <div
+          role="tabpanel"
+          id={`tabpanel-${activeTab}`}
+          aria-labelledby={`tab-${activeTab}`}
+          className="settings-panel"
         >
-          <SectionHeader
-            icon="⚙️"
-            title="App-indstillinger"
-            subtitle="Globale indstillinger for hele appen"
-            aria-level={2}
-          />
-
-          {/* Cloud Sync Card */}
-          <SettingsCard
-            title="Sky-synkronisering"
-            icon="☁️"
-            description="Automatisk synkronisering til Google Drive"
-          >
-            <StatusBadge status={getSyncStatus()} animated={true} />
-            {lastSyncTime && (
-              <p className="sync-time">
-                Sidst synkroniseret: {lastSyncTime.toLocaleString('da-DK')}
-              </p>
-            )}
-            {syncError && (
-              <div className="sync-error-message">
-                <p>⚠️ {syncError}</p>
-              </div>
-            )}
-            <p className="sync-info">
-              💡 Alle ændringer gemmes automatisk til skyen og synkroniseres på
-              tværs af dine enheder.
-            </p>
-          </SettingsCard>
-
-          {/* Template Management Card */}
-          <SettingsCard
-            title="Skabeloner"
-            icon="📋"
-            description="Gem og gendan budgetskabeloner"
-            collapsible={true}
-            defaultExpanded={false}
-          >
-            <p className="template-description">
-              Gem dit nuværende budget som en genbrugelig skabelon for hurtigere
-              oprettelse af fremtidige år.
-            </p>
-            <div className="template-actions">
-              <button
-                className="btn btn-info"
-                onClick={onOpenTemplateManager}
-                title="Åbn skabelonstyring"
-              >
-                <span className="btn-icon">📋</span>
-                <span>Administrer skabeloner</span>
-              </button>
-              <p className="template-note">
-                💡 Skabeloner lader dig hurtigt oprette nye budgetår med
-                forudkonfigurerede udgifter.
-              </p>
-            </div>
-          </SettingsCard>
-
-          {/* Data Management Card */}
-          <SettingsCard
-            title="Data håndtering"
-            icon="📁"
-            description="Eksporter, importer og backup"
-            collapsible={true}
-            defaultExpanded={false}
-          >
-            <div className="settings-buttons">
-              <button
-                className="btn btn-success"
-                onClick={onExport}
-                title="Eksporter dine udgifter til CSV-fil"
-              >
-                <span className="btn-icon">📊</span>
-                <span>Eksporter CSV</span>
-              </button>
-              <button
-                className="btn btn-info"
-                onClick={handleImportClick}
-                title="Importer udgifter fra CSV-fil"
-              >
-                <span className="btn-icon">📥</span>
-                <span>Importer CSV</span>
-              </button>
-              <button
-                className="btn btn-primary"
-                onClick={handleCreateBackup}
-                disabled={!isOnline}
-                title={
-                  !isOnline
-                    ? 'Kræver internetforbindelse'
-                    : 'Opret et komplet backup'
-                }
-              >
-                <span className="btn-icon">📦</span>
-                <span>Opret backup</span>
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => setShowBackupManager(true)}
-                disabled={!isOnline}
-                title={
-                  !isOnline
-                    ? 'Kræver internetforbindelse'
-                    : 'Gendan fra tidligere backup'
-                }
-              >
-                <span className="btn-icon">📋</span>
-                <span>Gendan fra backup</span>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                style={{ display: 'none' }}
-                aria-label="Vælg CSV fil til import"
-              />
-            </div>
-            <p className="settings-note">
-              💡 <strong>Automatisk:</strong> Dine data gemmes automatisk til
-              skyen.
-              <br />
-              📊 <strong>CSV:</strong> Eksporter/importer til Excel.
-              <br />
-              📦 <strong>Backup:</strong> Versionerede snapshots med komplet
-              gendannelse.
-            </p>
-          </SettingsCard>
-        </section>
+          {activeTab === 'budget' && renderBudgetTab()}
+          {activeTab === 'sync' && renderSyncTab()}
+          {activeTab === 'data' && renderDataTab()}
+        </div>
       </div>
     </>
   );

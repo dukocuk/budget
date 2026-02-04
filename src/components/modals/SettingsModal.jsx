@@ -1,6 +1,10 @@
 /**
  * Modal wrapper for Settings component
  * Provides modal overlay and accessibility features
+ *
+ * Updated for tab-based Settings design:
+ * - Simpler header (tabs provide section navigation)
+ * - Adjusted padding for tab layout
  */
 
 import Modal from 'react-modal';
@@ -83,10 +87,10 @@ export const SettingsModal = ({
       shouldCloseOnOverlayClick={true}
       shouldCloseOnEsc={true}
     >
-      <div className="modal-header">
+      <div className="settings-modal-header">
         <h2>⚙️ Indstillinger</h2>
         <button
-          className="modal-close-btn"
+          className="settings-modal-close"
           onClick={onClose}
           aria-label="Luk indstillinger"
         >
@@ -94,7 +98,7 @@ export const SettingsModal = ({
         </button>
       </div>
 
-      <div className="modal-body">{settingsContent}</div>
+      <div className="settings-modal-body">{settingsContent}</div>
     </Modal>
   );
 };
