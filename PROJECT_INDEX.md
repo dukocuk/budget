@@ -1,9 +1,9 @@
 # Project Index: Budget Tracker
 
-**Generated:** 2026-01-31
+**Generated:** 2026-02-04
 **Type:** React SPA • Offline-First • Multi-Year Budget Management
 **Language:** Danish (da-DK)
-**Size:** 32 components (7 subdirectories) • 30 hooks • 10 utils • 679 tests
+**Size:** 36 components (7 subdirectories) • 20 hooks • 10 utils • 998 tests
 
 ---
 
@@ -12,10 +12,10 @@
 | Metric | Value |
 |--------|-------|
 | **Tech Stack** | React 19.1.1 • Vite 7.1.7 • PGlite 0.3.10 |
-| **Components** | 32 React components organized in 7 subdirectories |
-| **Hooks** | 30 hook files (10 core + 20 consumer hooks) |
+| **Components** | 36 React components organized in 7 subdirectories |
+| **Hooks** | 20 hooks (10 core + 10 consumer/utility) |
 | **Utilities** | 10 modules (calculations, validators, localeHelpers, logger) |
-| **Tests** | 679 passing tests (Vitest + @testing-library/react) |
+| **Tests** | 998 passing tests (Vitest + @testing-library/react) |
 | **Build Size** | ~280KB (~85KB compressed) |
 | **Performance** | <50ms operations |
 
@@ -38,7 +38,7 @@
 ```
 budget/
 ├── src/
-│   ├── components/                 # 32 UI components in 7 subdirectories
+│   ├── components/                 # 36 UI components in 7 subdirectories
 │   │   ├── cards/                  # 3 components
 │   │   │   ├── SummaryCards.jsx    # Budget metric cards
 │   │   │   ├── MonthlyCard.jsx     # Mobile monthly view
@@ -48,7 +48,7 @@ budget/
 │   │   │   ├── BalanceChart.jsx    # Monthly balance visualization
 │   │   │   └── YearComparisonCharts.jsx  # Multi-year comparison
 │   │   │
-│   │   ├── common/                 # 9 components
+│   │   ├── common/                 # 13 components
 │   │   │   ├── Alert.jsx           # Toast notifications
 │   │   │   ├── ErrorBoundary.jsx   # Error handling wrapper
 │   │   │   ├── TabView.jsx         # Tabbed navigation
@@ -57,7 +57,11 @@ budget/
 │   │   │   ├── BottomSheet.jsx     # Mobile bottom sheet
 │   │   │   ├── BottomTabBar.jsx    # Mobile navigation
 │   │   │   ├── UnifiedLoadingScreen.jsx  # Loading with progress
-│   │   │   └── MonthlyOverview.jsx # Monthly totals view
+│   │   │   ├── MonthlyOverview.jsx # Monthly totals view
+│   │   │   ├── FormField.jsx       # Reusable form input component
+│   │   │   ├── SectionHeader.jsx   # Section header with icon
+│   │   │   ├── SettingsCard.jsx    # Settings card container
+│   │   │   └── StatusBadge.jsx     # Status indicator badge
 │   │   │
 │   │   ├── core/                   # 4 components
 │   │   │   ├── Auth.jsx            # Google OAuth login
@@ -67,7 +71,7 @@ budget/
 │   │   │
 │   │   ├── features/               # 3 components
 │   │   │   ├── ExpenseManager.jsx  # Expense CRUD table
-│   │   │   ├── Settings.jsx        # Configuration
+│   │   │   ├── Settings.jsx        # Configuration (refactored Feb 2026)
 │   │   │   └── TemplateManager.jsx # Budget templates
 │   │   │
 │   │   ├── modals/                 # 9 components
@@ -85,7 +89,7 @@ budget/
 │   │       ├── ExpensesTable.jsx   # Filterable expense table
 │   │       └── MonthlyView.jsx     # 12-month breakdown
 │   │
-│   ├── hooks/          # 30 hook files (10 core + 20 consumer)
+│   ├── hooks/          # 20 hook files (10 core + 10 consumer/utility)
 │   │   ├── useExpenses.js              # Expense CRUD + undo/redo
 │   │   ├── useAuth.js                  # Google OAuth authentication
 │   │   ├── useBudgetPeriods.js         # Multi-year budget management
@@ -205,7 +209,7 @@ User Action → PGlite (instant) → Debounce (1s) → Google Drive → Poll (30
 
 ---
 
-## 🎣 Complete Hooks Reference (20 Total)
+## 🎣 Complete Hooks Reference (20 Hooks)
 
 | Hook | Returns | Purpose | Used By |
 |------|---------|---------|---------|
@@ -346,10 +350,11 @@ User Action → PGlite (instant) → Debounce (1s) → Google Drive → Poll (30
 
 | Category | Files | Tests | Coverage |
 |----------|-------|-------|----------|
-| **Components** | 15 test files | 350+ tests | Component behavior, user interactions |
-| **Hooks** | 12 test files | 220+ tests | State management, CRUD operations |
-| **Utils** | 8 test files | 109 tests | Calculations, validation, locale |
-| **Total** | **35 test files** | **679 tests** | **Comprehensive** |
+| **Components** | 18 test files | 400+ tests | Component behavior, user interactions |
+| **Hooks** | 18 test files | 350+ tests | State management, CRUD operations |
+| **Utils** | 9 test files | 150+ tests | Calculations, validation, locale |
+| **Integration** | 7 test files | 98 tests | End-to-end workflows |
+| **Total** | **52 test files** | **998 tests** | **Comprehensive** |
 
 **Key Test Files:**
 - `src/hooks/useExpenses.test.js` - Expense CRUD + undo/redo
@@ -489,20 +494,22 @@ For detailed information, see:
 - **docs/COMPONENTS.md** - Detailed component documentation and UI patterns
 - **docs/HISTORY.md** - Project phases, improvements, and standards
 
-### Recent Improvements (December 2025)
+### Recent Improvements (February 2026)
 
-**Console Noise Reduction & Loading Fix:**
+**Settings UX Refactoring:**
+- Refactored Settings.jsx with new reusable components (FormField, SectionHeader, SettingsCard, StatusBadge)
+- Improved visual hierarchy and organization
+- Better mobile responsiveness
+
+**Documentation Maintenance:**
+- Consolidated session artifacts into claudedocs/
+- Updated test count: 998 tests passing (up from 679)
+- Cleaned orphaned documentation files
+
+**Previous Improvements (December 2025):**
 - Added `logger.debug()` method for dev-only technical logging (src/utils/logger.js:45-54)
-- Converted orphaned expense cleaning warnings to debug logs (src/utils/validators.js:257)
-- Simplified user-facing messages ("Data cleaned: N items synchronized")
-- Fixed loading screen hang by correcting `useDataInitialization` initial state (src/hooks/useDataInitialization.js:39)
-- Result: Clean startup console output with proper loading screen behavior
-
-**Test Infrastructure:**
-- Fixed module-level singleton pollution in tests with `resetAuthSingletons()` (src/hooks/useAuth.js:24-27)
-- All 679 tests passing (previously 676/679 due to singleton state leaking between tests)
-- Added ESLint disable comments for intentional dependency exclusions
-- Improved test isolation and reliability
+- Fixed loading screen hang by correcting `useDataInitialization` initial state
+- Fixed module-level singleton pollution in tests with `resetAuthSingletons()`
 
 ---
 
@@ -525,6 +532,32 @@ For detailed information, see:
 - **Sync Upload:** <300ms (JSON upload to Google Drive)
 - **Build Size:** ~280KB (~85KB compressed)
 - **Console Logs:** 22 strategic log points for debugging
+
+---
+
+---
+
+## 📂 Documentation Structure
+
+```
+Root Level (3 files):
+├── CLAUDE.md           # Primary developer guide
+├── PROJECT_INDEX.md    # Quick reference (this file)
+└── README.md           # User-facing documentation
+
+docs/ (12 files):
+├── ARCHITECTURE.md     # Full architecture, state management
+├── COMPONENTS.md       # Detailed component documentation
+├── HOOKS_REFERENCE.md  # Complete hooks documentation
+├── MULTI_YEAR.md       # Multi-year workflows
+├── OAUTH_GUIDE.md      # OAuth setup and troubleshooting
+├── USER_STORIES.md     # User stories reference
+└── INTEGRATION_TEST_*.md  # Test documentation (4 files)
+
+claudedocs/ (12 files):
+├── Session artifacts and development summaries
+└── archived/           # Historical documentation
+```
 
 ---
 

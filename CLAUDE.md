@@ -26,15 +26,15 @@ npm run lint         # ESLint
 ## Directory Structure
 ```
 src/
-├── components/         # 32 components organized in 7 subdirectories
+├── components/         # 36 components organized in 7 subdirectories
 │   ├── cards/          # 3 components: SummaryCards, MonthlyCard, ExpenseCard
 │   ├── charts/         # 2 components: BalanceChart, YearComparisonCharts
-│   ├── common/         # 9 components: Alert, ErrorBoundary, TabView, UnifiedLoadingScreen, etc.
+│   ├── common/         # 13 components: Alert, ErrorBoundary, TabView, FormField, SettingsCard, etc.
 │   ├── core/           # 4 components: Auth, Dashboard, Header, Layout
 │   ├── features/       # 3 components: ExpenseManager, Settings, TemplateManager
 │   ├── modals/         # 9 components: All modal dialogs and confirmations
 │   └── tables/         # 2 components: ExpensesTable, MonthlyView
-├── hooks/              # 30 hook files (10 core hooks + 20 consumer hooks)
+├── hooks/              # 20 hooks (10 core + 10 consumer/utility)
 ├── utils/              # 10 utility modules (calculations, validators, localeHelpers, etc.)
 ├── lib/                # External integrations (pglite.js, googleDrive.js)
 └── contexts/           # 6 React contexts (.js) and providers (.jsx)
@@ -242,8 +242,8 @@ npm run test:coverage   # Coverage report
 ## Quick Reference
 
 ### Stats
-- **Components**: 32 | **Hooks**: 20 | **Utils**: 10
-- **Tests**: 679 passing | **Coverage**: Comprehensive
+- **Components**: 36 | **Hooks**: 20 | **Utils**: 10
+- **Tests**: 998 passing | **Coverage**: Comprehensive
 - **Performance**: <50ms operations | **Console logs**: 22 strategic
 - **Build**: ~280KB (~85KB compressed)
 
