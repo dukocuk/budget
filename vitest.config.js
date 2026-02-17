@@ -30,7 +30,6 @@ export default defineConfig({
         'src/lib/pglite.js',
         'src/hooks/useSyncContext.js',
         'src/hooks/useAuth.js',
-        'src/hooks/useSettings.js',
         'src/hooks/useExpenses.js',
         'src/components/Auth.jsx',
         'src/components/Header.jsx',
