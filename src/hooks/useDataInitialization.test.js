@@ -159,4 +159,30 @@ describe('useDataInitialization', () => {
       expect(defaultParams.setAllExpenses).not.toHaveBeenCalled();
     });
   });
+
+  it('first-time user gets no initial data (clean slate)', async () => {
+    // Simulate first-time user: cloud returns empty expenses and periods
+    defaultParams.loadExpenses = vi.fn().mockResolvedValue({
+      success: true,
+      data: [],
+    });
+    defaultParams.loadBudgetPeriods = vi.fn().mockResolvedValue({
+      success: true,
+      data: [],
+    });
+    defaultParams.fetchPeriodsFromDB = vi.fn().mockResolvedValue([]);
+
+    renderHook(() => useDataInitialization(defaultParams));
+
+    await waitFor(() => {
+      expect(defaultParams.setIsInitialized).toHaveBeenCalledWith(true);
+    });
+
+    // No expenses should be set for a first-time user
+    expect(defaultParams.setAllExpenses).not.toHaveBeenCalled();
+    // No budget periods to sync to cloud
+    expect(defaultParams.immediateSyncBudgetPeriods).not.toHaveBeenCalled();
+    // Initial load ref should be cleared
+    expect(defaultParams.isInitialLoadRef.current).toBe(false);
+  });
 });
