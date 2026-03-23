@@ -5,7 +5,7 @@
  * status class variants, content show/hide.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SettingsCard } from './SettingsCard';
@@ -152,7 +152,6 @@ describe('SettingsCard', () => {
     });
 
     it('does not respond to clicks when not collapsible', async () => {
-      const user = userEvent.setup();
       render(<SettingsCard {...defaultProps} collapsible={false} />);
 
       // No button role when not collapsible

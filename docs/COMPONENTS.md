@@ -2,9 +2,9 @@
 
 ## Component Overview
 
-**Total**: 32 components organized in 7 subdirectories
+**Total**: 36 components organized in 7 subdirectories
 **Organization**: cards/ • charts/ • common/ • core/ • features/ • modals/ • tables/
-**Last Updated**: 2025-01-30
+**Last Updated**: 2026-03-23
 
 ---
 

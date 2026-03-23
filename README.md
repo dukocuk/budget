@@ -195,7 +195,7 @@ Deploy the `dist/` directory to any static hosting service:
 ## 📚 Documentation
 
 - **[CLAUDE.md](./CLAUDE.md)** - Comprehensive developer guide with architecture details
-- **[OAUTH_DEBUG.md](./OAUTH_DEBUG.md)** - OAuth authentication troubleshooting
+- **[OAUTH_DEBUG.md](./claudedocs/archived/OAUTH_DEBUG.md)** - OAuth authentication troubleshooting
 
 ## 🔧 Available Commands
 

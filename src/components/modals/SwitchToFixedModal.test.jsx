@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SwitchToFixedModal } from './SwitchToFixedModal';
 
@@ -43,7 +43,6 @@ describe('SwitchToFixedModal', () => {
   });
 
   it('shows error when confirming with empty amount', async () => {
-    const user = userEvent.setup();
     render(<SwitchToFixedModal {...defaultProps} />);
 
     // Button should be disabled when input is empty

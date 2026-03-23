@@ -79,17 +79,17 @@ Search and filtering functionality.
 
 **Implementation**: `src/hooks/useExpenseFilters.js`
 
-#### useSettings(userId, periodId)
-Settings management with dual persistence (PGlite + Google Drive).
+#### useSettingsHandlers({activePeriod, updatePeriod, archivePeriod, unarchivePeriod, showAlert})
+Handler functions for SettingsModal operations.
 
 **Returns**:
-- `settings`: `{monthlyPayment, previousBalance, monthlyPayments}`
-- `loading`: Loading state
-- `error`: Error messages
-- `updateSettings(newSettings)`: Update with dual sync
+- `handleMonthlyPaymentChange(value)`: Update monthly payment
+- `handlePreviousBalanceChange(value)`: Update previous balance
+- `handleToggleVariablePayments()`: Toggle variable payment mode
+- `handleArchivePeriod()`: Archive active period
+- `handleUnarchivePeriod()`: Unarchive active period
 
-**Implementation**: `src/hooks/useSettings.js`
-**Persistence**: PGlite (local) + Google Drive (cloud), automatic upsert
+**Implementation**: `src/hooks/useSettingsHandlers.js`
 
 #### useAlert()
 Centralized notification system.

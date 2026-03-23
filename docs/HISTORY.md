@@ -7,7 +7,7 @@
 
 **Achievements**:
 - ✅ Component-based architecture (from 530-line monolithic App.jsx)
-- ✅ Custom hooks: useExpenses, useAlert, useAuth, useExpenseFilters, useSettings
+- ✅ Custom hooks: useExpenses, useAlert, useAuth, useExpenseFilters, useSettingsHandlers
 - ✅ Pure utility functions (calculations, validators, importHelpers, exportHelpers)
 - ✅ Undo/Redo functionality with keyboard shortcuts
 - ✅ ErrorBoundary for graceful error handling
@@ -112,7 +112,7 @@
 
 ### Codebase
 - **Total components**: 30+ (17 core + 3 main views + 5 modals + 3 year management + templates)
-- **Custom hooks**: 10 (useExpenses, useAlert, useAuth, useBudgetPeriods, useDebounce, useExpenseFilters, useOnlineStatus, useSettings, useSyncContext, useViewportSize)
+- **Custom hooks**: 10 (useExpenses, useAlert, useAuth, useBudgetPeriods, useDebounce, useExpenseFilters, useOnlineStatus, useSettingsHandlers, useSyncContext, useViewportSize)
 - **Utility modules**: 10 (calculations, validators, exportHelpers, importHelpers, seed, constants, logger, uuid, yearComparison, localeHelpers)
 - **Calculation functions**: 8 (annual, monthly, summary, totals, projection, grouping, breakdown, validation)
 - **Total lines of code**: ~8000+ (modular, optimized, test-covered, production-ready)

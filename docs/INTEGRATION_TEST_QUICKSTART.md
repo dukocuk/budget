@@ -193,7 +193,7 @@ Before submitting:
 **Documentation**:
 - `docs/INTEGRATION_TEST_FINAL_SUMMARY.md` - Complete overview
 - `docs/INTEGRATION_TEST_CURRENT_STATUS.md` - Detailed status
-- `docs/INTEGRATION_TEST_PROGRESS.md` - Implementation plan
+- `docs/INTEGRATION_TEST_FINAL_SUMMARY.md` - Implementation plan and overview
 
 ---
 
